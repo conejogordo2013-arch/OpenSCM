@@ -1,0 +1,103 @@
+#include "../std.scmlh"
+
+:MAIN
+03E5: "~b~OpenSCM ~w~// Really Complex SCM Mission"
+SET($inputA, 17)
+SET($inputB, 9)
+SET($player_name, "CJ")
+SET($district, "Los Santos")
+SET($mode, "analysis")
+
+ARRAY_CREATE(6, $numbers)
+ARRAY_SET($numbers, 0, 3)
+ARRAY_SET($numbers, 1, 5)
+ARRAY_SET($numbers, 2, 8)
+ARRAY_SET($numbers, 3, 13)
+ARRAY_SET($numbers, 4, 21)
+ARRAY_SET($numbers, 5, 34)
+
+SET($idx, 0)
+SET($sum, 0)
+:SUM_LOOP
+IF_LT($idx, 6, @SUM_BODY)
+JUMP(@SUM_DONE)
+:SUM_BODY
+ARRAY_GET($value, $numbers, $idx)
+ADD($sum, $sum, $value)
+ADD($idx, $idx, 1)
+JUMP(@SUM_LOOP)
+:SUM_DONE
+03E5: "Collected patrol stats:"
+03E5: $sum
+
+CALL @FUNC_BUILD_SCORE
+CALL @FUNC_COMPLEX_DECISION
+CALL @FUNC_HEAP_ROUNDTRIP
+
+03E5: "Final respect score:"
+03E5: $score
+03E5: "Threat tier:"
+03E5: $decision
+03E5: "Heap mirror value:"
+03E5: $heapMirror
+
+EVENT_BIND("ON_COMPLEX_EVENT", @ON_COMPLEX_EVENT_A)
+EVENT_BIND("ON_COMPLEX_EVENT", @ON_COMPLEX_EVENT_B)
+TRIGGER_EVENT("ON_COMPLEX_EVENT")
+03E5: "Event dispatch queued..."
+END_SCRIPT()
+
+:FUNC_BUILD_SCORE
+MUL($weightedA, $inputA, 4)
+MUL($weightedB, $inputB, 7)
+ADD($baseScore, $weightedA, $weightedB)
+DIV($normalized, $baseScore, 3)
+ADD($score, $normalized, $sum)
+0D01:
+
+:FUNC_COMPLEX_DECISION
+IF_GT($score, 90, @DEC_HIGH)
+IF_GT($score, 50, @DEC_MED)
+SET($decision, "LOW")
+0D01:
+:DEC_MED
+IF_EQ($mode, "analysis", @DEC_MED_ANALYSIS)
+SET($decision, "MEDIUM")
+0D01:
+:DEC_MED_ANALYSIS
+SET($decision, "MEDIUM_ANALYSIS")
+0D01:
+:DEC_HIGH
+SET($decision, "HIGH")
+0D01:
+
+:FUNC_HEAP_ROUNDTRIP
+0C00: 3 $heap
+0C01: $heap 0 $sum
+0C01: $heap 1 $score
+0C01: $heap 2 $inputA
+0C02: $heapMirror $heap 1
+FREE($heap)
+0D01:
+
+:ON_COMPLEX_EVENT_A
+03E5: "[Dispatch A] Caller:"
+03E5: $player_name
+03E5: "[Dispatch A] Zone:"
+03E5: $district
+03E5: "[Dispatch A] Tier:"
+03E5: $decision
+0D02:
+
+:ON_COMPLEX_EVENT_B
+SET($check, 0)
+IF_EQ($decision, "HIGH", @EVENT_SET_ONE)
+IF_EQ($decision, "MEDIUM_ANALYSIS", @EVENT_SET_ONE)
+JUMP(@EVENT_PRINT)
+:EVENT_SET_ONE
+SET($check, 1)
+:EVENT_PRINT
+03E5: "[Dispatch B] Permission flag:"
+03E5: $check
+03E5: "~g~Mission logic complete."
+0D02:
