@@ -1,0 +1,35 @@
+; GTA vehicle wrappers.
+
+macro CREATE_CAR(model, x, y, z, outvar):
+    CALL "GTA_CreateCar" model x y z
+    0004: outvar $RETVAL
+endmacro
+
+macro DELETE_CAR(car):
+    CALL "GTA_DeleteCar" car
+endmacro
+
+macro MARK_CAR_AS_NO_LONGER_NEEDED(car):
+    CALL "GTA_MarkCarAsNoLongerNeeded" car
+endmacro
+
+macro IS_CAR_DEAD(car):
+    CALL "GTA_IsCarDead" car
+    0004: $GTA_LAST_CONDITION $RETVAL
+endmacro
+
+macro SET_CAR_HEALTH(car, health):
+    CALL "GTA_SetCarHealth" car health
+endmacro
+
+macro REPAIR_CAR(car):
+    CALL "GTA_RepairCar" car
+endmacro
+
+macro SET_CAR_COORDINATES(car, x, y, z):
+    CALL "GTA_SetCarCoordinates" car x y z
+endmacro
+
+macro SET_CAR_HEADING(car, heading):
+    CALL "GTA_SetCarHeading" car heading
+endmacro

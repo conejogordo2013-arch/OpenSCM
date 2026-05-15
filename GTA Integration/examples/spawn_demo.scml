@@ -1,0 +1,21 @@
+#include "../scmlh/gtasa.scmlh"
+
+:MAIN
+PRINT_NOW("OpenSCM GTA host online", 2000)
+REQUEST_MODEL(411)
+
+:WAIT_MODEL
+HAS_MODEL_LOADED(411)
+GOTO_IF_FALSE(@WAIT_MODEL)
+
+CREATE_CAR(411, 0.0, 0.0, 5.0, car)
+SET_CAR_HEADING(car, 90.0)
+MARK_MODEL_AS_NO_LONGER_NEEDED(411)
+PRINT_NOW("Infernus handle stored in car", 2000)
+
+:LOOP
+WAIT(0)
+IS_CAR_DEAD(car)
+GOTO_IF_FALSE(@LOOP)
+PRINT_NOW("Car destroyed", 2000)
+TERMINATE_THIS_SCRIPT()

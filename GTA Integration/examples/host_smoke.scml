@@ -1,0 +1,14 @@
+#include "../scmlh/gtasa.scmlh"
+
+:MAIN
+PRINT_NOW("SCML GTA host smoke test", 1000)
+CREATE_CAR(411, 1.0, 2.0, 3.0, car)
+SET_CAR_HEALTH(car, 250)
+IS_CAR_DEAD(car)
+GOTO_IF_FALSE(@ALIVE)
+PRINT_NOW("unexpected dead car", 1000)
+TERMINATE_THIS_SCRIPT()
+
+:ALIVE
+PRINT_NOW("car alive", 1000)
+TERMINATE_THIS_SCRIPT()

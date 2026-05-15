@@ -1,0 +1,36 @@
+; GTA actor/ped wrappers.
+
+macro CREATE_CHAR(pedtype, model, x, y, z, outvar):
+    CALL "GTA_CreateChar" pedtype model x y z
+    0004: outvar $RETVAL
+endmacro
+
+macro DELETE_CHAR(actor):
+    CALL "GTA_DeleteChar" actor
+endmacro
+
+macro MARK_CHAR_AS_NO_LONGER_NEEDED(actor):
+    CALL "GTA_MarkCharAsNoLongerNeeded" actor
+endmacro
+
+macro IS_CHAR_DEAD(actor):
+    CALL "GTA_IsCharDead" actor
+    0004: $GTA_LAST_CONDITION $RETVAL
+endmacro
+
+macro SET_CHAR_HEALTH(actor, health):
+    CALL "GTA_SetCharHealth" actor health
+endmacro
+
+macro GET_CHAR_HEALTH(actor, outvar):
+    CALL "GTA_GetCharHealth" actor
+    0004: outvar $RETVAL
+endmacro
+
+macro SET_CHAR_COORDINATES(actor, x, y, z):
+    CALL "GTA_SetCharCoordinates" actor x y z
+endmacro
+
+macro TASK_STAND_STILL(actor, time_ms):
+    CALL "GTA_TaskStandStill" actor time_ms
+endmacro

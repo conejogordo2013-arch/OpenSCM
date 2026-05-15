@@ -1,0 +1,92 @@
+; SCM-style control-flow helpers for SCML.
+; This header is pure SCML macro code: it does not add syntax, opcodes, or VM behavior.
+;
+; Labels are still normal SCML labels (:NAME) and label references (@NAME).
+; Multi-argument condition helpers use comma-separated macro arguments.
+
+macro goto(label):
+    000A: label
+endmacro
+
+macro GOTO(label):
+    000A: label
+endmacro
+
+macro gosub(label):
+    CALL label
+endmacro
+
+macro GOSUB(label):
+    CALL label
+endmacro
+
+macro RETURN():
+    return
+endmacro
+
+macro END_SCRIPT():
+    end_thread
+endmacro
+
+macro terminate_this_script():
+    end_thread
+endmacro
+
+macro wait(ms):
+    000B: ms
+endmacro
+
+macro WAIT(ms):
+    000B: ms
+endmacro
+
+; Branch directly when a comparison is true.
+macro if_eq_goto(a, b, label):
+    00D6: a b label
+endmacro
+
+macro if_ne_goto(a, b, label):
+    00D7: a b label
+endmacro
+
+macro if_gt_goto(a, b, label):
+    00D8: a b label
+endmacro
+
+macro if_lt_goto(a, b, label):
+    00D9: a b label
+endmacro
+
+; SCM-like if/else helpers: jump to true_label when true, otherwise jump to false_label.
+macro if_eq(a, b, true_label, false_label):
+    00D6: a b true_label
+    000A: false_label
+endmacro
+
+macro if_ne(a, b, true_label, false_label):
+    00D7: a b true_label
+    000A: false_label
+endmacro
+
+macro if_gt(a, b, true_label, false_label):
+    00D8: a b true_label
+    000A: false_label
+endmacro
+
+macro if_lt(a, b, true_label, false_label):
+    00D9: a b true_label
+    000A: false_label
+endmacro
+
+; Condition flag helpers for code that already stores 0/1 booleans in a variable.
+macro goto_if_false(condition, label):
+    00D6: condition 0 label
+endmacro
+
+macro goto_if_true(condition, label):
+    00D7: condition 0 label
+endmacro
+
+macro else_goto(label):
+    000A: label
+endmacro

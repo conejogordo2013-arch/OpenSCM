@@ -1,0 +1,156 @@
+; std.scmlh - general-purpose SCML standard library.
+; This file intentionally contains no GTA/game-specific behavior.
+; It aggregates the existing SCML wrappers plus SCM-style control-flow helpers,
+; then adds aliases for the core language opcodes so scripts can use one include.
+
+#include "stscm.scml"
+#include "scm_flow.scmlh"
+
+#define TRUE 1
+#define FALSE 0
+#define NULL 0
+
+; Core VM / opcode aliases.
+macro NOP():
+    0000:
+endmacro
+
+macro HALT():
+    0001:
+endmacro
+
+macro SET(var, value):
+    0004: var value
+endmacro
+
+macro STORE(var, value):
+    0004: var value
+endmacro
+
+macro PUSH_INT(value):
+    0002: value
+endmacro
+
+macro PUSH_STR(value):
+    0003: value
+endmacro
+
+macro LOAD(value):
+    0005: value
+endmacro
+
+macro ADD(outvar, a, b):
+    0006: outvar a b
+endmacro
+
+macro SUB(outvar, a, b):
+    0007: outvar a b
+endmacro
+
+macro MUL(outvar, a, b):
+    0008: outvar a b
+endmacro
+
+macro DIV(outvar, a, b):
+    0009: outvar a b
+endmacro
+
+macro JUMP(label):
+    000A: label
+endmacro
+
+macro IF_EQ(a, b, label):
+    00D6: a b label
+endmacro
+
+macro IF_NE(a, b, label):
+    00D7: a b label
+endmacro
+
+macro IF_GT(a, b, label):
+    00D8: a b label
+endmacro
+
+macro IF_LT(a, b, label):
+    00D9: a b label
+endmacro
+
+; Lowercase aliases for scripts written in a more SCM-like style.
+macro set(var, value):
+    0004: var value
+endmacro
+
+macro add(outvar, a, b):
+    0006: outvar a b
+endmacro
+
+macro sub(outvar, a, b):
+    0007: outvar a b
+endmacro
+
+macro mul(outvar, a, b):
+    0008: outvar a b
+endmacro
+
+macro div(outvar, a, b):
+    0009: outvar a b
+endmacro
+
+; Label-based if/else aliases with explicit true/false labels.
+macro IF_ELSE_EQ(a, b, true_label, false_label):
+    00D6: a b true_label
+    000A: false_label
+endmacro
+
+macro IF_ELSE_NE(a, b, true_label, false_label):
+    00D7: a b true_label
+    000A: false_label
+endmacro
+
+macro IF_ELSE_GT(a, b, true_label, false_label):
+    00D8: a b true_label
+    000A: false_label
+endmacro
+
+macro IF_ELSE_LT(a, b, true_label, false_label):
+    00D9: a b true_label
+    000A: false_label
+endmacro
+
+; Memory aliases over the heap/array opcodes already provided by SCML.
+macro HEAP_ALLOC(size, outvar):
+    0B10: size outvar
+endmacro
+
+macro HEAP_FREE(ref):
+    0B11: ref
+endmacro
+
+macro HEAP_READ(outvar, ref, index):
+    0B12: outvar ref index
+endmacro
+
+macro HEAP_WRITE(ref, index, value):
+    0B13: ref index value
+endmacro
+
+macro ARRAY_NEW(size, outvar):
+    0B14: size outvar
+endmacro
+
+macro ARRAY_GET(outvar, ref, index):
+    0B12: outvar ref index
+endmacro
+
+macro ARRAY_SET(ref, index, value):
+    0B13: ref index value
+endmacro
+
+; Event aliases.
+macro BIND_EVENT(name, label):
+    0A30: name label
+endmacro
+
+macro TRIGGER_EVENT(name):
+    0A31: name
+endmacro
