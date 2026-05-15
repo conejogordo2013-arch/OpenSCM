@@ -1,0 +1,4 @@
+#define START_HEALTH 25
+macro heal_player():
+    CALL @FUNC_HEAL_PLAYER
+endmacro

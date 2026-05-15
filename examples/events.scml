@@ -1,0 +1,14 @@
+#include "../stscm/stscm.scml"
+:MAIN
+EVENT_BIND("PLAYER_DAMAGE", @ON_PLAYER_DAMAGE)
+EVENT_BIND("PLAYER_DAMAGE", @ON_PLAYER_DAMAGE_LOG)
+EVENT_TRIGGER("PLAYER_DAMAGE")
+end_thread
+
+:ON_PLAYER_DAMAGE
+PRINT("Player took damage")
+end_thread
+
+:ON_PLAYER_DAMAGE_LOG
+LOG_FILE("log.txt", "PLAYER_DAMAGE dispatched")
+end_thread

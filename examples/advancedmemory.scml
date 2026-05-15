@@ -1,0 +1,9 @@
+#include "../stscm/stscm.scml"
+:MAIN
+ARRAY_CREATE(3, inv)
+WRITE(inv, 0, 101)
+WRITE(inv, 1, 202)
+READ(item, inv, 1)
+PRINT(item)
+FREE(inv)
+0001:

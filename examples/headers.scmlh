@@ -1,0 +1,4 @@
+#define TEN 10
+macro say(msg):
+    03E5: msg
+endmacro
