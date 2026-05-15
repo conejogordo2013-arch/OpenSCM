@@ -1,0 +1,22 @@
+; STSCM - standard library wrappers built as macros over core SCML opcodes.
+macro PRINT(msg):
+    03E5: msg
+endmacro
+macro LOG(msg):
+    03E6: msg
+endmacro
+macro FILE_WRITE(path, data):
+    0A20: path data
+endmacro
+macro FILE_READ(path, outvar):
+    0A10: path outvar
+endmacro
+macro WAIT(ms):
+    000B: ms
+endmacro
+macro ENTITY_SPAWN(model, x, y, z, outvar):
+    0B00: model x y z outvar
+endmacro
+macro HEAP_ALLOC(size, outvar):
+    0C00: size outvar
+endmacro

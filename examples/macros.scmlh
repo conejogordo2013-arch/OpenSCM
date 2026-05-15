@@ -1,0 +1,6 @@
+macro log(msg):
+    0A20: "log.txt" msg
+endmacro
+macro screen(msg):
+    03E5: msg
+endmacro

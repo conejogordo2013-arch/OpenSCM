@@ -1,0 +1,65 @@
+#include "opcode.h"
+#include <ctype.h>
+#include <string.h>
+
+static const ScmlOpcodeInfo g_opcodes[] = {
+    {0x0000, SCML_OP_NOP, "NOP", 0, 0},
+    {0x0001, SCML_OP_HALT, "HALT", 0, 0},
+    {0x0002, SCML_OP_PUSH_INT, "PUSH_INT", 1, 1},
+    {0x0003, SCML_OP_PUSH_STR, "PUSH_STR", 1, 1},
+    {0x0004, SCML_OP_STORE, "SET", 2, 2},
+    {0x0005, SCML_OP_LOAD, "GET", 1, 1},
+    {0x0006, SCML_OP_ADD, "ADD", 3, 3},
+    {0x0007, SCML_OP_SUB, "SUB", 3, 3},
+    {0x0008, SCML_OP_MUL, "MUL", 3, 3},
+    {0x0009, SCML_OP_DIV, "DIV", 3, 3},
+    {0x000A, SCML_OP_JMP, "JUMP", 1, 1},
+    {0x000B, SCML_OP_WAIT, "WAIT", 1, 1},
+    {0x00D6, SCML_OP_IF_EQ, "IF_EQ", 3, 3},
+    {0x00D7, SCML_OP_IF_NE, "IF_NE", 3, 3},
+    {0x00D8, SCML_OP_IF_GT, "IF_GT", 3, 3},
+    {0x00D9, SCML_OP_IF_LT, "IF_LT", 3, 3},
+    {0x03E5, SCML_OP_PRINT, "PRINT", 1, 1},
+    {0x03E6, SCML_OP_LOG, "LOG", 1, 1},
+    {0x0A10, SCML_OP_FILE_READ, "FILE_READ", 2, 2},
+    {0x0A20, SCML_OP_FILE_WRITE, "FILE_WRITE", 2, 2},
+    {0x0B00, SCML_OP_ENTITY_SPAWN, "ENTITY_SPAWN", 5, 5},
+    {0x0B01, SCML_OP_ENTITY_SET, "ENTITY_SET", 3, 3},
+    {0x0C00, SCML_OP_HEAP_ALLOC, "HEAP_ALLOC", 2, 2},
+    {0x0C01, SCML_OP_HEAP_STORE, "HEAP_STORE", 3, 3},
+    {0x0C02, SCML_OP_HEAP_LOAD, "HEAP_LOAD", 3, 3},
+};
+
+static int eq_ci(const char *a, const char *b) {
+    while (*a && *b) {
+        if (toupper((unsigned char)*a) != toupper((unsigned char)*b)) return 0;
+        a++; b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+const ScmlOpcodeInfo *scml_opcode_from_scm_code(uint16_t scm_code) {
+    for (size_t i = 0; i < sizeof(g_opcodes) / sizeof(g_opcodes[0]); i++) {
+        if (g_opcodes[i].scm_code == scm_code) return &g_opcodes[i];
+    }
+    return NULL;
+}
+
+const ScmlOpcodeInfo *scml_opcode_from_name(const char *name) {
+    for (size_t i = 0; i < sizeof(g_opcodes) / sizeof(g_opcodes[0]); i++) {
+        if (eq_ci(g_opcodes[i].name, name)) return &g_opcodes[i];
+    }
+    return NULL;
+}
+
+const ScmlOpcodeInfo *scml_opcode_info(ScmlOpcode opcode) {
+    for (size_t i = 0; i < sizeof(g_opcodes) / sizeof(g_opcodes[0]); i++) {
+        if (g_opcodes[i].opcode == opcode) return &g_opcodes[i];
+    }
+    return NULL;
+}
+
+const char *scml_opcode_name(ScmlOpcode opcode) {
+    const ScmlOpcodeInfo *info = scml_opcode_info(opcode);
+    return info ? info->name : "UNKNOWN";
+}
