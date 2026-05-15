@@ -1,0 +1,7 @@
+#include "memory.scmlh"
+:MAIN
+make_buffer(4, ptr)
+poke(ptr, 0, 77)
+peek(value, ptr, 0)
+03E5: value
+0001:

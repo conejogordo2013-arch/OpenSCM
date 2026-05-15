@@ -1,0 +1,4 @@
+#include "../stscm/stscm.scml"
+macro SPAWN_PLAYER(outvar):
+    0B00: "player" 0 0 5 outvar
+endmacro

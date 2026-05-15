@@ -1,0 +1,24 @@
+#include "../stscm/stscm.scml"
+:MAIN
+EVENT_BIND("ON_START", @ON_START)
+EVENT_BIND("ON_TICK", @ON_TICK)
+EVENT_BIND("ON_PLAYER_DAMAGE", @ON_PLAYER_DAMAGE)
+end_thread
+
+:ON_START
+CALL Log "SCML gameplay started"
+CALL SpawnEnemy "soldier" 10.0 20.0 30.0
+end_thread
+
+:ON_TICK
+00D9: $PLAYER_HEALTH 50 @SPAWN_MEDKIT
+end_thread
+
+:SPAWN_MEDKIT
+CALL SpawnMedkit $PLAYER_X $PLAYER_Y $PLAYER_Z
+CALL Log "Spawned emergency medkit"
+end_thread
+
+:ON_PLAYER_DAMAGE
+CALL Log "Player took damage"
+end_thread

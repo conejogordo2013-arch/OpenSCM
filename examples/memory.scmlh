@@ -1,0 +1,9 @@
+macro make_buffer(size, outvar):
+    0C00: size outvar
+endmacro
+macro poke(addr, index, value):
+    0C01: addr index value
+endmacro
+macro peek(outvar, addr, index):
+    0C02: outvar addr index
+endmacro
