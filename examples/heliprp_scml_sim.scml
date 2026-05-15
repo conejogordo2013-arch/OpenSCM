@@ -1,0 +1,128 @@
+; thread 'HELIPRP_SIM'
+; SCM-looking helicopter rescue simulation built only from SCML-supported opcodes.
+
+:MAIN
+jump @HELIPRP_10
+
+:HELIPRP_10
+wait 0
+03E5: "HELIPRP simulation boot"
+03E6: "Camera.OnVehicle simulated"
+0A20: "log.txt" "HELIPRP rescue sim boot"
+$PLAYER_ACTOR = 1
+$PLAYER_CHAR = 1
+0@ = 101
+1@ = 487
+5@ = 0x100
+5@ += 0x284
+$FUEL = 40
+$RESCUE_SCORE = 0
+$CARGO_COUNT = 3
+$CHOPPER_HEALTH = 100
+$CURRENT_X = 10.0
+$CURRENT_Y = 20.0
+$CURRENT_Z = 30.0
+$LAND_X = 14.0
+$LAND_Y = 24.0
+$LAND_Z = 4.0
+CALL @RESET_JUMP_STATS
+0B14: 3 6@
+0B13: 6@ 0 12
+0B13: 6@ 1 8
+0B13: 6@ 2 5
+0A30: "ON_RESCUE_SCAN" @MACHINEGUN
+0A30: "ON_LANDING" @HELIPRP_12
+0A31: "ON_RESCUE_SCAN"
+end_thread
+
+:HELIPRP_11
+wait 0
+03E5: "rescue scan armed"
+00D8: $FUEL 25 @MACHINEGUN_1
+jump @GRENADE
+
+:MACHINEGUN
+jump @HELIPRP_11
+
+:MACHINEGUN_1
+0A20: "log.txt" "thermal scan found three rescue targets"
+0B12: 10@ 6@ 0
+0B12: 11@ 6@ 1
+0B12: 12@ 6@ 2
+0006: 13@ 10@ 11@
+0006: 14@ 13@ 12@
+03E5: "cargo total"
+03E5: 14@
+$SCAN_TOTAL = 14@
+CALL @FUNC_REWARD_CREW
+0B00: "rescue_beacon" $LAND_X $LAND_Y $LAND_Z 15@
+03E5: 15@
+$FUEL -= 15
+00D9: $FUEL 30 @MACHINEGUN_2
+jump @GRENADE
+
+:MACHINEGUN_2
+03E5: "fuel warning handled"
+0A20: "log.txt" "fuel warning handled by autopilot"
+0A31: "ON_LANDING"
+end_thread
+
+:GRENADE
+03E5: "fallback landing route"
+0A20: "log.txt" "fallback route selected"
+$RESCUE_SCORE += 2
+0A31: "ON_LANDING"
+end_thread
+
+:HELIPRP_12
+wait 0
+00D6: $RESCUE_SCORE 28 @LANDING_OK
+03E5: "landing score mismatch"
+jump @RIP
+
+:LANDING_OK
+03E5: "landing success"
+03E5: $RESCUE_SCORE
+0B11: 6@
+CALL @MISSION_COMPLETE
+end_thread
+
+:RIP
+03E5: "pilot recovery protocol"
+$CHOPPER_HEALTH = 0
+end_thread
+
+:RESET_JUMP_STATS
+$JUMP_ROTATION = 0
+$770 = 0.0
+$JUMP_PERFECT_LANDING = 0
+$745 = 0
+$JUMP_FLIPS = 0
+$740 = 0
+$746 = 0
+$JUMP_MULTIPLY = 0
+$736 = 0
+$JUMP_HEIGHT = 0
+$HEIGHEST_Z = -100.0
+$FROM_X = 0.0
+$FROM_Y = 0.0
+$FROM_Z = 0.0
+$JUMP_DIST = 0
+$JUMP_DIST_CM = 0
+$JUMP_HEIGHT_CM = 0
+$DODO_TAKEOFFTIME = 0
+$DODO_LANDTIME = 0
+$DODO_FLIGHTTIME = 0
+return
+
+:FUNC_REWARD_CREW
+0006: $RESCUE_SCORE $RESCUE_SCORE $SCAN_TOTAL
+0006: $RESCUE_SCORE $RESCUE_SCORE $CARGO_COUNT
+03E5: "reward applied"
+03E5: $RESCUE_SCORE
+return
+
+:MISSION_COMPLETE
+03E5: "mission complete"
+0A20: "log.txt" "HELIPRP rescue sim finished"
+return

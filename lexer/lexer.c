@@ -67,22 +67,28 @@ int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, 
             if (!add_token(out, SCML_TOK_STRING, buf, bi, line_no, col)) return 0;
             continue;
         }
-        if (line[i] == '+' && line[i + 1] == '=') {
+        if ((line[i] == '+' || line[i] == '-') && line[i + 1] == '=') {
             if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 2, line_no, col)) return 0;
             i += 2;
             continue;
         }
+        if (line[i] == '=') {
+            if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 1, line_no, col)) return 0;
+            i++;
+            continue;
+        }
         if (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '$') {
             size_t s = i;
-            while (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '.' || line[i] == '$') i++;
+            while (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '.' || line[i] == '$' || line[i] == '@') i++;
             ScmlTokenType type = SCML_TOK_IDENTIFIER;
             int all_hex = 1;
             int decimal_number = 1;
             int has_dot = 0;
             size_t start = (line[s] == '-') ? s + 1 : s;
             if (line[start] == '$') all_hex = 0;
+            if (memchr(line + s, '@', i - s)) { all_hex = 0; decimal_number = 0; }
             for (size_t j = start; j < i; j++) {
-                if (!isxdigit((unsigned char)line[j])) all_hex = 0;
+                if (!isxdigit((unsigned char)line[j]) && !(line[j] == 'x' && j == start + 1 && line[start] == '0')) all_hex = 0;
                 if (line[j] == '.') has_dot = 1;
                 else if (!isdigit((unsigned char)line[j])) decimal_number = 0;
             }
