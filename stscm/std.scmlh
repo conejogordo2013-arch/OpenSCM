@@ -1,7 +1,5 @@
-; std.scmlh - general-purpose SCML standard library.
+; std.scmlh - advanced general-purpose SCML standard library.
 ; This file intentionally contains no GTA/game-specific behavior.
-; It aggregates the existing SCML wrappers plus SCM-style control-flow helpers,
-; then adds aliases for the core language opcodes so scripts can use one include.
 
 #include "stscm.scml"
 #include "scm_flow.scmlh"
@@ -10,7 +8,28 @@
 #define FALSE 0
 #define NULL 0
 
-; Core VM / opcode aliases.
+; Common error/status model.
+#define SCML_OK 0
+#define SCML_ERR_GENERIC 1
+#define SCML_ERR_INVALID_ARG 2
+#define SCML_ERR_OUT_OF_RANGE 3
+#define SCML_ERR_NOT_FOUND 4
+#define SCML_ERR_NO_MEMORY 5
+#define SCML_ERR_IO 6
+#define SCML_ERR_STATE 7
+#define SCML_ERR_UNSUPPORTED 8
+#define SCML_ERR_ABORTED 9
+
+; Artifact kinds (host/tooling can inspect these constants).
+#define SCML_ARTIFACT_EXE 1
+#define SCML_ARTIFACT_DLL 2
+#define SCML_ARTIFACT_SO 3
+#define SCML_ARTIFACT_VM_LIB 4
+#define SCML_ARTIFACT_STD_LIB 5
+#define SCML_ARTIFACT_ABI_LIB 6
+#define SCML_PACKAGE_SCMR 100
+
+; ---- Core VM / opcode aliases ----
 macro NOP():
     0000:
 endmacro
@@ -75,7 +94,7 @@ macro IF_LT(a, b, label):
     00D9: a b label
 endmacro
 
-; Lowercase aliases for scripts written in a more SCM-like style.
+; Lowercase aliases.
 macro set(var, value):
     0004: var value
 endmacro
@@ -96,7 +115,7 @@ macro div(outvar, a, b):
     0009: outvar a b
 endmacro
 
-; Label-based if/else aliases with explicit true/false labels.
+; ---- Rich flow helpers ----
 macro IF_ELSE_EQ(a, b, true_label, false_label):
     00D6: a b true_label
     000A: false_label
@@ -117,7 +136,31 @@ macro IF_ELSE_LT(a, b, true_label, false_label):
     000A: false_label
 endmacro
 
-; Memory aliases over the heap/array opcodes already provided by SCML.
+macro ASSERT_EQ(a, b, fail_label):
+    00D6: a b @ASSERT_OK
+    000A: fail_label
+    :ASSERT_OK
+endmacro
+
+macro ASSERT_NE(a, b, fail_label):
+    00D7: a b @ASSERT_OK
+    000A: fail_label
+    :ASSERT_OK
+endmacro
+
+macro ASSERT_TRUE(v, fail_label):
+    00D7: v FALSE @ASSERT_OK
+    000A: fail_label
+    :ASSERT_OK
+endmacro
+
+macro ASSERT_FALSE(v, fail_label):
+    00D6: v FALSE @ASSERT_OK
+    000A: fail_label
+    :ASSERT_OK
+endmacro
+
+; ---- Memory aliases ----
 macro HEAP_ALLOC(size, outvar):
     0B10: size outvar
 endmacro
@@ -146,7 +189,97 @@ macro ARRAY_SET(ref, index, value):
     0B13: ref index value
 endmacro
 
-; Event aliases.
+macro ARRAY_SAFE_GET(outvar, ref, index, len, status_var, fail_label):
+    00D9: index len @ARRAY_SAFE_GET_OK
+    0004: status_var SCML_ERR_OUT_OF_RANGE
+    000A: fail_label
+    :ARRAY_SAFE_GET_OK
+    0B12: outvar ref index
+    0004: status_var SCML_OK
+endmacro
+
+; ---- Error model helpers ----
+macro STATUS_SET_OK(status_var):
+    0004: status_var SCML_OK
+endmacro
+
+macro STATUS_SET_ERR(status_var, err):
+    0004: status_var err
+endmacro
+
+macro RETURN_IF_ERR(status_var, err_label):
+    00D7: status_var SCML_OK err_label
+endmacro
+
+macro REQUIRE_TRUE(cond_var, status_var, err_code, fail_label):
+    00D7: cond_var FALSE @REQ_TRUE_OK
+    0004: status_var err_code
+    000A: fail_label
+    :REQ_TRUE_OK
+endmacro
+
+; ---- Package/build metadata markers (.scmr style manifest via constants) ----
+; These macros emit no runtime side effects by themselves; they are declarative
+; assignments that host toolchains can parse from globals.
+macro PACKAGE_BEGIN(name_id, version_major, version_minor, version_patch):
+    0004: $SCMR_NAME_ID name_id
+    0004: $SCMR_VER_MAJOR version_major
+    0004: $SCMR_VER_MINOR version_minor
+    0004: $SCMR_VER_PATCH version_patch
+    0004: $SCMR_FORMAT SCML_PACKAGE_SCMR
+endmacro
+
+macro PACKAGE_ARTIFACT(kind, flags):
+    0004: $SCMR_ARTIFACT_KIND kind
+    0004: $SCMR_ARTIFACT_FLAGS flags
+endmacro
+
+macro PACKAGE_ENTRY(label_id):
+    0004: $SCMR_ENTRY label_id
+endmacro
+
+macro PACKAGE_RESOURCE_COUNT(count):
+    0004: $SCMR_RESOURCE_COUNT count
+endmacro
+
+macro PACKAGE_RESOURCE_SLOT(slot, id, type, size):
+    0004: $SCMR_RES_SLOT slot
+    0004: $SCMR_RES_ID id
+    0004: $SCMR_RES_TYPE type
+    0004: $SCMR_RES_SIZE size
+endmacro
+
+macro TARGET_EXE():
+    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_EXE
+    0004: $SCMR_ARTIFACT_FLAGS 0
+endmacro
+
+macro TARGET_DLL():
+    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_DLL
+    0004: $SCMR_ARTIFACT_FLAGS 0
+endmacro
+
+macro TARGET_SO():
+    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_SO
+    0004: $SCMR_ARTIFACT_FLAGS 0
+endmacro
+
+macro TARGET_SCMLVM_LIB():
+    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_VM_LIB
+    0004: $SCMR_ARTIFACT_FLAGS 0
+endmacro
+
+macro TARGET_SCMLSTD_LIB():
+    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_STD_LIB
+    0004: $SCMR_ARTIFACT_FLAGS 0
+endmacro
+
+macro TARGET_SCMLABI_LIB():
+    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_ABI_LIB
+    0004: $SCMR_ARTIFACT_FLAGS 0
+endmacro
+
+; ---- Event aliases ----
 macro BIND_EVENT(name, label):
     0A30: name label
 endmacro
