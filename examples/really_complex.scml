@@ -1,103 +1,115 @@
 #include "../std.scmlh"
 
 :MAIN
-03E5: "~b~OpenSCM ~w~// Really Complex SCM Mission"
-SET($inputA, 17)
-SET($inputB, 9)
-SET($player_name, "CJ")
-SET($district, "Los Santos")
-SET($mode, "analysis")
+03E5: "~b~OpenSCM ~w~// SCM STYLE BOOT"
+03E5: "03A4: name_thread 'MAIN'"
+03E5: "01F0/0111/00C0 bootstrap emulation"
 
-ARRAY_CREATE(6, $numbers)
-ARRAY_SET($numbers, 0, 3)
-ARRAY_SET($numbers, 1, 5)
-ARRAY_SET($numbers, 2, 8)
-ARRAY_SET($numbers, 3, 13)
-ARRAY_SET($numbers, 4, 21)
-ARRAY_SET($numbers, 5, 34)
+0004: $MISSION_STATE 1
+0004: $CLOCK_HOUR 23
+0004: $CLOCK_MINUTE 0
+0004: $PLAYER_NAME "CJ"
+0004: $ZONE_NAME "Los Santos"
+0004: $ONMISSION 1
 
-SET($idx, 0)
-SET($sum, 0)
-:SUM_LOOP
-IF_LT($idx, 6, @SUM_BODY)
-JUMP(@SUM_DONE)
-:SUM_BODY
-ARRAY_GET($value, $numbers, $idx)
-ADD($sum, $sum, $value)
-ADD($idx, $idx, 1)
-JUMP(@SUM_LOOP)
-:SUM_DONE
-03E5: "Collected patrol stats:"
-03E5: $sum
+0B14: 8 $MISSION_DATA
+0B13: $MISSION_DATA 0 12
+0B13: $MISSION_DATA 1 7
+0B13: $MISSION_DATA 2 3
+0B13: $MISSION_DATA 3 15
+0B13: $MISSION_DATA 4 20
+0B13: $MISSION_DATA 5 5
+0B13: $MISSION_DATA 6 9
+0B13: $MISSION_DATA 7 11
 
-CALL @FUNC_BUILD_SCORE
-CALL @FUNC_COMPLEX_DECISION
-CALL @FUNC_HEAP_ROUNDTRIP
+0004: $IDX 0
+0004: $TOTAL_RISK 0
+:MAIN_LOOP
+IF_LT($IDX, 8, @ACCUMULATE_RISK)
+000A: @RISK_DONE
+:ACCUMULATE_RISK
+0B12: $CELL $MISSION_DATA $IDX
+0006: $TOTAL_RISK $TOTAL_RISK $CELL
+0006: $IDX $IDX 1
+000A: @MAIN_LOOP
+:RISK_DONE
 
-03E5: "Final respect score:"
-03E5: $score
-03E5: "Threat tier:"
-03E5: $decision
-03E5: "Heap mirror value:"
-03E5: $heapMirror
+03E5: "Risk aggregate loaded"
+03E5: $TOTAL_RISK
+
+0D00: @CALC_REPUTATION
+0D00: @CALC_CLEARANCE
+0D00: @BUILD_HEAP_SNAPSHOT
+
+03E5: "Player:"
+03E5: $PLAYER_NAME
+03E5: "Zone:"
+03E5: $ZONE_NAME
+03E5: "Reputation:"
+03E5: $REPUTATION
+03E5: "Clearance:"
+03E5: $CLEARANCE
+03E5: "Snapshot:"
+03E5: $HEAP_SNAPSHOT
 
 EVENT_BIND("ON_COMPLEX_EVENT", @ON_COMPLEX_EVENT_A)
 EVENT_BIND("ON_COMPLEX_EVENT", @ON_COMPLEX_EVENT_B)
 TRIGGER_EVENT("ON_COMPLEX_EVENT")
-03E5: "Event dispatch queued..."
+03E5: "Dispatch sequence queued"
 END_SCRIPT()
 
-:FUNC_BUILD_SCORE
-MUL($weightedA, $inputA, 4)
-MUL($weightedB, $inputB, 7)
-ADD($baseScore, $weightedA, $weightedB)
-DIV($normalized, $baseScore, 3)
-ADD($score, $normalized, $sum)
+:CALC_REPUTATION
+0008: $TMP_A $TOTAL_RISK 2
+0008: $TMP_B $MISSION_STATE 33
+0006: $TMP_C $TMP_A $TMP_B
+0009: $TMP_D $TMP_C 3
+0006: $REPUTATION $TMP_D 40
 0D01:
 
-:FUNC_COMPLEX_DECISION
-IF_GT($score, 90, @DEC_HIGH)
-IF_GT($score, 50, @DEC_MED)
-SET($decision, "LOW")
+:CALC_CLEARANCE
+IF_GT($REPUTATION, 120, @CLEARANCE_HIGH)
+IF_GT($REPUTATION, 90, @CLEARANCE_MED)
+0004: $CLEARANCE "LOW"
 0D01:
-:DEC_MED
-IF_EQ($mode, "analysis", @DEC_MED_ANALYSIS)
-SET($decision, "MEDIUM")
+:CLEARANCE_MED
+IF_EQ($ONMISSION, 1, @CLEARANCE_MED_ACTIVE)
+0004: $CLEARANCE "MED"
 0D01:
-:DEC_MED_ANALYSIS
-SET($decision, "MEDIUM_ANALYSIS")
+:CLEARANCE_MED_ACTIVE
+0004: $CLEARANCE "MED_ACTIVE"
 0D01:
-:DEC_HIGH
-SET($decision, "HIGH")
+:CLEARANCE_HIGH
+0004: $CLEARANCE "HIGH"
 0D01:
 
-:FUNC_HEAP_ROUNDTRIP
-0C00: 3 $heap
-0C01: $heap 0 $sum
-0C01: $heap 1 $score
-0C01: $heap 2 $inputA
-0C02: $heapMirror $heap 1
-FREE($heap)
+:BUILD_HEAP_SNAPSHOT
+0C00: 4 $HEAP
+0C01: $HEAP 0 $TOTAL_RISK
+0C01: $HEAP 1 $REPUTATION
+0C01: $HEAP 2 $MISSION_STATE
+0C01: $HEAP 3 $CLOCK_HOUR
+0C02: $HEAP_SNAPSHOT $HEAP 1
+FREE($HEAP)
 0D01:
 
 :ON_COMPLEX_EVENT_A
-03E5: "[Dispatch A] Caller:"
-03E5: $player_name
-03E5: "[Dispatch A] Zone:"
-03E5: $district
-03E5: "[Dispatch A] Tier:"
-03E5: $decision
+03E5: "[A] world tick"
+03E5: "[A] time"
+03E5: $CLOCK_HOUR
+03E5: $CLOCK_MINUTE
+03E5: "[A] clearance"
+03E5: $CLEARANCE
 0D02:
 
 :ON_COMPLEX_EVENT_B
-SET($check, 0)
-IF_EQ($decision, "HIGH", @EVENT_SET_ONE)
-IF_EQ($decision, "MEDIUM_ANALYSIS", @EVENT_SET_ONE)
-JUMP(@EVENT_PRINT)
-:EVENT_SET_ONE
-SET($check, 1)
-:EVENT_PRINT
-03E5: "[Dispatch B] Permission flag:"
-03E5: $check
+0004: $AUTH 0
+IF_EQ($CLEARANCE, "HIGH", @AUTH_OK)
+IF_EQ($CLEARANCE, "MED_ACTIVE", @AUTH_OK)
+000A: @AUTH_PRINT
+:AUTH_OK
+0004: $AUTH 1
+:AUTH_PRINT
+03E5: "[B] auth flag"
+03E5: $AUTH
 03E5: "~g~Mission logic complete."
 0D02:
