@@ -1,0 +1,110 @@
+#include "../stscm/stscm.scml"
+#include "gta_camera_compat.scmlh"
+
+:MAIN
+CALL @CAM_OFF
+JUMP @AUTO_ON
+
+:AUTO_ON
+WAIT(200)
+READ_MEMORY(0x9412F4, 4, 0, cam_state)
+00D7: cam_state 0 @AUTO_ON
+PLAYER_DRIVING(is_driving)
+00D6: is_driving 0 @AUTO_ON
+PLAYER_DRIVING_VEHICLE_TYPE("#TRAIN", is_train)
+00D7: is_train 0 @AUTO_ON
+CONTROL_KEY_PRESSED(0, 7, look_right)
+00D7: look_right 0 @AUTO_ON
+CONTROL_KEY_PRESSED(0, 5, look_left)
+00D7: look_left 0 @AUTO_ON
+JUMP @CAM_ON
+
+:WAIT_FOR_ON
+WAIT(90)
+KEY_PRESSED(86, key_v)
+00D6: key_v 0 @WAIT_FOR_ON
+PLAYER_DRIVING(is_driving)
+00D6: is_driving 0 @WAIT_FOR_ON
+CONTROL_KEY_PRESSED(0, 13, change_view)
+00D7: change_view 0 @WAIT_FOR_ON
+JUMP @CAM_ON
+
+:WAIT_FOR_OFF
+WAIT(10)
+READ_MEMORY(0x9412F4, 4, 0, cam_state)
+00D7: cam_state 0 @AUTO_OFF
+PLAYER_DRIVING(is_driving)
+00D6: is_driving 0 @AUTO_OFF
+PLAYER_DRIVING_VEHICLE_TYPE("#TRAIN", is_train)
+00D7: is_train 0 @AUTO_OFF
+CONTROL_KEY_PRESSED(0, 5, look_left)
+00D7: look_left 0 @AUTO_OFF
+CONTROL_KEY_PRESSED(0, 7, look_right)
+00D7: look_right 0 @AUTO_OFF
+CONTROL_KEY_PRESSED(0, 13, change_view)
+00D7: change_view 0 @MANUAL_OFF
+CONTROL_KEY_PRESSED(0, 2, steering)
+00D7: steering 0 @MANUAL_OFF
+CONTROL_KEY_PRESSED(0, 3, turret)
+00D7: turret 0 @MANUAL_OFF
+CONTROL_KEY_PRESSED(0, 1, aim)
+00D7: aim 0 @MANUAL_OFF
+KEY_PRESSED(86, key_v)
+00D7: key_v 0 @MANUAL_OFF
+JUMP @WAIT_FOR_OFF
+
+:AUTO_OFF
+CALL @CAM_OFF
+JUMP @AUTO_ON
+
+:MANUAL_OFF
+CALL @CAM_OFF
+CALL @KEY_UP_1
+JUMP @WAIT_FOR_ON
+
+:KEY_UP_0
+KEY_PRESSED(86, key_v)
+00D6: key_v 0 @KEY_UP_DONE
+WAIT(10)
+CONTROL_KEY_PRESSED(0, 13, change_view)
+00D6: change_view 0 @KEY_UP_0
+CALL @CAM_OFF
+JUMP @WAIT_FOR_ON
+
+:KEY_UP_DONE
+JUMP @WAIT_FOR_OFF
+
+:KEY_UP_1
+KEY_PRESSED(86, key_v)
+00D6: key_v 0 @KEY_UP_1_DONE
+WAIT(100)
+JUMP @KEY_UP_1
+
+:KEY_UP_1_DONE
+return
+
+:CAM_ON
+; toggle movement
+WRITE_MEMORY(0x0046D4A6, 1, 0x74, 1)
+; horizontal vehicle camera distance
+WRITE_MEMORY(0x5F07DC, 4, 10.0, 0)
+; patch vehicle line-of-sight
+WRITE_MEMORY(0x00460565, 1, 0x00, 1)
+; patch camera motion
+WRITE_MEMORY(0x004709D7, 1, 0x00, 1)
+WRITE_MEMORY(0x00470BE3, 1, 0x00, 1)
+; hide crosshair
+WRITE_MEMORY(0x50551F, 4, 0x005EE7DC, 1)
+SET_CAMERA_DIRECTLY_BEHIND_PLAYER()
+JUMP @KEY_UP_0
+
+:CAM_OFF
+; restore movement
+WRITE_MEMORY(0x0046D4A6, 1, 0x75, 1)
+; restore horizontal vehicle camera distance
+WRITE_MEMORY(0x5F07DC, 4, 2.0, 0)
+; restore vehicle line-of-sight
+WRITE_MEMORY(0x00460565, 1, 0x01, 1)
+; restore crosshair
+WRITE_MEMORY(0x50551F, 4, 0x006FAE98, 1)
+return
