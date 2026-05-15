@@ -1,5 +1,7 @@
 #include "opcode.h"
+
 #include <ctype.h>
+#include <stddef.h>
 #include <string.h>
 
 static const ScmlOpcodeInfo g_opcodes[] = {
@@ -23,17 +25,28 @@ static const ScmlOpcodeInfo g_opcodes[] = {
     {0x03E6, SCML_OP_LOG, "LOG", 1, 1},
     {0x0A10, SCML_OP_FILE_READ, "FILE_READ", 2, 2},
     {0x0A20, SCML_OP_FILE_WRITE, "FILE_WRITE", 2, 2},
+    {0x0A30, SCML_OP_EVENT_BIND, "BIND_EVENT", 2, 2},
+    {0x0A31, SCML_OP_EVENT_TRIGGER, "TRIGGER_EVENT", 1, 1},
     {0x0B00, SCML_OP_ENTITY_SPAWN, "ENTITY_SPAWN", 5, 5},
     {0x0B01, SCML_OP_ENTITY_SET, "ENTITY_SET", 3, 3},
+    {0x0B10, SCML_OP_HEAP_ALLOC, "ALLOC", 2, 2},
+    {0x0B11, SCML_OP_FREE, "FREE", 1, 1},
+    {0x0B12, SCML_OP_HEAP_LOAD, "READ", 3, 3},
+    {0x0B13, SCML_OP_HEAP_STORE, "WRITE", 3, 3},
+    {0x0B14, SCML_OP_ARRAY_CREATE, "ARRAY_CREATE", 2, 2},
     {0x0C00, SCML_OP_HEAP_ALLOC, "HEAP_ALLOC", 2, 2},
     {0x0C01, SCML_OP_HEAP_STORE, "HEAP_STORE", 3, 3},
     {0x0C02, SCML_OP_HEAP_LOAD, "HEAP_LOAD", 3, 3},
+    {0x0D00, SCML_OP_CALL, "CALL", 1, 8},
+    {0x0D01, SCML_OP_RETURN, "RETURN", 0, 0},
+    {0x0D02, SCML_OP_END_THREAD, "END_THREAD", 0, 0},
 };
 
 static int eq_ci(const char *a, const char *b) {
     while (*a && *b) {
         if (toupper((unsigned char)*a) != toupper((unsigned char)*b)) return 0;
-        a++; b++;
+        a++;
+        b++;
     }
     return *a == '\0' && *b == '\0';
 }

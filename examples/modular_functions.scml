@@ -1,0 +1,3 @@
+:FUNC_HEAL_PLAYER
+$PLAYER_HEALTH += 75
+return

@@ -10,6 +10,7 @@ typedef struct ScmlOperand {
     ScmlOperandType type;
     char *text;
     int32_t integer;
+    float real;
 } ScmlOperand;
 
 typedef struct ScmlStatement {

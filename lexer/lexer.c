@@ -67,14 +67,26 @@ int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, 
             if (!add_token(out, SCML_TOK_STRING, buf, bi, line_no, col)) return 0;
             continue;
         }
-        if (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#') {
+        if (line[i] == '+' && line[i + 1] == '=') {
+            if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 2, line_no, col)) return 0;
+            i += 2;
+            continue;
+        }
+        if (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '$') {
             size_t s = i;
-            while (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '.') i++;
+            while (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '.' || line[i] == '$') i++;
             ScmlTokenType type = SCML_TOK_IDENTIFIER;
             int all_hex = 1;
+            int decimal_number = 1;
+            int has_dot = 0;
             size_t start = (line[s] == '-') ? s + 1 : s;
-            for (size_t j = start; j < i; j++) if (!isxdigit((unsigned char)line[j])) all_hex = 0;
-            if ((isdigit((unsigned char)line[start]) && all_hex) || line[s] == '-') type = SCML_TOK_NUMBER;
+            if (line[start] == '$') all_hex = 0;
+            for (size_t j = start; j < i; j++) {
+                if (!isxdigit((unsigned char)line[j])) all_hex = 0;
+                if (line[j] == '.') has_dot = 1;
+                else if (!isdigit((unsigned char)line[j])) decimal_number = 0;
+            }
+            if ((isdigit((unsigned char)line[start]) && (all_hex || (has_dot && decimal_number))) || (line[s] == '-' && (all_hex || decimal_number))) type = SCML_TOK_NUMBER;
             if (!add_token(out, type, line + s, i - s, line_no, col)) return 0;
             continue;
         }

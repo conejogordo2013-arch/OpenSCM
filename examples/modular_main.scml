@@ -1,0 +1,6 @@
+#include "module_a.scmlh"
+:MAIN
+0004: $PLAYER_HEALTH START_HEALTH
+heal_player()
+03E5: $PLAYER_HEALTH
+0001:

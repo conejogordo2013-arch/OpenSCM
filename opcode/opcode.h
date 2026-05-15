@@ -5,7 +5,7 @@
 
 #define SCML_MAX_OPCODE 200
 #define SCML_MAGIC 0x4C4D4353u /* SCML */
-#define SCML_VERSION 1u
+#define SCML_VERSION 4u
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,7 +36,14 @@ typedef enum ScmlOpcode {
     SCML_OP_ENTITY_SET = 0x15,
     SCML_OP_HEAP_ALLOC = 0x16,
     SCML_OP_HEAP_STORE = 0x17,
-    SCML_OP_HEAP_LOAD = 0x18
+    SCML_OP_HEAP_LOAD = 0x18,
+    SCML_OP_CALL = 0x19,
+    SCML_OP_RETURN = 0x1A,
+    SCML_OP_END_THREAD = 0x1B,
+    SCML_OP_EVENT_BIND = 0x1C,
+    SCML_OP_EVENT_TRIGGER = 0x1D,
+    SCML_OP_FREE = 0x1E,
+    SCML_OP_ARRAY_CREATE = 0x1F
 } ScmlOpcode;
 
 typedef enum ScmlOperandType {
@@ -44,7 +51,8 @@ typedef enum ScmlOperandType {
     SCML_OPERAND_INT = 1,
     SCML_OPERAND_STRING = 2,
     SCML_OPERAND_VAR = 3,
-    SCML_OPERAND_ADDRESS = 4
+    SCML_OPERAND_ADDRESS = 4,
+    SCML_OPERAND_FLOAT = 5
 } ScmlOperandType;
 
 typedef struct ScmlOpcodeInfo {
