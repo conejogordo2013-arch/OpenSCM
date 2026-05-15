@@ -1,0 +1,4 @@
+*.o
+*.scmlbin
+bin/scml
+log.txt

@@ -1,0 +1,91 @@
+#include "lexer.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static char *scml_strndup(const char *s, size_t n) {
+    char *r = (char *)malloc(n + 1);
+    if (!r) return NULL;
+    memcpy(r, s, n);
+    r[n] = '\0';
+    return r;
+}
+
+static int add_token(ScmlTokenList *out, ScmlTokenType type, const char *start, size_t len, int line, int col) {
+    if (out->count == out->capacity) {
+        size_t nc = out->capacity ? out->capacity * 2 : 8;
+        ScmlToken *ni = (ScmlToken *)realloc(out->items, nc * sizeof(*ni));
+        if (!ni) return 0;
+        out->items = ni;
+        out->capacity = nc;
+    }
+    out->items[out->count].type = type;
+    out->items[out->count].text = scml_strndup(start, len);
+    out->items[out->count].line = line;
+    out->items[out->count].column = col;
+    if (!out->items[out->count].text) return 0;
+    out->count++;
+    return 1;
+}
+
+int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, size_t err_size) {
+    memset(out, 0, sizeof(*out));
+    size_t i = 0;
+    while (line[i]) {
+        if (line[i] == ';' || (line[i] == '/' && line[i + 1] == '/')) break;
+        if (isspace((unsigned char)line[i]) || line[i] == ',') { i++; continue; }
+        int col = (int)i + 1;
+        if (line[i] == ':') {
+            if (!add_token(out, SCML_TOK_COLON, line + i, 1, line_no, col)) return 0;
+            i++;
+            continue;
+        }
+        if (line[i] == '@') {
+            size_t s = ++i;
+            while (isalnum((unsigned char)line[i]) || line[i] == '_') i++;
+            if (s == i) { snprintf(err, err_size, "line %d: empty label reference", line_no); return 0; }
+            if (!add_token(out, SCML_TOK_LABEL_REF, line + s, i - s, line_no, col)) return 0;
+            continue;
+        }
+        if (line[i] == '"') {
+            char buf[4096]; size_t bi = 0; i++;
+            while (line[i] && line[i] != '"') {
+                if (line[i] == '\\' && line[i + 1]) {
+                    i++;
+                    char c = line[i];
+                    if (c == 'n') c = '\n'; else if (c == 't') c = '\t';
+                    buf[bi++] = c;
+                } else {
+                    buf[bi++] = line[i];
+                }
+                if (bi + 1 >= sizeof(buf)) { snprintf(err, err_size, "line %d: string too long", line_no); return 0; }
+                i++;
+            }
+            if (line[i] != '"') { snprintf(err, err_size, "line %d: unterminated string", line_no); return 0; }
+            i++;
+            if (!add_token(out, SCML_TOK_STRING, buf, bi, line_no, col)) return 0;
+            continue;
+        }
+        if (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#') {
+            size_t s = i;
+            while (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '.') i++;
+            ScmlTokenType type = SCML_TOK_IDENTIFIER;
+            int all_hex = 1;
+            size_t start = (line[s] == '-') ? s + 1 : s;
+            for (size_t j = start; j < i; j++) if (!isxdigit((unsigned char)line[j])) all_hex = 0;
+            if ((isdigit((unsigned char)line[start]) && all_hex) || line[s] == '-') type = SCML_TOK_NUMBER;
+            if (!add_token(out, type, line + s, i - s, line_no, col)) return 0;
+            continue;
+        }
+        snprintf(err, err_size, "line %d:%d: unexpected character '%c'", line_no, col, line[i]);
+        return 0;
+    }
+    return 1;
+}
+
+void scml_token_list_free(ScmlTokenList *list) {
+    for (size_t i = 0; i < list->count; i++) free(list->items[i].text);
+    free(list->items);
+    memset(list, 0, sizeof(*list));
+}
