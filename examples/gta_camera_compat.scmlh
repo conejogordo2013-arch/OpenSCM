@@ -1,0 +1,30 @@
+; GTA/CLEO compatibility wrappers for scripts that still need game-host
+; operations.  These macros intentionally expand to native CALLs so the core
+; SCML compiler can compile the script while the embedding host supplies the
+; GTA-specific behavior.
+macro READ_MEMORY(address, size, protect, outvar):
+    CALL ReadMemory address size protect
+    0004: outvar $RETVAL
+endmacro
+macro WRITE_MEMORY(address, size, value, protect):
+    CALL WriteMemory address size value protect
+endmacro
+macro KEY_PRESSED(key, outvar):
+    CALL KeyPressed key
+    0004: outvar $RETVAL
+endmacro
+macro CONTROL_KEY_PRESSED(device, key, outvar):
+    CALL ControlKeyPressed device key
+    0004: outvar $RETVAL
+endmacro
+macro PLAYER_DRIVING(outvar):
+    CALL PlayerDriving
+    0004: outvar $RETVAL
+endmacro
+macro PLAYER_DRIVING_VEHICLE_TYPE(vehicle_type, outvar):
+    CALL PlayerDrivingVehicleType vehicle_type
+    0004: outvar $RETVAL
+endmacro
+macro SET_CAMERA_DIRECTLY_BEHIND_PLAYER():
+    CALL SetCameraDirectlyBehindPlayer
+endmacro

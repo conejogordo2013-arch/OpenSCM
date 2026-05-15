@@ -73,6 +73,17 @@ bin/scml run examples/debugging.scmlbin --trace --dump-memory
 ```
 
 
+
+## GTA/CLEO compatibility example
+
+`examples/free_camera_vehicle.scml` is a SCML-compatible conversion of a CLEO-style vehicle free-camera script.  The companion header `examples/gta_camera_compat.scmlh` maps GTA-specific memory, input, vehicle, and camera operations to native `CALL`s so the source compiles with the core SCML compiler while an embedding host provides the game-specific implementations.
+
+Compile it with:
+
+```sh
+bin/scml compile examples/free_camera_vehicle.scml examples/free_camera_vehicle.scmlbin
+```
+
 ## C++ embedding
 
 SCML ships a small C++ wrapper in `cpp/scml_vm.hpp` for game and simulation hosts:
