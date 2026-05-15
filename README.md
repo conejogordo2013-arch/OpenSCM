@@ -24,6 +24,8 @@ Supported source concepts include:
 - SCM-style calls through `CALL @FUNC` and `return`.
 - Thread/event handler termination through `end_thread`.
 - Header files (`.scmlh`) with `#define`, `#include`, and `macro name(args): ... endmacro`.
+- Optional SCM-style flow helper libraries such as `stscm/scm_flow.scmlh`, which provide `goto`, `gosub`, `if_eq`, `goto_if_false`, and `END_SCRIPT` as macros over existing opcodes.
+- A general-purpose `std.scmlh` include that aggregates the standard wrappers, SCM-style flow helpers, and core opcode aliases without adding any GTA-specific behavior.
 - Optional convenience assignment such as `$PLAYER_HEALTH += 50`, compiled to the existing `ADD` opcode.
 
 ## Architecture
@@ -70,6 +72,13 @@ Inspect memory and trace source lines:
 
 ```sh
 bin/scml run examples/debugging.scmlbin --trace --dump-memory
+```
+
+Compile the exhaustive opcode/library showcase:
+
+```sh
+bin/scml compile examples/all_opcodes_showcase.scml /tmp/all_opcodes_showcase.scmlbin
+bin/scml run /tmp/all_opcodes_showcase.scmlbin --dump-memory
 ```
 
 

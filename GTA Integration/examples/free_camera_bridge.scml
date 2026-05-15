@@ -1,0 +1,12 @@
+#include "../scmlh/gtasa.scmlh"
+
+:MAIN
+PRINT_NOW("Press V to toggle the SCML camera bridge", 1500)
+
+:WAIT_KEY
+WAIT(0)
+KEY_PRESSED(86)
+GOTO_IF_FALSE(@WAIT_KEY)
+SET_CAMERA_BEHIND_PLAYER()
+PRINT_NOW("Camera reset through GTA host", 1000)
+GOTO(@WAIT_KEY)

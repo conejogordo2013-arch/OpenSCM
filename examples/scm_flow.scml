@@ -1,0 +1,42 @@
+#include "../stscm/scm_flow.scmlh"
+
+:MAIN
+0004: state 0
+0004: counter 0
+03E5: "SCM-style flow demo"
+gosub @BOOT
+
+:LOOP
+wait 0
+0006: counter counter 1
+03E5: counter
+if_lt(counter, 3, @LOOP_BODY, @AFTER_LOOP)
+
+:LOOP_BODY
+if_eq(state, 1, @STATE_ONE, @STATE_OTHER)
+
+:STATE_ONE
+03E5: "then: state is one"
+goto @LOOP
+
+:STATE_OTHER
+03E5: "else: state is not one"
+0004: state 1
+goto @LOOP
+
+:AFTER_LOOP
+0004: should_print 0
+goto_if_false(should_print, @SKIP_OPTIONAL)
+03E5: "this branch is intentionally skipped"
+
+:SKIP_OPTIONAL
+gosub @FINISH
+END_SCRIPT()
+
+:BOOT
+03E5: "gosub: boot"
+RETURN()
+
+:FINISH
+03E5: "gosub: finish"
+RETURN()

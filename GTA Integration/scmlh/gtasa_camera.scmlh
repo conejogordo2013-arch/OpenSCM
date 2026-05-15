@@ -1,0 +1,13 @@
+; GTA camera wrappers.
+
+macro SET_CAMERA_BEHIND_PLAYER():
+    CALL "GTA_SetCameraBehindPlayer"
+endmacro
+
+macro SET_FIXED_CAMERA_POSITION(x, y, z, rx, ry, rz):
+    CALL "GTA_SetFixedCameraPosition" x y z rx ry rz
+endmacro
+
+macro RESTORE_CAMERA():
+    CALL "GTA_RestoreCamera"
+endmacro
