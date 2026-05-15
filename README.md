@@ -83,6 +83,33 @@ bin/scml run /tmp/all_opcodes_showcase.scmlbin --dump-memory
 
 
 
+
+## SCML estándar avanzado (`std.scmlh`)
+
+La librería estándar ahora incluye utilidades más robustas para construir runtimes/hosts más flexibles:
+
+- Modelo de estado y errores (`SCML_OK`, `SCML_ERR_*`) para flujos de ejecución tolerantes a fallos.
+- Macros de validación (`ASSERT_*`, `REQUIRE_TRUE`, `RETURN_IF_ERR`) para control de errores más consistente.
+- Acceso seguro de arreglos (`ARRAY_SAFE_GET`) con reporte de error explícito.
+- Metadatos de empaquetado estilo `.scmr` (tipo contenedor `.jar`) mediante `PACKAGE_*` y objetivos de artefacto (`TARGET_EXE`, `TARGET_DLL`, `TARGET_SO`, `TARGET_SCMLVM_LIB`, `TARGET_SCMLSTD_LIB`, `TARGET_SCMLABI_LIB`).
+
+Esto permite describir, desde SCML, builds orientados a ejecutables, bibliotecas dinámicas y paquetes con recursos binarios/aplicación. Un host o toolchain puede leer estas variables globales para generar `.exe`, `.dll`, `.so` y contenedores `.scmr`.
+
+Ejemplo:
+
+```sh
+bin/scml compile examples/scmr_package.scml examples/scmr_package.scmlbin
+bin/scml run examples/scmr_package.scmlbin
+```
+
+Empaquetar en contenedor `.scmr` (aplicación + assets binarios):
+
+```sh
+bin/scml pack examples/scmr_package.scmlbin examples/scmr_package.scmr examples/scmr_asset.txt
+```
+
+Formato SCMR (v1): cabecera (`SCMR`), tabla de entradas (`app.scmlbin` + assets), y payload binario concatenado. Esto permite un flujo tipo `.jar` para distribución de aplicaciones SCML con recursos.
+
 ## GTA/CLEO compatibility example
 
 `examples/free_camera_vehicle.scml` is a SCML-compatible conversion of a CLEO-style vehicle free-camera script.  The companion header `examples/gta_camera_compat.scmlh` maps GTA-specific memory, input, vehicle, and camera operations to native `CALL`s so the source compiles with the core SCML compiler while an embedding host provides the game-specific implementations.
@@ -159,4 +186,19 @@ while (running) {
     vm.triggerEvent("ON_TICK");
     vm.update();
 }
+```
+
+
+## LWSCMGL (idea tipo LWJGL para SCML)
+
+Se añadió una base inicial de **LWSCMGL** para integración gráfica lightweight desde hosts C++:
+
+- `runtime/lwscmgl.hpp` define un contexto mínimo y binding nativo `LWSCMGL_DrawPoint`.
+- `examples/lwscmgl_demo.scml` llama a la API desde SCML.
+- `examples/lwscmgl_demo.cpp` registra los natives y ejecuta el script.
+
+Ejecutar demo:
+
+```sh
+make lwscmgl-example
 ```
