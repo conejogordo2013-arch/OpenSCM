@@ -1,0 +1,19 @@
+#include "../std.scmlh"
+
+:MAIN
+int(default_int, 123)
+INT2(two_bit_wrap, 3)
+INT4(four_bit_wrap, 15)
+INT8(byte_wrap, 255)
+INT16(short_value, 32767)
+INT32(max_int32, 2147483647)
+INT64(big_int64, 9223372036854775807)
+ADD(big_sum, big_int64, 0)
+03E5: default_int
+03E5: two_bit_wrap
+03E5: four_bit_wrap
+03E5: byte_wrap
+03E5: short_value
+03E5: max_int32
+03E5: big_sum
+0001:

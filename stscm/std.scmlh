@@ -189,6 +189,202 @@ macro ARRAY_SET(ref, index, value):
     0B13: ref index value
 endmacro
 
+macro ARRAY_PUSH(ref, value):
+    0B15: ref value
+endmacro
+
+macro ARRAY_POP(outvar, ref):
+    0B16: outvar ref
+endmacro
+
+macro ARRAY_LEN(outvar, ref):
+    0B17: outvar ref
+endmacro
+
+macro INT(outvar, value):
+    0B18: outvar value
+endmacro
+
+macro INT2(outvar, value):
+    0B19: outvar value
+endmacro
+
+macro INT4(outvar, value):
+    0B1A: outvar value
+endmacro
+
+macro INT8(outvar, value):
+    0B1B: outvar value
+endmacro
+
+macro INT16(outvar, value):
+    0B1C: outvar value
+endmacro
+
+macro INT32(outvar, value):
+    0B1D: outvar value
+endmacro
+
+macro INT64(outvar, value):
+    0B1E: outvar value
+endmacro
+
+macro int(outvar, value):
+    0B18: outvar value
+endmacro
+
+macro int2(outvar, value):
+    0B19: outvar value
+endmacro
+
+macro int4(outvar, value):
+    0B1A: outvar value
+endmacro
+
+macro int8(outvar, value):
+    0B1B: outvar value
+endmacro
+
+macro int16(outvar, value):
+    0B1C: outvar value
+endmacro
+
+macro int32(outvar, value):
+    0B1D: outvar value
+endmacro
+
+macro int64(outvar, value):
+    0B1E: outvar value
+endmacro
+
+macro TYPE_OF(outvar, value):
+    0B1F: outvar value
+endmacro
+
+macro BOOL(outvar, value):
+    0B20: outvar value
+endmacro
+
+macro NULL(outvar):
+    0B21: outvar
+endmacro
+
+macro FLOAT32(outvar, value):
+    0B2B: outvar value
+endmacro
+
+macro STRING(outvar, value):
+    0B2C: outvar value
+endmacro
+
+macro IS_TYPE(outvar, value, type_name):
+    0B2A: outvar value type_name
+endmacro
+
+macro CLASS_DEFINE(name, outvar):
+    0B22: name outvar
+endmacro
+
+macro CLASS_EXTENDS(child, parent):
+    0B23: child parent
+endmacro
+
+macro OBJECT_NEW(class_ref, outvar):
+    0B24: class_ref outvar
+endmacro
+
+macro FIELD_SET(object_ref, field_name, value):
+    0B25: object_ref field_name value
+endmacro
+
+macro FIELD_GET(outvar, object_ref, field_name):
+    0B26: outvar object_ref field_name
+endmacro
+
+macro INSTANCE_OF(outvar, object_ref, class_ref):
+    0B27: outvar object_ref class_ref
+endmacro
+
+macro CLASS_METHOD(class_ref, method_name, label):
+    0B28: class_ref method_name label
+endmacro
+
+macro METHOD_CALL(object_ref, method_name):
+    0B29: object_ref method_name
+endmacro
+
+macro METHOD_CALL1(object_ref, method_name, arg0):
+    0B29: object_ref method_name arg0
+endmacro
+
+macro METHOD_CALL2(object_ref, method_name, arg0, arg1):
+    0B29: object_ref method_name arg0 arg1
+endmacro
+
+macro type_of(outvar, value):
+    0B1F: outvar value
+endmacro
+
+macro bool(outvar, value):
+    0B20: outvar value
+endmacro
+
+macro null(outvar):
+    0B21: outvar
+endmacro
+
+macro float32(outvar, value):
+    0B2B: outvar value
+endmacro
+
+macro string(outvar, value):
+    0B2C: outvar value
+endmacro
+
+macro is_type(outvar, value, type_name):
+    0B2A: outvar value type_name
+endmacro
+
+macro class_define(name, outvar):
+    0B22: name outvar
+endmacro
+
+macro class_extends(child, parent):
+    0B23: child parent
+endmacro
+
+macro object_new(class_ref, outvar):
+    0B24: class_ref outvar
+endmacro
+
+macro field_set(object_ref, field_name, value):
+    0B25: object_ref field_name value
+endmacro
+
+macro field_get(outvar, object_ref, field_name):
+    0B26: outvar object_ref field_name
+endmacro
+
+macro instance_of(outvar, object_ref, class_ref):
+    0B27: outvar object_ref class_ref
+endmacro
+
+macro class_method(class_ref, method_name, label):
+    0B28: class_ref method_name label
+endmacro
+
+macro method_call(object_ref, method_name):
+    0B29: object_ref method_name
+endmacro
+
+macro method_call1(object_ref, method_name, arg0):
+    0B29: object_ref method_name arg0
+endmacro
+
+macro method_call2(object_ref, method_name, arg0, arg1):
+    0B29: object_ref method_name arg0 arg1
+endmacro
+
 macro ARRAY_SAFE_GET(outvar, ref, index, len, status_var, fail_label):
     00D9: index len @ARRAY_SAFE_GET_OK
     0004: status_var SCML_ERR_OUT_OF_RANGE
