@@ -5,7 +5,7 @@
 
 #define SCML_MAX_OPCODE 200
 #define SCML_MAGIC 0x4C4D4353u /* SCML */
-#define SCML_VERSION 4u
+#define SCML_VERSION 6u
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,7 +43,31 @@ typedef enum ScmlOpcode {
     SCML_OP_EVENT_BIND = 0x1C,
     SCML_OP_EVENT_TRIGGER = 0x1D,
     SCML_OP_FREE = 0x1E,
-    SCML_OP_ARRAY_CREATE = 0x1F
+    SCML_OP_ARRAY_CREATE = 0x1F,
+    SCML_OP_ARRAY_PUSH = 0x20,
+    SCML_OP_ARRAY_POP = 0x21,
+    SCML_OP_ARRAY_LEN = 0x22,
+    SCML_OP_INT = 0x23,
+    SCML_OP_INT2 = 0x24,
+    SCML_OP_INT4 = 0x25,
+    SCML_OP_INT8 = 0x26,
+    SCML_OP_INT16 = 0x27,
+    SCML_OP_INT32 = 0x28,
+    SCML_OP_INT64 = 0x29,
+    SCML_OP_TYPE_OF = 0x2A,
+    SCML_OP_BOOL = 0x2B,
+    SCML_OP_NULL = 0x2C,
+    SCML_OP_CLASS_DEFINE = 0x2D,
+    SCML_OP_CLASS_EXTENDS = 0x2E,
+    SCML_OP_OBJECT_NEW = 0x2F,
+    SCML_OP_FIELD_SET = 0x30,
+    SCML_OP_FIELD_GET = 0x31,
+    SCML_OP_INSTANCE_OF = 0x32,
+    SCML_OP_CLASS_METHOD = 0x33,
+    SCML_OP_METHOD_CALL = 0x34,
+    SCML_OP_IS_TYPE = 0x35,
+    SCML_OP_FLOAT32 = 0x36,
+    SCML_OP_STRING_CAST = 0x37
 } ScmlOpcode;
 
 typedef enum ScmlOperandType {
@@ -52,7 +76,8 @@ typedef enum ScmlOperandType {
     SCML_OPERAND_STRING = 2,
     SCML_OPERAND_VAR = 3,
     SCML_OPERAND_ADDRESS = 4,
-    SCML_OPERAND_FLOAT = 5
+    SCML_OPERAND_FLOAT = 5,
+    SCML_OPERAND_INT64 = 6
 } ScmlOperandType;
 
 typedef struct ScmlOpcodeInfo {

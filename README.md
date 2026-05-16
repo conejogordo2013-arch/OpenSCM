@@ -44,7 +44,10 @@ Supported source concepts include:
 - Event queue dispatch from SCML (`0A31:` / `EVENT_TRIGGER`) or host API (`scml_vm_trigger_event`).
 - Call stack with `CALL` and `return`; non-`$` variables inside calls are local to the active frame.
 - Garbage-safe heap object references through integer handles instead of raw pointers.
-- Array/block memory opcodes: `0B10 ALLOC`, `0B11 FREE`, `0B12 READ`, `0B13 WRITE`, and `0B14 ARRAY_CREATE`.
+- Array/block memory opcodes: `0B10 ALLOC`, `0B11 FREE`, `0B12 READ`, `0B13 WRITE`, `0B14 ARRAY_CREATE`, plus real dynamic array helpers `0B15 ARRAY_PUSH`, `0B16 ARRAY_POP`, and `0B17 ARRAY_LEN`.
+- Typed signed integer casts/constructors through `INT`, `INT2`, `INT4`, `INT8`, `INT16`, `INT32`, and `INT64` (with lowercase aliases such as `int32`/`int64`); literals outside 32-bit range are encoded as 64-bit operands.
+- Advanced runtime types (`bool`, `null`, `float32`, `string`, `object`) with `TYPE_OF`, `IS_TYPE`, and casts/construction macros.
+- Class/object runtime with class definitions, inheritance, object creation, fields, instance checks, and label-backed method dispatch (`CLASS_DEFINE`, `CLASS_EXTENDS`, `OBJECT_NEW`, `FIELD_*`, `CLASS_METHOD`, `METHOD_CALL*`).
 - Debug tracing with source line mapping, `scml_vm_step`, and a memory inspector (`scml_vm_dump_memory`).
 - Multi-script compilation for shared global symbols and cross-script calls.
 
@@ -72,6 +75,27 @@ Inspect memory and trace source lines:
 
 ```sh
 bin/scml run examples/debugging.scmlbin --trace --dump-memory
+```
+
+Compile and run a dynamic-array example:
+
+```sh
+bin/scml compile examples/dynamic_arrays.scml examples/dynamic_arrays.scmlbin
+bin/scml run examples/dynamic_arrays.scmlbin --dump-memory
+```
+
+Compile and run typed integer examples:
+
+```sh
+bin/scml compile examples/int_types.scml examples/int_types.scmlbin
+bin/scml run examples/int_types.scmlbin
+```
+
+Compile and run classes / advanced types:
+
+```sh
+bin/scml compile examples/classes_types.scml examples/classes_types.scmlbin
+bin/scml run examples/classes_types.scmlbin --dump-memory
 ```
 
 Compile the exhaustive opcode/library showcase:

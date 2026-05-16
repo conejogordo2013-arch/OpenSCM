@@ -1,0 +1,38 @@
+#include "../std.scmlh"
+
+:MAIN
+CLASS_DEFINE("Entity", entity_class)
+CLASS_DEFINE("Vehicle", vehicle_class)
+CLASS_EXTENDS(vehicle_class, entity_class)
+CLASS_METHOD(vehicle_class, "heal", @VEHICLE_HEAL)
+OBJECT_NEW(vehicle_class, car)
+FIELD_SET(car, "health", 75)
+FIELD_GET(health_before, car, "health")
+03E5: health_before
+METHOD_CALL1(car, "heal", 25)
+FIELD_GET(health_after, car, "health")
+03E5: health_after
+INSTANCE_OF(is_entity, car, entity_class)
+03E5: is_entity
+TYPE_OF(car_type, car)
+03E5: car_type
+BOOL(enabled, 1)
+TYPE_OF(enabled_type, enabled)
+03E5: enabled_type
+NULL(nothing)
+TYPE_OF(nothing_type, nothing)
+03E5: nothing_type
+FLOAT32(speed, 88)
+TYPE_OF(speed_type, speed)
+03E5: speed_type
+STRING(speed_text, speed)
+03E5: speed_text
+IS_TYPE(is_speed_float, speed, "float32")
+03E5: is_speed_float
+0001:
+
+:VEHICLE_HEAL
+FIELD_GET(current_health, $THIS, "health")
+ADD(current_health, current_health, $ARG0)
+FIELD_SET($THIS, "health", current_health)
+return

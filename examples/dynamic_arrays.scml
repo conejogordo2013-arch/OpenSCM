@@ -1,0 +1,20 @@
+#include "../std.scmlh"
+
+:MAIN
+ARRAY_NEW(0, numbers)
+ARRAY_PUSH(numbers, 10)
+ARRAY_PUSH(numbers, 20)
+ARRAY_PUSH(numbers, 30)
+ARRAY_LEN(count, numbers)
+03E5: count
+ARRAY_GET(second, numbers, 1)
+03E5: second
+ARRAY_POP(last, numbers)
+03E5: last
+ARRAY_LEN(count_after_pop, numbers)
+03E5: count_after_pop
+ARRAY_SET(numbers, 1, 99)
+ARRAY_GET(updated, numbers, 1)
+03E5: updated
+HEAP_FREE(numbers)
+0001:
