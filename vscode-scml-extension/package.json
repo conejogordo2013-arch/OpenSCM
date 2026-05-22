@@ -1,0 +1,62 @@
+{
+  "name": "scml-advanced-tools",
+  "displayName": "SCML Advanced Tools",
+  "description": "Advanced SCML support: syntax highlighting, snippets, compile/run/bin commands with SCML executable detection.",
+  "version": "0.1.0",
+  "publisher": "openscm",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages", "Other"],
+  "activationEvents": [
+    "onLanguage:scml",
+    "onLanguage:scmlh",
+    "onCommand:scml.compile",
+    "onCommand:scml.run",
+    "onCommand:scml.compileAndRun"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "scml",
+        "aliases": ["SCML", "scml"],
+        "extensions": [".scml", ".scmlh"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "scml",
+        "scopeName": "source.scml",
+        "path": "./syntaxes/scml.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      { "language": "scml", "path": "./snippets/scml.json" }
+    ],
+    "commands": [
+      { "command": "scml.compile", "title": "SCML: Compile Current File" },
+      { "command": "scml.run", "title": "SCML: Run Current Binary" },
+      { "command": "scml.compileAndRun", "title": "SCML: Compile and Run Current File" }
+    ],
+    "configuration": {
+      "title": "SCML",
+      "properties": {
+        "scml.executablePath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to SCML executable. If empty, extension searches bin/scml, scml.exe, then PATH."
+        },
+        "scml.defaultBinOutputDir": {
+          "type": "string",
+          "default": "${workspaceFolder}/bin",
+          "description": "Default output directory for generated .scmlbin files."
+        },
+        "scml.runWithTrace": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include --trace when running SCML binaries."
+        }
+      }
+    }
+  }
+}

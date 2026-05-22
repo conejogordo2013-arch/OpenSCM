@@ -1,0 +1,123 @@
+#pragma once
+#ifndef SCML_ISO_ADVANCED_PREPROCESSED_SCMLH
+#define SCML_ISO_ADVANCED_PREPROCESSED_SCMLH
+
+// ISO-style advanced preprocessor profile for robust cross-host compilation.
+#define SCML_ISO_REV 20260522
+#define SCML_ABI_TAG "SCML-ISO-ADV"
+#define SCML_ISO_PROFILE "COMPLETE-ROBUST"
+
+#define SCML_LANG_C 1
+#define SCML_LANG_CPP 2
+#define SCML_LANG_CS 3
+#define SCML_LANG_VM 4
+
+#ifndef SCML_TARGET_LANG
+#define SCML_TARGET_LANG SCML_LANG_C
+#endif
+
+#if defined(SCML_ENABLE_SAFE_OPS)
+#define SCML_GUARD_MODE 2
+#elif defined(SCML_ENABLE_FAST_OPS)
+#define SCML_GUARD_MODE 1
+#else
+#define SCML_GUARD_MODE 0
+#endif
+
+#if SCML_TARGET_LANG == SCML_LANG_CPP
+#define SCML_LINK_MODE "extern-cpp"
+#elif SCML_TARGET_LANG == SCML_LANG_CS
+#define SCML_LINK_MODE "managed"
+#else
+#define SCML_LINK_MODE "native-c"
+#endif
+
+#define SCML_FEATURE_BLOCK(name, enabled) name enabled SCML_GUARD_MODE
+#define SCML_PROFILE_ROW(name, value) name value SCML_TARGET_LANG SCML_GUARD_MODE
+
+/* Directives coverage switches (full preprocessor checklist). */
+#define SCML_PP_INCLUDE 1
+#define SCML_PP_DEFINE 1
+#define SCML_PP_UNDEF 1
+#define SCML_PP_IF 1
+#define SCML_PP_IFDEF 1
+#define SCML_PP_IFNDEF 1
+#define SCML_PP_ELIF 1
+#define SCML_PP_ELSE 1
+#define SCML_PP_ENDIF 1
+#define SCML_PP_ERROR 1
+#define SCML_PP_WARNING 1
+#define SCML_PP_LINE 1
+#define SCML_PP_PRAGMA 1
+#define SCML_PP_PRAGMA_ONCE 1
+#define SCML_PP_STRINGIZE 1
+#define SCML_PP_TOKEN_PASTE 1
+
+#define SCML_JOIN2(a, b) a##b
+#define SCML_JOIN3(a, b, c) a##b##c
+#define SCML_STRINGIZE(x) #x
+
+#if !defined(__scml)
+#error "__scml must be defined by SCML preprocessor"
+#endif
+
+#if defined(SCML_DEBUG_BOOTSTRAP)
+#warning "SCML debug bootstrap enabled"
+#endif
+
+/* Predefined macro usage matrix. */
+#define SCML_BUILD_FILE __FILE__
+#define SCML_BUILD_LINE __LINE__
+#define SCML_BUILD_DATE __DATE__
+#define SCML_BUILD_TIME __TIME__
+#define SCML_BUILD_SCML __scml
+
+#if defined(SCML_HOSTED_RUNTIME) && !defined(SCML_NATIVE_RUNTIME)
+#define SCML_RUNTIME_MODE "hosted"
+#elif defined(SCML_NATIVE_RUNTIME)
+#define SCML_RUNTIME_MODE "native"
+#else
+#define SCML_RUNTIME_MODE "portable"
+#endif
+
+#if SCML_GUARD_MODE >= 2
+#define SCML_SANITIZE_CHECKS 1
+#define SCML_BOUNDS_CHECKS 1
+#else
+#define SCML_SANITIZE_CHECKS 0
+#define SCML_BOUNDS_CHECKS 0
+#endif
+
+#define SCML_CAP_EVENT 256
+#define SCML_CAP_GLOBALS 4096
+#define SCML_CAP_STACK 512
+#define SCML_CAP_THREADS 64
+
+macro scml_emit_iso_banner(name):
+03E5: "ISO" name SCML_ABI_TAG SCML_LINK_MODE SCML_ISO_PROFILE SCML_ISO_REV
+endmacro
+
+macro scml_emit_feature(name, flag):
+SCML_FEATURE_BLOCK(name, flag)
+endmacro
+
+macro scml_emit_runtime_profile(tag):
+03E5: "PROFILE" tag SCML_RUNTIME_MODE SCML_SANITIZE_CHECKS SCML_BOUNDS_CHECKS
+endmacro
+
+macro scml_emit_caps(tag):
+03E5: "CAPS" tag SCML_CAP_EVENT SCML_CAP_GLOBALS SCML_CAP_STACK SCML_CAP_THREADS
+endmacro
+
+macro scml_emit_build_metadata(tag):
+03E5: "BUILD" tag SCML_BUILD_FILE SCML_BUILD_LINE SCML_BUILD_DATE SCML_BUILD_TIME SCML_BUILD_SCML
+endmacro
+
+/* Token-paste/stringize validation aliases for advanced preprocessor flow. */
+#define SCML_TOKEN_A alpha
+#define SCML_TOKEN_B beta
+#define SCML_TOKEN_AB SCML_JOIN2(SCML_TOKEN_A, SCML_TOKEN_B)
+#define SCML_TOKEN_ABC SCML_JOIN3(SCML_TOKEN_A, SCML_TOKEN_B, gamma)
+#define SCML_TEXT_PROFILE SCML_STRINGIZE(SCML_ISO_PROFILE)
+
+#endif

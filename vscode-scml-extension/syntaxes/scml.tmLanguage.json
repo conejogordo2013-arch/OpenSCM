@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SCML",
+  "scopeName": "source.scml",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#directives" },
+    { "include": "#labels" },
+    { "include": "#opcodes" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#strings" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.semicolon.scml", "match": ";.*$" },
+        { "name": "comment.line.double-slash.scml", "match": "//.*$" }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        { "name": "keyword.control.directive.scml", "match": "^\\s*#\\s*(include|define|undef|if|ifdef|ifndef|elif|else|endif|error|warning|line|pragma)\\b" }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        { "name": "entity.name.label.scml", "match": "^\\s*:[A-Za-z_][A-Za-z0-9_]*" },
+        { "name": "variable.other.labelref.scml", "match": "@[A-Za-z_][A-Za-z0-9_]*" }
+      ]
+    },
+    "opcodes": {
+      "patterns": [
+        { "name": "keyword.operator.opcode.scml", "match": "\\b[0-9A-Fa-f]{4}:\\b" }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        { "name": "keyword.control.scml", "match": "\\b(CALL|JUMP|return|end_thread|macro|endmacro|EVENT_TRIGGER)\\b" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.float.scml", "match": "\\b-?\\d+\\.\\d+\\b" },
+        { "name": "constant.numeric.integer.hex.scml", "match": "\\b0[xX][0-9A-Fa-f]+\\b" },
+        { "name": "constant.numeric.integer.scml", "match": "\\b-?\\d+\\b" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        { "name": "string.quoted.double.scml", "begin": "\"", "end": "\"", "patterns": [{ "name": "constant.character.escape.scml", "match": "\\\\." }] }
+      ]
+    }
+  }
+}
