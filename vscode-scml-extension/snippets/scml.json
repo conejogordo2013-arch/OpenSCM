@@ -1,0 +1,17 @@
+{
+  "Main Loop": {
+    "prefix": "mainloop",
+    "body": [":MAIN","0004: counter 0",":LOOP","03E5: \"tick\"","0006: counter counter 1","00D8: 3 counter @LOOP","0001:"],
+    "description": "Basic SCML main loop"
+  },
+  "Macro": {
+    "prefix": "scmacro",
+    "body": ["macro ${1:name}(${2:arg}):","${3:03E5: \"${1:name}\" ${2:arg}}","endmacro"],
+    "description": "SCML macro template"
+  },
+  "Ifdef Block": {
+    "prefix": "ifdef",
+    "body": ["#ifdef ${1:SYMBOL}","${2:03E5: \"enabled\"}","#else","${3:03E5: \"disabled\"}","#endif"],
+    "description": "Preprocessor ifdef"
+  }
+}
