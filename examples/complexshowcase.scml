@@ -1,0 +1,8 @@
+#include "libraryexample.scmlh"
+:MAIN
+03E5: "showcase begin"
+SPAWN_PLAYER(player_id)
+03E5: player_id
+0A20: "log.txt" "spawned entity"
+000B: 1
+0001:

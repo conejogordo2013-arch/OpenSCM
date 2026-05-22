@@ -1,0 +1,9 @@
+#include "headers.scmlh"
+#include "memory.scmlh"
+:MAIN
+say("imports active")
+make_buffer(TEN, heap_ptr)
+poke(heap_ptr, 2, 1234)
+peek(answer, heap_ptr, 2)
+03E5: answer
+0001:

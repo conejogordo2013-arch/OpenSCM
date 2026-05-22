@@ -1,0 +1,9 @@
+#include "complexheader.scmlh"
+:MAIN
+0004: i 0
+:LOOP
+03E5: i
+0006: i i 1
+00D8: LOOP_LIMIT i @LOOP
+03E5: "loop done"
+0001:
