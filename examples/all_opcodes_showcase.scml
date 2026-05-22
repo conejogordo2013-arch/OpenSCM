@@ -1,0 +1,312 @@
+#include "../std.scmlh"
+
+
+:MAIN
+NOP()
+PUSH_INT(123)
+PUSH_STR("stack-string")
+LOAD(TRUE)
+SET($path, "/tmp/scml_all_opcodes_showcase.txt")
+STORE($phase, 0)
+set($lower_set, TRUE)
+PRINT("=== SCML all opcodes showcase ===")
+LOG("log: boot")
+LOG_FILE($path, "log_file: boot")
+FILE_WRITE($path, "file_write: first line")
+FILE_APPEND($path, "file_append: second line")
+FILE_READ($path, $file_text)
+PRINT($file_text)
+
+SET($a, 42)
+SET($b, 6)
+ADD($sum, $a, $b)
+SUB($diff, $a, $b)
+MUL($product, $sum, 2)
+DIV($quotient, $product, 4)
+add($lower_add, $quotient, 1)
+sub($lower_sub, $lower_add, 2)
+mul($lower_mul, $lower_sub, 3)
+div($lower_div, $lower_mul, 3)
+MATH_ADD($math_add, $lower_div, 5)
+MATH_SUB($math_sub, $math_add, 1)
+MATH_MUL($math_mul, $math_sub, 2)
+MATH_DIV($math_div, $math_mul, 2)
+PRINT($math_div)
+INT($typed_default, 12)
+INT2($typed_int2, 3)
+INT4($typed_int4, 15)
+INT8($typed_int8, 255)
+INT16($typed_int16, 32767)
+INT32($typed_int32, 2147483647)
+INT64($typed_int64, 9223372036854775807)
+0B1E: $typed_int64_raw 9223372036854775807
+PRINT($typed_int8)
+PRINT($typed_int64_raw)
+BOOL($typed_bool, 1)
+NULL($typed_null)
+FLOAT32($typed_float, 12)
+STRING($typed_float_text, $typed_float)
+TYPE_OF($typed_float_type, $typed_float)
+IS_TYPE($typed_float_is_float, $typed_float, "float32")
+PRINT($typed_float_text)
+PRINT($typed_float_type)
+PRINT($typed_float_is_float)
+CLASS_DEFINE("ShowcaseBase", $showcase_base_class)
+CLASS_DEFINE("ShowcaseChild", $showcase_child_class)
+CLASS_EXTENDS($showcase_child_class, $showcase_base_class)
+CLASS_METHOD($showcase_child_class, "bump", @SHOWCASE_BUMP)
+OBJECT_NEW($showcase_child_class, $showcase_object)
+FIELD_SET($showcase_object, "score", 14)
+METHOD_CALL1($showcase_object, "bump", 1)
+FIELD_GET($showcase_score, $showcase_object, "score")
+INSTANCE_OF($showcase_is_base, $showcase_object, $showcase_base_class)
+PRINT($showcase_score)
+PRINT($showcase_is_base)
+
+ALLOC(3, $legacy_heap)
+WRITE($legacy_heap, 0, $sum)
+WRITE($legacy_heap, 1, $diff)
+WRITE($legacy_heap, 2, $product)
+READ($legacy_read, $legacy_heap, 2)
+PRINT($legacy_read)
+
+ARRAY_CREATE(4, $array_a)
+ARRAY_SET($array_a, 0, 10)
+ARRAY_SET($array_a, 1, 20)
+ARRAY_SET($array_a, 2, 30)
+ARRAY_SET($array_a, 3, 40)
+ARRAY_GET($array_item, $array_a, 2)
+PRINT($array_item)
+
+HEAP_ALLOC(2, $heap_b)
+HEAP_WRITE($heap_b, 0, 77)
+HEAP_WRITE($heap_b, 1, 88)
+HEAP_READ($heap_b_value, $heap_b, 1)
+PRINT($heap_b_value)
+HEAP_FREE($heap_b)
+0C00: 2 $heap_c
+0C01: $heap_c 0 333
+0C01: $heap_c 1 444
+0C02: $heap_c_value $heap_c 1
+PRINT($heap_c_value)
+FREE($heap_c)
+FREE($legacy_heap)
+
+ARRAY_NEW(2, $array_b)
+ARRAY_SET($array_b, 0, $math_div)
+ARRAY_SET($array_b, 1, $heap_b_value)
+ARRAY_PUSH($array_b, 1234)
+0B15: $array_b 5678
+ARRAY_LEN($array_b_len, $array_b)
+PRINT($array_b_len)
+ARRAY_POP($array_b_popped, $array_b)
+PRINT($array_b_popped)
+0B16: $array_b_popped_raw $array_b
+PRINT($array_b_popped_raw)
+0B17: $array_b_len_raw $array_b
+PRINT($array_b_len_raw)
+ARRAY_GET($array_b_first, $array_b, 0)
+PRINT($array_b_first)
+
+ENTITY_SPAWN("worker", 1, 2, 3, $entity)
+ENTITY_SET($entity, "health", 100)
+PRINT($entity)
+
+gosub @FUNC_ACCUMULATE
+GOSUB @FUNC_COMPARE
+CALL @FUNC_RAW_CALL
+0D00: @FUNC_NUMERIC_CALL
+PRINT($call_result)
+PRINT($numeric_call_result)
+
+if_eq_goto($sum, 48, @EQ_GOTO_OK)
+PRINT("if_eq_goto failed")
+JUMP(@AFTER_EQ_GOTO)
+:EQ_GOTO_OK
+PRINT("if_eq_goto ok")
+:AFTER_EQ_GOTO
+
+if_ne_goto($sum, 47, @NE_GOTO_OK)
+PRINT("if_ne_goto failed")
+JUMP(@AFTER_NE_GOTO)
+:NE_GOTO_OK
+PRINT("if_ne_goto ok")
+:AFTER_NE_GOTO
+
+if_gt_goto($product, $sum, @GT_GOTO_OK)
+PRINT("if_gt_goto failed")
+JUMP(@AFTER_GT_GOTO)
+:GT_GOTO_OK
+PRINT("if_gt_goto ok")
+:AFTER_GT_GOTO
+
+if_lt_goto($diff, $sum, @LT_GOTO_OK)
+PRINT("if_lt_goto failed")
+JUMP(@AFTER_LT_GOTO)
+:LT_GOTO_OK
+PRINT("if_lt_goto ok")
+:AFTER_LT_GOTO
+
+if_eq($phase, 0, @IF_EQ_TRUE, @IF_EQ_FALSE)
+:IF_EQ_TRUE
+PRINT("if_eq true branch")
+goto @AFTER_IF_EQ
+:IF_EQ_FALSE
+PRINT("if_eq false branch")
+:AFTER_IF_EQ
+
+if_ne($phase, 99, @IF_NE_TRUE, @IF_NE_FALSE)
+:IF_NE_TRUE
+PRINT("if_ne true branch")
+GOTO(@AFTER_IF_NE)
+:IF_NE_FALSE
+PRINT("if_ne false branch")
+:AFTER_IF_NE
+
+if_gt($sum, $diff, @IF_GT_TRUE, @IF_GT_FALSE)
+:IF_GT_TRUE
+PRINT("if_gt true branch")
+else_goto(@AFTER_IF_GT)
+:IF_GT_FALSE
+PRINT("if_gt false branch")
+:AFTER_IF_GT
+
+if_lt($diff, $sum, @IF_LT_TRUE, @IF_LT_FALSE)
+:IF_LT_TRUE
+PRINT("if_lt true branch")
+GOTO(@AFTER_IF_LT)
+:IF_LT_FALSE
+PRINT("if_lt false branch")
+:AFTER_IF_LT
+
+IF_EQ($phase, 0, @STD_IF_EQ_OK)
+PRINT("IF_EQ failed")
+JUMP(@AFTER_STD_IF_EQ)
+:STD_IF_EQ_OK
+PRINT("IF_EQ ok")
+:AFTER_STD_IF_EQ
+
+IF_NE($phase, 1, @STD_IF_NE_OK)
+PRINT("IF_NE failed")
+JUMP(@AFTER_STD_IF_NE)
+:STD_IF_NE_OK
+PRINT("IF_NE ok")
+:AFTER_STD_IF_NE
+
+IF_GT($sum, $diff, @STD_IF_GT_OK)
+PRINT("IF_GT failed")
+JUMP(@AFTER_STD_IF_GT)
+:STD_IF_GT_OK
+PRINT("IF_GT ok")
+:AFTER_STD_IF_GT
+
+IF_LT($diff, $sum, @STD_IF_LT_OK)
+PRINT("IF_LT failed")
+JUMP(@AFTER_STD_IF_LT)
+:STD_IF_LT_OK
+PRINT("IF_LT ok")
+:AFTER_STD_IF_LT
+
+IF_ELSE_EQ($sum, 48, @ELSE_EQ_TRUE, @ELSE_EQ_FALSE)
+:ELSE_EQ_TRUE
+PRINT("IF_ELSE_EQ true")
+JUMP(@AFTER_ELSE_EQ)
+:ELSE_EQ_FALSE
+PRINT("IF_ELSE_EQ false")
+:AFTER_ELSE_EQ
+
+IF_ELSE_NE($sum, 0, @ELSE_NE_TRUE, @ELSE_NE_FALSE)
+:ELSE_NE_TRUE
+PRINT("IF_ELSE_NE true")
+JUMP(@AFTER_ELSE_NE)
+:ELSE_NE_FALSE
+PRINT("IF_ELSE_NE false")
+:AFTER_ELSE_NE
+
+IF_ELSE_GT($sum, $diff, @ELSE_GT_TRUE, @ELSE_GT_FALSE)
+:ELSE_GT_TRUE
+PRINT("IF_ELSE_GT true")
+JUMP(@AFTER_ELSE_GT)
+:ELSE_GT_FALSE
+PRINT("IF_ELSE_GT false")
+:AFTER_ELSE_GT
+
+IF_ELSE_LT($diff, $sum, @ELSE_LT_TRUE, @ELSE_LT_FALSE)
+:ELSE_LT_TRUE
+PRINT("IF_ELSE_LT true")
+JUMP(@AFTER_ELSE_LT)
+:ELSE_LT_FALSE
+PRINT("IF_ELSE_LT false")
+:AFTER_ELSE_LT
+
+SET($flag, TRUE)
+goto_if_true($flag, @FLAG_TRUE)
+PRINT("goto_if_true failed")
+JUMP(@AFTER_FLAG_TRUE)
+:FLAG_TRUE
+PRINT("goto_if_true ok")
+:AFTER_FLAG_TRUE
+SET($flag, FALSE)
+goto_if_false($flag, @FLAG_FALSE)
+PRINT("goto_if_false failed")
+JUMP(@AFTER_FLAG_FALSE)
+:FLAG_FALSE
+PRINT("goto_if_false ok")
+:AFTER_FLAG_FALSE
+
+WAIT(0)
+wait 0
+TIMER_SLEEP(0)
+
+EVENT_BIND("UNUSED", @EVENT_UNUSED)
+EVENT_BIND("PIPELINE", @EVENT_PIPELINE_A)
+BIND_EVENT("PIPELINE", @EVENT_PIPELINE_B)
+TRIGGER_EVENT("UNUSED")
+EVENT_TRIGGER("PIPELINE")
+PRINT("main queued events, yielding")
+END_SCRIPT()
+
+:SHOWCASE_BUMP
+FIELD_GET($showcase_method_score, $THIS, "score")
+ADD($showcase_method_score, $showcase_method_score, $ARG0)
+FIELD_SET($THIS, "score", $showcase_method_score)
+return
+
+:FUNC_ACCUMULATE
+ADD($acc, $sum, $diff)
+RETURN()
+
+:FUNC_COMPARE
+IF_GT($acc, $sum, @FUNC_COMPARE_GT)
+SET($compare_result, FALSE)
+RETURN()
+:FUNC_COMPARE_GT
+SET($compare_result, TRUE)
+RETURN()
+
+:FUNC_RAW_CALL
+SET($call_result, 9001)
+return
+
+:EVENT_UNUSED
+PRINT("event: UNUSED")
+terminate_this_script()
+
+:FUNC_NUMERIC_CALL
+SET($numeric_call_result, 12345)
+0D01:
+
+:EVENT_PIPELINE_A
+PRINT("event: PIPELINE A")
+SET($event_value, 5)
+ADD($event_value, $event_value, 10)
+PRINT($event_value)
+0D02:
+
+:EVENT_PIPELINE_B
+PRINT("event: PIPELINE B")
+FILE_APPEND($path, "event pipeline complete")
+FILE_READ($path, $final_file_text)
+PRINT($final_file_text)
+PRINT("=== SCML all opcodes showcase done ===")
+HALT()

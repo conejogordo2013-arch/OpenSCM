@@ -1,0 +1,8 @@
+#include "../std.scmlh"
+
+:MAIN
+03E5: "LWSCMGL demo starting"
+CALL LWSCMGL_DrawPoint 0.0 0.0 0.0 1.0 0.2 0.2 1.0
+CALL LWSCMGL_DrawPoint 1.0 0.0 0.0 0.2 1.0 0.2 1.0
+CALL LWSCMGL_DrawPoint 0.0 1.0 0.0 0.2 0.2 1.0 1.0
+0001:

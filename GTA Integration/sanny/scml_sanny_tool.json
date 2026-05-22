@@ -1,0 +1,12 @@
+{
+  "name": "OpenSCM SCML",
+  "description": "External tool profile for editing SCML-style scripts in Sanny Builder and compiling them to .scmlbin without changing the SCML language.",
+  "extensions": [".scml", ".scmlh"],
+  "compileCommand": "bin/scml compile {input} {outputDir}/{fileName}.scmlbin",
+  "deployCommand": "copy {outputDir}\\{fileName}.scmlbin {gtaDir}\\CLEO\\SCML\\{fileName}.scmlbin",
+  "notes": [
+    "Use Sanny Builder as an editor/frontend only.",
+    "Keep GTA-specific commands in GTA Integration/scmlh/*.scmlh.",
+    "Load generated .scmlbin files from the CLEO/ASI runtime host."
+  ]
+}

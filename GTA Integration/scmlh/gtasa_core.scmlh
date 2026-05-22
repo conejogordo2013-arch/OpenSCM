@@ -1,0 +1,39 @@
+; Core GTA SA compatibility helpers for SCML scripts.
+; These wrappers keep GTA-specific behavior outside the SCML language core.
+
+macro GTA_SET_CONDITION(value):
+    0004: $GTA_LAST_CONDITION value
+endmacro
+
+macro GOTO(label):
+    000A: label
+endmacro
+
+macro GOSUB(label):
+    CALL label
+endmacro
+
+macro GOTO_IF_FALSE(label):
+    00D6: $GTA_LAST_CONDITION 0 label
+endmacro
+
+macro GOTO_IF_TRUE(label):
+    00D7: $GTA_LAST_CONDITION 0 label
+endmacro
+
+macro NOT():
+    CALL "GTA_Not" $GTA_LAST_CONDITION
+    0004: $GTA_LAST_CONDITION $RETVAL
+endmacro
+
+macro WAIT(ms):
+    000B: ms
+endmacro
+
+macro TERMINATE_THIS_SCRIPT():
+    end_thread
+endmacro
+
+macro LOG(text):
+    CALL "GTA_Log" text
+endmacro
