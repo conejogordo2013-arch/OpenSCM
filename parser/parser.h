@@ -9,7 +9,7 @@ extern "C" {
 typedef struct ScmlOperand {
     ScmlOperandType type;
     char *text;
-    int64_t integer;
+    int32_t integer;
     float real;
 } ScmlOperand;
 

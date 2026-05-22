@@ -1,5 +1,4 @@
 #include "compiler/compiler.h"
-#include "compiler/scmr.h"
 #include "vm/vm.h"
 
 #include <stdio.h>
@@ -10,9 +9,8 @@ static void usage(const char *argv0) {
             "usage:\n"
             "  %s compile input.scml output.scmlbin\n"
             "  %s compile input1.scml input2.scml output.scmlbin\n"
-            "  %s run input.scmlbin [--trace] [--dump-memory] [--trigger EVENT]\n"
-            "  %s pack input.scmlbin output.scmr [asset1 ... assetN]\n",
-            argv0, argv0, argv0, argv0);
+            "  %s run input.scmlbin [--trace] [--dump-memory] [--trigger EVENT]\n",
+            argv0, argv0, argv0);
 }
 
 int main(int argc, char **argv) {
@@ -26,24 +24,6 @@ int main(int argc, char **argv) {
         size_t input_count = (size_t)(argc - 3);
         if (!scml_compile_files(input_count, inputs, out, err, sizeof(err))) {
             fprintf(stderr, "compile error: %s\n", err);
-            return 1;
-        }
-        return 0;
-    }
-
-
-    if (strcmp(argv[1], "pack") == 0) {
-        if (argc < 4) { usage(argv[0]); return 1; }
-        const char *input_bin = argv[2];
-        const char *out = argv[3];
-        const char **assets = NULL;
-        size_t asset_count = 0;
-        if (argc > 4) {
-            assets = (const char **)&argv[4];
-            asset_count = (size_t)(argc - 4);
-        }
-        if (!scml_build_scmr(input_bin, asset_count, assets, out, err, sizeof(err))) {
-            fprintf(stderr, "pack error: %s\n", err);
             return 1;
         }
         return 0;

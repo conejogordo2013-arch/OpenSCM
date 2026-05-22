@@ -24,8 +24,6 @@ Supported source concepts include:
 - SCM-style calls through `CALL @FUNC` and `return`.
 - Thread/event handler termination through `end_thread`.
 - Header files (`.scmlh`) with `#define`, `#include`, and `macro name(args): ... endmacro`.
-- Optional SCM-style flow helper libraries such as `stscm/scm_flow.scmlh`, which provide `goto`, `gosub`, `if_eq`, `goto_if_false`, and `END_SCRIPT` as macros over existing opcodes.
-- A general-purpose `std.scmlh` include that aggregates the standard wrappers, SCM-style flow helpers, and core opcode aliases without adding any GTA-specific behavior.
 - Optional convenience assignment such as `$PLAYER_HEALTH += 50`, compiled to the existing `ADD` opcode.
 
 ## Architecture
@@ -44,10 +42,7 @@ Supported source concepts include:
 - Event queue dispatch from SCML (`0A31:` / `EVENT_TRIGGER`) or host API (`scml_vm_trigger_event`).
 - Call stack with `CALL` and `return`; non-`$` variables inside calls are local to the active frame.
 - Garbage-safe heap object references through integer handles instead of raw pointers.
-- Array/block memory opcodes: `0B10 ALLOC`, `0B11 FREE`, `0B12 READ`, `0B13 WRITE`, `0B14 ARRAY_CREATE`, plus real dynamic array helpers `0B15 ARRAY_PUSH`, `0B16 ARRAY_POP`, and `0B17 ARRAY_LEN`.
-- Typed signed integer casts/constructors through `INT`, `INT2`, `INT4`, `INT8`, `INT16`, `INT32`, and `INT64` (with lowercase aliases such as `int32`/`int64`); literals outside 32-bit range are encoded as 64-bit operands.
-- Advanced runtime types (`bool`, `null`, `float32`, `string`, `object`) with `TYPE_OF`, `IS_TYPE`, and casts/construction macros.
-- Class/object runtime with class definitions, inheritance, object creation, fields, instance checks, and label-backed method dispatch (`CLASS_DEFINE`, `CLASS_EXTENDS`, `OBJECT_NEW`, `FIELD_*`, `CLASS_METHOD`, `METHOD_CALL*`).
+- Array/block memory opcodes: `0B10 ALLOC`, `0B11 FREE`, `0B12 READ`, `0B13 WRITE`, and `0B14 ARRAY_CREATE`.
 - Debug tracing with source line mapping, `scml_vm_step`, and a memory inspector (`scml_vm_dump_memory`).
 - Multi-script compilation for shared global symbols and cross-script calls.
 
@@ -77,72 +72,6 @@ Inspect memory and trace source lines:
 bin/scml run examples/debugging.scmlbin --trace --dump-memory
 ```
 
-Compile and run a dynamic-array example:
-
-```sh
-bin/scml compile examples/dynamic_arrays.scml examples/dynamic_arrays.scmlbin
-bin/scml run examples/dynamic_arrays.scmlbin --dump-memory
-```
-
-Compile and run typed integer examples:
-
-```sh
-bin/scml compile examples/int_types.scml examples/int_types.scmlbin
-bin/scml run examples/int_types.scmlbin
-```
-
-Compile and run classes / advanced types:
-
-```sh
-bin/scml compile examples/classes_types.scml examples/classes_types.scmlbin
-bin/scml run examples/classes_types.scmlbin --dump-memory
-```
-
-Compile the exhaustive opcode/library showcase:
-
-```sh
-bin/scml compile examples/all_opcodes_showcase.scml /tmp/all_opcodes_showcase.scmlbin
-bin/scml run /tmp/all_opcodes_showcase.scmlbin --dump-memory
-```
-
-
-
-
-## SCML estándar avanzado (`std.scmlh`)
-
-La librería estándar ahora incluye utilidades más robustas para construir runtimes/hosts más flexibles:
-
-- Modelo de estado y errores (`SCML_OK`, `SCML_ERR_*`) para flujos de ejecución tolerantes a fallos.
-- Macros de validación (`ASSERT_*`, `REQUIRE_TRUE`, `RETURN_IF_ERR`) para control de errores más consistente.
-- Acceso seguro de arreglos (`ARRAY_SAFE_GET`) con reporte de error explícito.
-- Metadatos de empaquetado estilo `.scmr` (tipo contenedor `.jar`) mediante `PACKAGE_*` y objetivos de artefacto (`TARGET_EXE`, `TARGET_DLL`, `TARGET_SO`, `TARGET_SCMLVM_LIB`, `TARGET_SCMLSTD_LIB`, `TARGET_SCMLABI_LIB`).
-
-Esto permite describir, desde SCML, builds orientados a ejecutables, bibliotecas dinámicas y paquetes con recursos binarios/aplicación. Un host o toolchain puede leer estas variables globales para generar `.exe`, `.dll`, `.so` y contenedores `.scmr`.
-
-Ejemplo:
-
-```sh
-bin/scml compile examples/scmr_package.scml examples/scmr_package.scmlbin
-bin/scml run examples/scmr_package.scmlbin
-```
-
-Empaquetar en contenedor `.scmr` (aplicación + assets binarios):
-
-```sh
-bin/scml pack examples/scmr_package.scmlbin examples/scmr_package.scmr examples/scmr_asset.txt
-```
-
-Formato SCMR (v1): cabecera (`SCMR`), tabla de entradas (`app.scmlbin` + assets), y payload binario concatenado. Esto permite un flujo tipo `.jar` para distribución de aplicaciones SCML con recursos.
-
-## GTA/CLEO compatibility example
-
-`examples/free_camera_vehicle.scml` is a SCML-compatible conversion of a CLEO-style vehicle free-camera script.  The companion header `examples/gta_camera_compat.scmlh` maps GTA-specific memory, input, vehicle, and camera operations to native `CALL`s so the source compiles with the core SCML compiler while an embedding host provides the game-specific implementations.
-
-Compile it with:
-
-```sh
-bin/scml compile examples/free_camera_vehicle.scml examples/free_camera_vehicle.scmlbin
-```
 
 ## C++ embedding
 
@@ -212,17 +141,12 @@ while (running) {
 }
 ```
 
+## SCML Mega Bootstrap Surface (SCML-style)
 
-## LWSCMGL (idea tipo LWJGL para SCML)
+The repository now includes a dedicated SCML bootstrap catalog under `scmlspec/` with:
 
-Se añadió una base inicial de **LWSCMGL** para integración gráfica lightweight desde hosts C++:
+- `scml_iso_bootstrap.scmlh`: SCML preprocessor/type/semantic feature flags.
+- `scml_keyword_inventory.scml`: SCML-script inventory for full reserved keyword surface.
+- `scml_mega_bootstrap_manifest.md`: domain-by-domain bootstrap manifest.
 
-- `runtime/lwscmgl.hpp` define un contexto mínimo y binding nativo `LWSCMGL_DrawPoint`.
-- `examples/lwscmgl_demo.scml` llama a la API desde SCML.
-- `examples/lwscmgl_demo.cpp` registra los natives y ejecuta el script.
-
-Ejecutar demo:
-
-```sh
-make lwscmgl-example
-```
+This is intentionally SCML-oriented and avoids requiring C++ syntax in SCML user scripts.

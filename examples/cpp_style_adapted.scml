@@ -1,0 +1,36 @@
+#include "cpp_to_scml_compat.scmlh"
+
+:MAIN
+LOG_MSG("cpp->scml adaptation start")
+ASSIGN($counter, 0)
+ASSIGN($sum, 0)
+NEW_ARRAY(5, arr)
+ARRAY_SET(arr, 0, 4)
+ARRAY_SET(arr, 1, 8)
+ARRAY_SET(arr, 2, 12)
+ARRAY_SET(arr, 3, 16)
+ARRAY_SET(arr, 4, 20)
+
+:FOR_LOOP
+IF_EQ($counter, 5, @AFTER_FOR)
+ARRAY_GET(item, arr, $counter)
+ADD_ASSIGN($sum, item)
+INC($counter)
+GOTO(@FOR_LOOP)
+
+:AFTER_FOR
+LOG_MSG("sum ready")
+03E5: $sum
+NEW_ENTITY("compat_drone", 11.0, 22.0, 33.0, ent)
+03E5: ent
+IF_GT($sum, 40, @HIGH_SCORE)
+LOG_MSG("score low")
+GOTO(@DONE)
+
+:HIGH_SCORE
+LOG_MSG("score high")
+LOG_FILE("log.txt", "native hook placeholder")
+
+:DONE
+DELETE_ARRAY(arr)
+BREAK_THREAD()

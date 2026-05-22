@@ -1,0 +1,11 @@
+#include "iso_bootstrap.scmlh"
+
+:MAIN
+03E5: "__scml"
+03E5: __scml
+03E5: FEATURE_TEXT
+0004: $TMP_1 41
+0006: $TMP_1 $TMP_1 1
+03E5: $TMP_1
+03E5: "HELLO_SCML"
+0D02:

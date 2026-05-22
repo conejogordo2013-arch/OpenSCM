@@ -1,0 +1,12 @@
+#define FEATURE_LEVEL 2
+#define TOKEN_JOIN(a,b) a##b
+#define STR(x) #x
+#define BUILD_TMP1 TOKEN_JOIN($TMP_,1)
+
+#if FEATURE_LEVEL >= 2
+#define FEATURE_TEXT "feature2"
+#else
+#define FEATURE_TEXT "legacy"
+#endif
+
+#pragma scml bootstrap

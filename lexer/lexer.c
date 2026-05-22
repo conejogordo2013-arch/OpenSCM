@@ -67,6 +67,21 @@ int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, 
             if (!add_token(out, SCML_TOK_STRING, buf, bi, line_no, col)) return 0;
             continue;
         }
+        if ((line[i] == '&' && line[i+1] == '&') || (line[i] == '|' && line[i+1] == '|') ||
+            (line[i] == '=' && line[i+1] == '=') || (line[i] == '!' && line[i+1] == '=') ||
+            (line[i] == '<' && line[i+1] == '=') || (line[i] == '>' && line[i+1] == '=') ||
+            (line[i] == '<' && line[i+1] == '<') || (line[i] == '>' && line[i+1] == '>') ||
+            (line[i] == ':' && line[i+1] == ':') || (line[i] == '-' && line[i+1] == '>') ||
+            (line[i] == '+' && line[i+1] == '+') || (line[i] == '-' && line[i+1] == '-')) {
+            if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 2, line_no, col)) return 0;
+            i += 2;
+            continue;
+        }
+        if (strchr("+-*/%&|^~!?()[]{}.<>,", line[i])) {
+            if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 1, line_no, col)) return 0;
+            i++;
+            continue;
+        }
         if ((line[i] == '+' || line[i] == '-') && line[i + 1] == '=') {
             if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 2, line_no, col)) return 0;
             i += 2;

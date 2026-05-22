@@ -26,7 +26,6 @@ typedef struct ProgramSet {
 static void w8(FILE *f, uint8_t v) { fputc(v, f); }
 static void w16(FILE *f, uint16_t v) { fputc(v & 255, f); fputc(v >> 8, f); }
 static void w32(FILE *f, uint32_t v) { for (int i = 0; i < 4; i++) fputc((v >> (i * 8)) & 255, f); }
-static void w64(FILE *f, uint64_t v) { for (int i = 0; i < 8; i++) fputc((int)((v >> (i * 8)) & 255), f); }
 static void wf32(FILE *f, float value) { union { float f; uint32_t u; } cvt; cvt.f = value; w32(f, cvt.u); }
 
 static uint32_t stmt_size(const ScmlStatement *s) {
@@ -36,8 +35,6 @@ static uint32_t stmt_size(const ScmlStatement *s) {
         n += 1;
         if (s->operands[i].type == SCML_OPERAND_INT || s->operands[i].type == SCML_OPERAND_ADDRESS || s->operands[i].type == SCML_OPERAND_FLOAT) {
             n += 4;
-        } else if (s->operands[i].type == SCML_OPERAND_INT64) {
-            n += 8;
         } else {
             n += 2 + (uint32_t)strlen(s->operands[i].text);
         }
@@ -52,14 +49,16 @@ static LabelAddr *find_label(LabelAddr *labels, size_t count, const char *name) 
     return NULL;
 }
 
-static int resolve_address(const ScmlOperand *o, LabelAddr *labels, size_t label_count, uint32_t *out, char *err, size_t err_size) {
-    LabelAddr *label = find_label(labels, label_count, o->text);
-    if (!label) {
-        snprintf(err, err_size, "unresolved label @%s", o->text);
-        return 0;
+static uint32_t resolve_value(const ScmlOperand *o, LabelAddr *labels, size_t label_count, char *err, size_t err_size) {
+    if (o->type == SCML_OPERAND_ADDRESS) {
+        LabelAddr *label = find_label(labels, label_count, o->text);
+        if (!label) {
+            snprintf(err, err_size, "unresolved label @%s", o->text);
+            return UINT32_MAX;
+        }
+        return label->addr;
     }
-    *out = label->addr;
-    return 1;
+    return (uint32_t)o->integer;
 }
 
 static void free_program_set(ProgramSet *set) {
@@ -143,11 +142,9 @@ int scml_compile_files(size_t source_count, const char **source_paths, const cha
                 w8(f, (uint8_t)o->type);
                 if (o->type == SCML_OPERAND_FLOAT) {
                     wf32(f, o->real);
-                } else if (o->type == SCML_OPERAND_INT) {
-                    w32(f, (uint32_t)o->integer);
-                } else if (o->type == SCML_OPERAND_ADDRESS) {
-                    uint32_t v = 0;
-                    if (!resolve_address(o, labels, label_count, &v, err, err_size)) {
+                } else if (o->type == SCML_OPERAND_INT || o->type == SCML_OPERAND_ADDRESS) {
+                    uint32_t v = resolve_value(o, labels, label_count, err, err_size);
+                    if (v == UINT32_MAX) {
                         fclose(f);
                         remove(output_path);
                         free(labels);
@@ -156,8 +153,6 @@ int scml_compile_files(size_t source_count, const char **source_paths, const cha
                         return 0;
                     }
                     w32(f, v);
-                } else if (o->type == SCML_OPERAND_INT64) {
-                    w64(f, (uint64_t)o->integer);
                 } else {
                     size_t n = strlen(o->text);
                     if (n > UINT16_MAX) {

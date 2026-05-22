@@ -2,7 +2,7 @@ CC ?= cc
 CXX ?= c++
 CFLAGS ?= -std=c99 -O2 -Wall -Wextra -pedantic
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
-CORE_SRC = vm/vm.c compiler/compiler.c compiler/scmr.c parser/parser.c lexer/lexer.c opcode/opcode.c
+CORE_SRC = vm/vm.c compiler/compiler.c parser/parser.c lexer/lexer.c opcode/opcode.c
 DEBUGGER_SRC = debugger/debugger.c
 CLI_SRC = main.c $(CORE_SRC)
 CLI_OBJ = $(CLI_SRC:.c=.o)
@@ -35,14 +35,4 @@ editor-example: bin/scml_editor examples/gameplay.scml
 clean:
 	rm -f $(CLI_OBJ) $(DEBUGGER_OBJ) bin/scml bin/scml_gameplay_example bin/scml_editor examples/*.scmlbin log.txt
 
-.PHONY: all clean cpp-example editor-example lwscmgl-example
-
-
-examples/lwscmgl_demo.scmlbin: bin/scml examples/lwscmgl_demo.scml
-	bin/scml compile examples/lwscmgl_demo.scml $@
-
-bin/lwscmgl_demo: examples/lwscmgl_demo.cpp $(CORE_OBJ) | bin
-	$(CXX) $(CXXFLAGS) -I. -o $@ examples/lwscmgl_demo.cpp $(CORE_OBJ)
-
-lwscmgl-example: bin/lwscmgl_demo examples/lwscmgl_demo.scmlbin
-	bin/lwscmgl_demo
+.PHONY: all clean cpp-example editor-example
