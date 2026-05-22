@@ -1,0 +1,6 @@
+:MAIN
+0B10: 2 mem
+0B13: mem 0 55
+0B12: got mem 0
+03E5: got
+0001:

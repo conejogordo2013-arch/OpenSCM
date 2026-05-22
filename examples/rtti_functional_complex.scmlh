@@ -1,0 +1,14 @@
+#pragma scml rtti_functional_complex
+#define __scml 1
+#define BUILD_NAME "RTTI_FUNCTIONAL_COMPLEX"
+#define MAX_UNITS 10
+#define MAX_EVENTS 32
+#define TYPE_NONE 0
+#define TYPE_PLAYER 1
+#define TYPE_ENEMY 2
+#define TYPE_BOSS 3
+#define EVT_BOOT 1
+#define EVT_TICK 2
+#define EVT_DAMAGE 3
+#define EVT_KILL 4
+#define EVT_END 5
