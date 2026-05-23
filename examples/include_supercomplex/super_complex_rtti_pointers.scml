@@ -1,0 +1,32 @@
+#include "./headers/rtti/classes.scmlh"
+
+#define ENABLE_LOG 1
+#if ENABLE_LOG
+#define LOG_ENABLED 1
+#else
+#define LOG_ENABLED 0
+#endif
+
+:MAIN
+03E5: SCENARIO_NAME
+CLASS_ACTOR_NEW(actor_ptr, BASE_HP)
+0B12: before_hp actor_ptr SLOT_HP
+03E5: "before_hp"
+03E5: before_hp
+
+CLASS_ACTOR_HEAL(actor_ptr, HEAL_STEP)
+0B12: after_hp actor_ptr SLOT_HP
+03E5: "after_hp"
+03E5: after_hp
+
+0B12: actor_type actor_ptr SLOT_FLAGS
+03E5: "actor_type"
+03E5: actor_type
+
+#if LOG_ENABLED
+03E5: "log"
+03E5: after_hp
+#endif
+
+0B11: actor_ptr
+0001:
