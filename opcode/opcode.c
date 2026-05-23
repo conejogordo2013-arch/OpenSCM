@@ -38,6 +38,8 @@ static const ScmlOpcodeInfo g_opcodes[] = {
     {0x0C01, SCML_OP_HEAP_STORE, "HEAP_STORE", 3, 3},
     {0x0C02, SCML_OP_HEAP_LOAD, "HEAP_LOAD", 3, 3},
     {0x0D00, SCML_OP_CALL, "CALL", 1, 8},
+    {0x0D00, SCML_OP_CALL, "GOSUB", 1, 1},
+    {0x000A, SCML_OP_JMP, "GOTO", 1, 1},
     {0x0D01, SCML_OP_RETURN, "RETURN", 0, 0},
     {0x0D02, SCML_OP_END_THREAD, "END_THREAD", 0, 0},
 };

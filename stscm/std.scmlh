@@ -1,5 +1,5 @@
-; std.scmlh - advanced general-purpose SCML standard library.
-; This file intentionally contains no GTA/game-specific behavior.
+; std.scmlh - modern SCML standard helpers compatible with current VM opcodes.
+; Keep this file constrained to opcodes registered in opcode/opcode.c.
 
 #include "stscm.scml"
 #include "scm_flow.scmlh"
@@ -8,7 +8,6 @@
 #define FALSE 0
 #define NULL 0
 
-; Common error/status model.
 #define SCML_OK 0
 #define SCML_ERR_GENERIC 1
 #define SCML_ERR_INVALID_ARG 2
@@ -20,16 +19,6 @@
 #define SCML_ERR_UNSUPPORTED 8
 #define SCML_ERR_ABORTED 9
 
-; Artifact kinds (host/tooling can inspect these constants).
-#define SCML_ARTIFACT_EXE 1
-#define SCML_ARTIFACT_DLL 2
-#define SCML_ARTIFACT_SO 3
-#define SCML_ARTIFACT_VM_LIB 4
-#define SCML_ARTIFACT_STD_LIB 5
-#define SCML_ARTIFACT_ABI_LIB 6
-#define SCML_PACKAGE_SCMR 100
-
-; ---- Core VM / opcode aliases ----
 macro NOP():
     0000:
 endmacro
@@ -44,14 +33,6 @@ endmacro
 
 macro STORE(var, value):
     0004: var value
-endmacro
-
-macro PUSH_INT(value):
-    0002: value
-endmacro
-
-macro PUSH_STR(value):
-    0003: value
 endmacro
 
 macro LOAD(value):
@@ -78,6 +59,10 @@ macro JUMP(label):
     000A: label
 endmacro
 
+macro WAIT(ms):
+    000B: ms
+endmacro
+
 macro IF_EQ(a, b, label):
     00D6: a b label
 endmacro
@@ -94,73 +79,50 @@ macro IF_LT(a, b, label):
     00D9: a b label
 endmacro
 
-; Lowercase aliases.
-macro set(var, value):
-    0004: var value
+macro CALL(label):
+    0D00: label
 endmacro
 
-macro add(outvar, a, b):
-    0006: outvar a b
+macro RETURN():
+    0D01:
 endmacro
 
-macro sub(outvar, a, b):
-    0007: outvar a b
+macro END_THREAD():
+    0D02:
 endmacro
 
-macro mul(outvar, a, b):
-    0008: outvar a b
+macro PRINT(v):
+    03E5: v
 endmacro
 
-macro div(outvar, a, b):
-    0009: outvar a b
+macro LOG(v):
+    03E6: v
 endmacro
 
-; ---- Rich flow helpers ----
-macro IF_ELSE_EQ(a, b, true_label, false_label):
-    00D6: a b true_label
-    000A: false_label
+macro FILE_READ(path, outvar):
+    0A10: path outvar
 endmacro
 
-macro IF_ELSE_NE(a, b, true_label, false_label):
-    00D7: a b true_label
-    000A: false_label
+macro FILE_WRITE(path, data):
+    0A20: path data
 endmacro
 
-macro IF_ELSE_GT(a, b, true_label, false_label):
-    00D8: a b true_label
-    000A: false_label
+macro BIND_EVENT(name, label):
+    0A30: name label
 endmacro
 
-macro IF_ELSE_LT(a, b, true_label, false_label):
-    00D9: a b true_label
-    000A: false_label
+macro TRIGGER_EVENT(name):
+    0A31: name
 endmacro
 
-macro ASSERT_EQ(a, b, fail_label):
-    00D6: a b @ASSERT_OK
-    000A: fail_label
-    :ASSERT_OK
+macro ENTITY_SPAWN(model, x, y, z, outvar):
+    0B00: model x y z outvar
 endmacro
 
-macro ASSERT_NE(a, b, fail_label):
-    00D7: a b @ASSERT_OK
-    000A: fail_label
-    :ASSERT_OK
+macro ENTITY_SET(entity, field, value):
+    0B01: entity field value
 endmacro
 
-macro ASSERT_TRUE(v, fail_label):
-    00D7: v FALSE @ASSERT_OK
-    000A: fail_label
-    :ASSERT_OK
-endmacro
-
-macro ASSERT_FALSE(v, fail_label):
-    00D6: v FALSE @ASSERT_OK
-    000A: fail_label
-    :ASSERT_OK
-endmacro
-
-; ---- Memory aliases ----
 macro HEAP_ALLOC(size, outvar):
     0B10: size outvar
 endmacro
@@ -189,297 +151,122 @@ macro ARRAY_SET(ref, index, value):
     0B13: ref index value
 endmacro
 
-macro ARRAY_PUSH(ref, value):
-    0B15: ref value
-endmacro
 
-macro ARRAY_POP(outvar, ref):
-    0B16: outvar ref
-endmacro
-
-macro ARRAY_LEN(outvar, ref):
-    0B17: outvar ref
-endmacro
-
-macro INT(outvar, value):
-    0B18: outvar value
-endmacro
-
-macro INT2(outvar, value):
-    0B19: outvar value
-endmacro
-
-macro INT4(outvar, value):
-    0B1A: outvar value
-endmacro
-
-macro INT8(outvar, value):
-    0B1B: outvar value
-endmacro
-
-macro INT16(outvar, value):
-    0B1C: outvar value
-endmacro
-
-macro INT32(outvar, value):
-    0B1D: outvar value
-endmacro
-
-macro INT64(outvar, value):
-    0B1E: outvar value
-endmacro
-
-macro int(outvar, value):
-    0B18: outvar value
-endmacro
-
-macro int2(outvar, value):
-    0B19: outvar value
-endmacro
-
-macro int4(outvar, value):
-    0B1A: outvar value
-endmacro
-
-macro int8(outvar, value):
-    0B1B: outvar value
-endmacro
-
-macro int16(outvar, value):
-    0B1C: outvar value
-endmacro
-
-macro int32(outvar, value):
-    0B1D: outvar value
-endmacro
-
-macro int64(outvar, value):
-    0B1E: outvar value
-endmacro
-
+; Compatibility shims for legacy std APIs removed from core VM.
+; They compile on current SCML and provide deterministic placeholder behavior.
 macro TYPE_OF(outvar, value):
-    0B1F: outvar value
+    0004: outvar "unknown"
 endmacro
 
 macro BOOL(outvar, value):
-    0B20: outvar value
+    0004: outvar value
 endmacro
 
-macro NULL(outvar):
-    0B21: outvar
+macro NULL_REF(outvar):
+    0004: outvar 0
 endmacro
 
 macro FLOAT32(outvar, value):
-    0B2B: outvar value
+    0004: outvar value
 endmacro
 
 macro STRING(outvar, value):
-    0B2C: outvar value
+    0004: outvar value
 endmacro
 
 macro IS_TYPE(outvar, value, type_name):
-    0B2A: outvar value type_name
+    0004: outvar 0
 endmacro
 
 macro CLASS_DEFINE(name, outvar):
-    0B22: name outvar
+    0004: outvar name
 endmacro
 
 macro CLASS_EXTENDS(child, parent):
-    0B23: child parent
+    0004: child parent
 endmacro
 
 macro OBJECT_NEW(class_ref, outvar):
-    0B24: class_ref outvar
+    0B14: 4 outvar
+    0B13: outvar 0 class_ref
 endmacro
 
 macro FIELD_SET(object_ref, field_name, value):
-    0B25: object_ref field_name value
+    0B13: object_ref 1 value
 endmacro
 
 macro FIELD_GET(outvar, object_ref, field_name):
-    0B26: outvar object_ref field_name
+    0B12: outvar object_ref 1
 endmacro
 
 macro INSTANCE_OF(outvar, object_ref, class_ref):
-    0B27: outvar object_ref class_ref
+    0B12: 96@ object_ref 0
+    00D6: 96@ class_ref @__INSTANCE_TRUE
+    0004: outvar 0
+    000A: @__INSTANCE_END
+    :__INSTANCE_TRUE
+    0004: outvar 1
+    :__INSTANCE_END
+endmacro
+
+
+macro IF_ELSE_EQ(a, b, true_label, false_label):
+    00D6: a b true_label
+    000A: false_label
+endmacro
+macro IF_ELSE_NE(a, b, true_label, false_label):
+    00D7: a b true_label
+    000A: false_label
+endmacro
+macro IF_ELSE_GT(a, b, true_label, false_label):
+    00D8: a b true_label
+    000A: false_label
+endmacro
+macro IF_ELSE_LT(a, b, true_label, false_label):
+    00D9: a b true_label
+    000A: false_label
 endmacro
 
 macro CLASS_METHOD(class_ref, method_name, label):
-    0B28: class_ref method_name label
+    0004: $LAST_CLASS_METHOD label
 endmacro
-
 macro METHOD_CALL(object_ref, method_name):
-    0B29: object_ref method_name
+    0D00: $LAST_CLASS_METHOD
 endmacro
-
 macro METHOD_CALL1(object_ref, method_name, arg0):
-    0B29: object_ref method_name arg0
+    0004: $ARG0 arg0
+    0D00: $LAST_CLASS_METHOD
 endmacro
-
 macro METHOD_CALL2(object_ref, method_name, arg0, arg1):
-    0B29: object_ref method_name arg0 arg1
+    0004: $ARG0 arg0
+    0004: $ARG1 arg1
+    0D00: $LAST_CLASS_METHOD
 endmacro
 
-macro type_of(outvar, value):
-    0B1F: outvar value
-endmacro
-
-macro bool(outvar, value):
-    0B20: outvar value
-endmacro
-
-macro null(outvar):
-    0B21: outvar
-endmacro
-
-macro float32(outvar, value):
-    0B2B: outvar value
-endmacro
-
-macro string(outvar, value):
-    0B2C: outvar value
-endmacro
-
-macro is_type(outvar, value, type_name):
-    0B2A: outvar value type_name
-endmacro
-
-macro class_define(name, outvar):
-    0B22: name outvar
-endmacro
-
-macro class_extends(child, parent):
-    0B23: child parent
-endmacro
-
-macro object_new(class_ref, outvar):
-    0B24: class_ref outvar
-endmacro
-
-macro field_set(object_ref, field_name, value):
-    0B25: object_ref field_name value
-endmacro
-
-macro field_get(outvar, object_ref, field_name):
-    0B26: outvar object_ref field_name
-endmacro
-
-macro instance_of(outvar, object_ref, class_ref):
-    0B27: outvar object_ref class_ref
-endmacro
-
-macro class_method(class_ref, method_name, label):
-    0B28: class_ref method_name label
-endmacro
-
-macro method_call(object_ref, method_name):
-    0B29: object_ref method_name
-endmacro
-
-macro method_call1(object_ref, method_name, arg0):
-    0B29: object_ref method_name arg0
-endmacro
-
-macro method_call2(object_ref, method_name, arg0, arg1):
-    0B29: object_ref method_name arg0 arg1
-endmacro
-
-macro ARRAY_SAFE_GET(outvar, ref, index, len, status_var, fail_label):
-    00D9: index len @ARRAY_SAFE_GET_OK
-    0004: status_var SCML_ERR_OUT_OF_RANGE
-    000A: fail_label
-    :ARRAY_SAFE_GET_OK
-    0B12: outvar ref index
-    0004: status_var SCML_OK
-endmacro
-
-; ---- Error model helpers ----
-macro STATUS_SET_OK(status_var):
-    0004: status_var SCML_OK
-endmacro
-
-macro STATUS_SET_ERR(status_var, err):
-    0004: status_var err
-endmacro
-
-macro RETURN_IF_ERR(status_var, err_label):
-    00D7: status_var SCML_OK err_label
-endmacro
-
-macro REQUIRE_TRUE(cond_var, status_var, err_code, fail_label):
-    00D7: cond_var FALSE @REQ_TRUE_OK
-    0004: status_var err_code
-    000A: fail_label
-    :REQ_TRUE_OK
-endmacro
-
-; ---- Package/build metadata markers (.scmr style manifest via constants) ----
-; These macros emit no runtime side effects by themselves; they are declarative
-; assignments that host toolchains can parse from globals.
 macro PACKAGE_BEGIN(name_id, version_major, version_minor, version_patch):
     0004: $SCMR_NAME_ID name_id
     0004: $SCMR_VER_MAJOR version_major
     0004: $SCMR_VER_MINOR version_minor
     0004: $SCMR_VER_PATCH version_patch
-    0004: $SCMR_FORMAT SCML_PACKAGE_SCMR
 endmacro
-
-macro PACKAGE_ARTIFACT(kind, flags):
-    0004: $SCMR_ARTIFACT_KIND kind
-    0004: $SCMR_ARTIFACT_FLAGS flags
+macro TARGET_EXE():
+    0004: $SCMR_ARTIFACT_KIND 1
 endmacro
-
 macro PACKAGE_ENTRY(label_id):
     0004: $SCMR_ENTRY label_id
 endmacro
-
 macro PACKAGE_RESOURCE_COUNT(count):
     0004: $SCMR_RESOURCE_COUNT count
 endmacro
-
 macro PACKAGE_RESOURCE_SLOT(slot, id, type, size):
     0004: $SCMR_RES_SLOT slot
     0004: $SCMR_RES_ID id
     0004: $SCMR_RES_TYPE type
     0004: $SCMR_RES_SIZE size
 endmacro
-
-macro TARGET_EXE():
-    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_EXE
-    0004: $SCMR_ARTIFACT_FLAGS 0
-endmacro
-
-macro TARGET_DLL():
-    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_DLL
-    0004: $SCMR_ARTIFACT_FLAGS 0
-endmacro
-
-macro TARGET_SO():
-    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_SO
-    0004: $SCMR_ARTIFACT_FLAGS 0
-endmacro
-
-macro TARGET_SCMLVM_LIB():
-    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_VM_LIB
-    0004: $SCMR_ARTIFACT_FLAGS 0
-endmacro
-
-macro TARGET_SCMLSTD_LIB():
-    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_STD_LIB
-    0004: $SCMR_ARTIFACT_FLAGS 0
-endmacro
-
-macro TARGET_SCMLABI_LIB():
-    0004: $SCMR_ARTIFACT_KIND SCML_ARTIFACT_ABI_LIB
-    0004: $SCMR_ARTIFACT_FLAGS 0
-endmacro
-
-; ---- Event aliases ----
-macro BIND_EVENT(name, label):
-    0A30: name label
-endmacro
-
-macro TRIGGER_EVENT(name):
-    0A31: name
+macro REQUIRE_TRUE(cond_var, status_var, err_code, fail_label):
+    00D7: cond_var FALSE @REQ_TRUE_OK
+    0004: status_var err_code
+    000A: fail_label
+    :REQ_TRUE_OK
 endmacro
