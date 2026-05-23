@@ -1,3 +1,3 @@
-; Root convenience include for the general-purpose SCML standard library.
-; This wrapper has no GTA-specific content.
+; Root compatibility include for SCML standard library (current VM-compatible).
+#pragma once
 #include "stscm/std.scmlh"

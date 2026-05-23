@@ -1,0 +1,17 @@
+#pragma once
+#include "../core/prelude.scmlh"
+
+#define SLOT_HP 0
+#define SLOT_FLAGS 1
+
+macro PTR_ALLOC2(handle):
+    0B14: 2 handle
+endmacro
+
+macro PTR_SET(ptr, idx, val):
+    0B13: ptr idx val
+endmacro
+
+macro PTR_GET(out, ptr, idx):
+    0B12: out ptr idx
+endmacro

@@ -1,0 +1,11 @@
+#include "./root.scmlh"
+#include "nested/deeper/feature.scmlh"
+
+:MAIN
+03E5: ROOT_MSG
+03E5: SHARED_MSG
+03E5: FEATURE_MSG
+0004: total ROOT_COUNT
+0006: total total 1
+03E5: total
+0001:
