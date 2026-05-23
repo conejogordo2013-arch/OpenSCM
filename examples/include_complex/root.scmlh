@@ -1,0 +1,2 @@
+#define ROOT_MSG "ROOT_OK"
+#define ROOT_COUNT 3

@@ -1,0 +1,2 @@
+#define SHARED_MSG "SHARED_OK"
+#define SHARED_INC(v) v 1

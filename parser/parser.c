@@ -25,7 +25,32 @@ static int is_absolute_path(const char *p){
 }
 
 static char *read_file(const char *path, char *err, size_t err_size){ FILE *f=fopen(path,"rb"); if(!f){snprintf(err,err_size,"cannot open %s",path);return NULL;} fseek(f,0,SEEK_END); long n=ftell(f); rewind(f); char *b=(char*)malloc((size_t)n+1); if(!b){fclose(f);return NULL;} if(fread(b,1,(size_t)n,f)!=(size_t)n){snprintf(err,err_size,"cannot read %s",path);free(b);fclose(f);return NULL;} b[n]=0; fclose(f); return b; }
-static char *dirname_of(const char *p){ const char *s=strrchr(p,'/'); if(!s) return xstrdup("."); return strndup2(p,(size_t)(s-p)); }
+static char *dirname_of(const char *p){
+    const char *a=strrchr(p,'/');
+    const char *b=strrchr(p,'\\');
+    const char *s = a>b ? a : b;
+    if(!s) return xstrdup(".");
+    return strndup2(p,(size_t)(s-p));
+}
+
+static int has_trailing_sep(const char *p){
+    size_t n=strlen(p);
+    if(n==0) return 0;
+    char c=p[n-1];
+    return c=='/' || c=='\\';
+}
+
+static void build_include_path(char *dst, size_t dst_size, const char *base_dir, const char *inc_name){
+    if(is_absolute_path(inc_name)){
+        snprintf(dst,dst_size,"%s",inc_name);
+        return;
+    }
+    if(strcmp(base_dir,".")==0){
+        snprintf(dst,dst_size,"%s",inc_name);
+        return;
+    }
+    snprintf(dst,dst_size, has_trailing_sep(base_dir)?"%s%s":"%s/%s", base_dir, inc_name);
+}
 
 static void macro_free(Macro *m){ while(m){Macro*n=m->next; free(m->name); for(size_t i=0;i<m->argc;i++)free(m->args[i]); free(m->args); free(m->body); free(m); m=n;} }
 static Macro *find_macro(Macro *m,const char *name){ for(;m;m=m->next) if(strcmp(m->name,name)==0) return m; return NULL; }
@@ -130,8 +155,7 @@ static int preprocess_text(const char *path, const char *text, Macro **macros, c
                 }
                 if(!inc_name[0]){snprintf(err,err_size,"bad include in %s:%d",path,line_no);goto fail;}
                 char inc[1024];
-                if(is_absolute_path(inc_name)) snprintf(inc,sizeof(inc),"%s",inc_name);
-                else snprintf(inc,sizeof(inc),"%s/%s",dir,inc_name);
+                build_include_path(inc,sizeof(inc),dir,inc_name);
                 char *it=read_file(inc,err,err_size); if(!it)goto fail;
                 char *processed=NULL; if(!preprocess_text(inc,it,macros,&processed,err,err_size)){free(it);goto fail;}
                 append(out,&olen,&ocap,processed?processed:""); free(processed); free(it);

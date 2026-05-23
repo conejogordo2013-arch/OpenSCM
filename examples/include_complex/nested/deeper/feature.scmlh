@@ -1,0 +1,3 @@
+#include "../shared.scmlh"
+#define FEATURE_MSG "FEATURE_OK"
+#define FEATURE_BUMP(v) SHARED_INC(v)
