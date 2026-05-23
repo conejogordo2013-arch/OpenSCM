@@ -17,6 +17,12 @@ static char *trim(char *s){ while(isspace((unsigned char)*s))s++; char *e=s+strl
 static int starts(const char *s,const char *p){ return strncmp(s,p,strlen(p))==0; }
 static int is_ident_char(char c){ return isalnum((unsigned char)c) || c=='_'; }
 static int path_equals(const char *a, const char *b){ return strcmp(a,b)==0; }
+static int is_absolute_path(const char *p){
+    if(!p||!p[0]) return 0;
+    if(p[0]=='/' || p[0]=='\\') return 1;
+    if(isalpha((unsigned char)p[0]) && p[1]==':' && (p[2]=='/' || p[2]=='\\')) return 1;
+    return 0;
+}
 
 static char *read_file(const char *path, char *err, size_t err_size){ FILE *f=fopen(path,"rb"); if(!f){snprintf(err,err_size,"cannot open %s",path);return NULL;} fseek(f,0,SEEK_END); long n=ftell(f); rewind(f); char *b=(char*)malloc((size_t)n+1); if(!b){fclose(f);return NULL;} if(fread(b,1,(size_t)n,f)!=(size_t)n){snprintf(err,err_size,"cannot read %s",path);free(b);fclose(f);return NULL;} b[n]=0; fclose(f); return b; }
 static char *dirname_of(const char *p){ const char *s=strrchr(p,'/'); if(!s) return xstrdup("."); return strndup2(p,(size_t)(s-p)); }
@@ -123,7 +129,9 @@ static int preprocess_text(const char *path, const char *text, Macro **macros, c
                     if(q&&r){ snprintf(inc_name,sizeof(inc_name),"%.*s",(int)(r-q-1),q+1); }
                 }
                 if(!inc_name[0]){snprintf(err,err_size,"bad include in %s:%d",path,line_no);goto fail;}
-                char inc[1024]; snprintf(inc,sizeof(inc),"%s/%s",dir,inc_name);
+                char inc[1024];
+                if(is_absolute_path(inc_name)) snprintf(inc,sizeof(inc),"%s",inc_name);
+                else snprintf(inc,sizeof(inc),"%s/%s",dir,inc_name);
                 char *it=read_file(inc,err,err_size); if(!it)goto fail;
                 char *processed=NULL; if(!preprocess_text(inc,it,macros,&processed,err,err_size)){free(it);goto fail;}
                 append(out,&olen,&ocap,processed?processed:""); free(processed); free(it);
