@@ -1,0 +1,40 @@
+#include "../std.scmlh"
+
+:MAIN
+; Root namespace: Engine
+NS_OBJECT_NEW(8, 0@)
+NS_BEGIN("Engine")
+
+; Nested: Engine::Core
+NS_OBJECT_NEW(8, 1@)
+NS_LINK_CHILD(0@, 0, 1@)
+NS_MEMBER_SET(1@, 0, 101)
+
+; Nested: Engine::Core::Math
+NS_OBJECT_NEW(8, 2@)
+NS_LINK_CHILD(1@, 1, 2@)
+NS_MEMBER_SET(2@, 0, 314)
+NS_MEMBER_SET(2@, 1, 271)
+
+; Nested: Engine::Core::Math::Complex
+NS_OBJECT_NEW(8, 3@)
+NS_LINK_CHILD(2@, 2, 3@)
+NS_MEMBER_SET(3@, 0, 9001)
+
+; Resolve Engine::Core member
+NS_RESOLVE2(10@, 0@, 0, 0)
+PRINT(10@)
+
+; Resolve Engine::Core::Math member (pi-like)
+NS_RESOLVE3(11@, 0@, 0, 1, 0)
+PRINT(11@)
+
+; Resolve manually one more level Engine::Core::Math::Complex::member0
+NS_GET_CHILD(12@, 0@, 0)
+NS_GET_CHILD(13@, 12@, 1)
+NS_GET_CHILD(14@, 13@, 2)
+NS_MEMBER_GET(15@, 14@, 0)
+PRINT(15@)
+
+NS_END()
+END_THREAD()

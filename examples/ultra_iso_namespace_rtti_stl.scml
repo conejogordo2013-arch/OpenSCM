@@ -1,0 +1,29 @@
+#include "../std.scmlh"
+#include "../scmlspec/fixtures/scml_iso_advanced_preprocessed.scmlh"
+
+:MAIN
+scml_emit_ultra_iso("ULTRA")
+
+NS_OBJECT_NEW(16, 0@)
+NS_OBJECT_NEW(16, 1@)
+NS_LINK_CHILD(0@, 0, 1@)
+NS_RTTI_SET(1@, SCML_RTTI_KIND_OBJECT)
+NS_MEMBER_SET(1@, 0, 2026)
+NS_MEMBER_GET_PATH2(2@, 0@, 0, 0)
+PRINT(2@)
+
+VECTOR_T_NEW(T_I32, 32, 3@)
+VECTOR_T_PUSH(T_I32, 3@, 5, @FAIL)
+VECTOR_T_PUSH(T_I32, 3@, 7, @FAIL)
+VECTOR_T_PUSH(T_I32, 3@, 11, @FAIL)
+VECTOR_SUM_I32(4@, 3@, 3)
+VECTOR_FIND_I32(5@, 3@, 3, 7)
+VECTOR_MAX_I32(6@, 3@, 3, @FAIL)
+PRINT(4@)
+PRINT(5@)
+PRINT(6@)
+END_THREAD()
+
+:FAIL
+PRINT("ULTRA_FAIL")
+END_THREAD()

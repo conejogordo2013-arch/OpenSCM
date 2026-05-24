@@ -258,6 +258,109 @@ endmacro
 macro PACKAGE_RESOURCE_COUNT(count):
     0004: $SCMR_RESOURCE_COUNT count
 endmacro
+
+; ===== MEGA STD EXPANSION: structured control-flow, RTTI and class helpers =====
+#define SCML_RTTI_KIND_UNKNOWN 0
+#define SCML_RTTI_KIND_INT 1
+#define SCML_RTTI_KIND_FLOAT 2
+#define SCML_RTTI_KIND_STRING 3
+#define SCML_RTTI_KIND_BOOL 4
+#define SCML_RTTI_KIND_ARRAY 5
+#define SCML_RTTI_KIND_OBJECT 6
+
+macro TRY_SET(result_var, expr_value, err_var):
+    0004: result_var expr_value
+    0004: err_var SCML_OK
+endmacro
+
+macro REQUIRE(cond_a, cond_b, err_code, fail_label):
+    00D6: cond_a cond_b @__REQUIRE_OK
+    0004: $LAST_ERROR err_code
+    000A: fail_label
+    :__REQUIRE_OK
+endmacro
+
+macro WHILE_LT_BEGIN(a, b, body_label, end_label):
+    00D9: a b body_label
+    000A: end_label
+endmacro
+
+macro WHILE_GT_BEGIN(a, b, body_label, end_label):
+    00D8: a b body_label
+    000A: end_label
+endmacro
+
+macro FOR_RANGE_I32(index_var, begin_value, end_value, step_value, body_label, end_label):
+    0004: index_var begin_value
+    :__FOR_RANGE_CHECK
+    00D9: index_var end_value body_label
+    000A: end_label
+    :__FOR_RANGE_NEXT
+    0006: index_var index_var step_value
+    000A: @__FOR_RANGE_CHECK
+endmacro
+
+macro SWITCH2(value, case_a, label_a, case_b, label_b, default_label):
+    00D6: value case_a label_a
+    00D6: value case_b label_b
+    000A: default_label
+endmacro
+
+macro RTTI_TAG_SET(entity_ref, kind):
+    0B13: entity_ref 0 kind
+endmacro
+
+macro RTTI_TAG_GET(out_kind, entity_ref):
+    0B12: out_kind entity_ref 0
+endmacro
+
+macro RTTI_ASSERT_KIND(entity_ref, expected_kind, fail_label):
+    0B12: 95@ entity_ref 0
+    00D6: 95@ expected_kind @__RTTI_ASSERT_OK
+    000A: fail_label
+    :__RTTI_ASSERT_OK
+endmacro
+
+macro CLASS_NEW_TYPED(class_name, kind, outvar):
+    CLASS_DEFINE(class_name, 97@)
+    OBJECT_NEW(97@, outvar)
+    RTTI_TAG_SET(outvar, kind)
+endmacro
+
+macro CLASS_FIELD_SET_I32(object_ref, slot, value):
+    0B13: object_ref slot value
+endmacro
+
+macro CLASS_FIELD_GET_I32(outvar, object_ref, slot):
+    0B12: outvar object_ref slot
+endmacro
+
+macro VECTOR_NEW_CAP(capacity, outvec):
+    0B14: capacity outvec
+    0B13: outvec 0 0
+    0B13: outvec 1 capacity
+endmacro
+
+macro VECTOR_PUSH_I32(vec_ref, value):
+    0B12: 90@ vec_ref 0
+    0006: 91@ 90@ 2
+    0B13: vec_ref 91@ value
+    0006: 90@ 90@ 1
+    0B13: vec_ref 0 90@
+endmacro
+
+macro VECTOR_GET_I32(out_value, vec_ref, logical_index):
+    0006: 92@ logical_index 2
+    0B12: out_value vec_ref 92@
+endmacro
+
+macro RESULT_OK(out_code):
+    0004: out_code SCML_OK
+endmacro
+
+macro RESULT_ERR(out_code, code):
+    0004: out_code code
+endmacro
 macro PACKAGE_RESOURCE_SLOT(slot, id, type, size):
     0004: $SCMR_RES_SLOT slot
     0004: $SCMR_RES_ID id
@@ -269,4 +372,404 @@ macro REQUIRE_TRUE(cond_var, status_var, err_code, fail_label):
     0004: status_var err_code
     000A: fail_label
     :REQ_TRUE_OK
+endmacro
+
+; ===== Advanced STL-like generic layer (template-style macros) =====
+#define T_I32 1
+#define T_F32 2
+#define T_BOOL 3
+#define T_STR 4
+#define T_OBJ 5
+
+macro TEMPLATE_DECLARE(type_tag, type_name):
+    0004: $TPL_TYPE_TAG type_tag
+    0004: $TPL_TYPE_NAME type_name
+endmacro
+
+macro VAR_DECL(type_tag, var_ref, init_value):
+    0004: var_ref init_value
+    0004: $LAST_DECL_TYPE type_tag
+endmacro
+
+macro VECTOR_T_NEW(type_tag, capacity, outvec):
+    VECTOR_NEW_CAP(capacity, outvec)
+    0B13: outvec 3 type_tag
+endmacro
+
+macro VECTOR_T_PUSH(type_tag, vec_ref, value, fail_label):
+    0B12: 89@ vec_ref 3
+    00D6: 89@ type_tag @VEC_T_OK
+    000A: fail_label
+    :VEC_T_OK
+    VECTOR_PUSH_I32(vec_ref, value)
+endmacro
+
+macro VECTOR_T_GET(type_tag, out_value, vec_ref, logical_index, fail_label):
+    0B12: 88@ vec_ref 3
+    00D6: 88@ type_tag @VEC_T_GET_OK
+    000A: fail_label
+    :VEC_T_GET_OK
+    VECTOR_GET_I32(out_value, vec_ref, logical_index)
+endmacro
+
+macro OPTIONAL_T_SOME(type_tag, value, outopt):
+    ARRAY_NEW(3, outopt)
+    ARRAY_SET(outopt, 0, 1)
+    ARRAY_SET(outopt, 1, type_tag)
+    ARRAY_SET(outopt, 2, value)
+endmacro
+
+macro OPTIONAL_T_NONE(type_tag, outopt):
+    ARRAY_NEW(3, outopt)
+    ARRAY_SET(outopt, 0, 0)
+    ARRAY_SET(outopt, 1, type_tag)
+    ARRAY_SET(outopt, 2, 0)
+endmacro
+
+macro OPTIONAL_T_UNWRAP(type_tag, out_value, opt_ref, fail_label):
+    ARRAY_GET(87@, opt_ref, 0)
+    00D6: 87@ 1 @OPT_HAS_VALUE
+    000A: fail_label
+    :OPT_HAS_VALUE
+    ARRAY_GET(86@, opt_ref, 1)
+    00D6: 86@ type_tag @OPT_TYPE_OK
+    000A: fail_label
+    :OPT_TYPE_OK
+    ARRAY_GET(out_value, opt_ref, 2)
+endmacro
+
+macro MAP_T_NEW(key_type_tag, value_type_tag, capacity, outmap):
+    ARRAY_NEW(capacity, outmap)
+    ARRAY_SET(outmap, 0, 0)
+    ARRAY_SET(outmap, 1, key_type_tag)
+    ARRAY_SET(outmap, 2, value_type_tag)
+endmacro
+
+macro MAP_T_PUT_I32(map_ref, key, value):
+    ARRAY_GET(85@, map_ref, 0)
+    ADD(84@, 85@, 3)
+    ARRAY_SET(map_ref, 84@, key)
+    ADD(84@, 84@, 1)
+    ARRAY_SET(map_ref, 84@, value)
+    ADD(85@, 85@, 2)
+    ARRAY_SET(map_ref, 0, 85@)
+endmacro
+
+; ===== Complex pointer + math toolkit =====
+macro PTR_NEW_STRUCT(field_count, out_ptr):
+    0B10: field_count out_ptr
+endmacro
+
+macro PTR_FREE_SAFE(ptr_ref):
+    00D6: ptr_ref 0 @PTR_FREE_END
+    0B11: ptr_ref
+    0004: ptr_ref 0
+    :PTR_FREE_END
+endmacro
+
+macro PTR_SET(ptr_ref, slot, value):
+    0B13: ptr_ref slot value
+endmacro
+
+macro PTR_GET(out_value, ptr_ref, slot):
+    0B12: out_value ptr_ref slot
+endmacro
+
+macro PTR_COPY3(dst_ptr, src_ptr):
+    0B12: 83@ src_ptr 0
+    0B12: 82@ src_ptr 1
+    0B12: 81@ src_ptr 2
+    0B13: dst_ptr 0 83@
+    0B13: dst_ptr 1 82@
+    0B13: dst_ptr 2 81@
+endmacro
+
+macro MATH_POW2(out_value, x):
+    0008: out_value x x
+endmacro
+
+macro MATH_POW3(out_value, x):
+    0008: 79@ x x
+    0008: out_value 79@ x
+endmacro
+
+macro MATH_CLAMP(out_value, x, min_v, max_v):
+    00D9: x min_v @MCLAMP_MIN
+    00D8: x max_v @MCLAMP_MAX
+    0004: out_value x
+    000A: @MCLAMP_DONE
+    :MCLAMP_MIN
+    0004: out_value min_v
+    000A: @MCLAMP_DONE
+    :MCLAMP_MAX
+    0004: out_value max_v
+    :MCLAMP_DONE
+endmacro
+
+macro MATH_LERP_I32(out_value, a, b, t_num, t_den):
+    0007: 78@ b a
+    0008: 77@ 78@ t_num
+    0009: 76@ 77@ t_den
+    0006: out_value a 76@
+endmacro
+
+macro COMPLEX_NEW(out_ptr, real, imag):
+    0B10: 2 out_ptr
+    0B13: out_ptr 0 real
+    0B13: out_ptr 1 imag
+endmacro
+
+macro COMPLEX_ADD(out_ptr, a_ptr, b_ptr):
+    0B12: 75@ a_ptr 0
+    0B12: 74@ a_ptr 1
+    0B12: 73@ b_ptr 0
+    0B12: 72@ b_ptr 1
+    0006: 71@ 75@ 73@
+    0006: 70@ 74@ 72@
+    0B13: out_ptr 0 71@
+    0B13: out_ptr 1 70@
+endmacro
+
+macro COMPLEX_MUL(out_ptr, a_ptr, b_ptr):
+    0B12: 69@ a_ptr 0
+    0B12: 68@ a_ptr 1
+    0B12: 67@ b_ptr 0
+    0B12: 66@ b_ptr 1
+    0008: 65@ 69@ 67@
+    0008: 64@ 68@ 66@
+    0007: 63@ 65@ 64@
+    0008: 62@ 69@ 66@
+    0008: 61@ 68@ 67@
+    0006: 60@ 62@ 61@
+    0B13: out_ptr 0 63@
+    0B13: out_ptr 1 60@
+endmacro
+
+; ===== SCML advanced systems layer: arena, iterators, scheduler =====
+macro ARENA_NEW(block_count, out_arena):
+    0B14: block_count out_arena
+endmacro
+
+macro ARENA_SET(arena_ref, slot, value):
+    0B13: arena_ref slot value
+endmacro
+
+macro ARENA_GET(out_value, arena_ref, slot):
+    0B12: out_value arena_ref slot
+endmacro
+
+macro ITER_RANGE_BEGIN(iter_var, begin_value):
+    0004: iter_var begin_value
+endmacro
+
+macro ITER_RANGE_NEXT(iter_var, step):
+    0006: iter_var iter_var step
+endmacro
+
+macro ITER_RANGE_CONTINUE_LT(iter_var, end_value, loop_label, end_label):
+    00D9: iter_var end_value loop_label
+    000A: end_label
+endmacro
+
+macro TASK_NEW(task_id, label, out_task_ref):
+    0B14: 3 out_task_ref
+    0B13: out_task_ref 0 task_id
+    0B13: out_task_ref 1 label
+    0B13: out_task_ref 2 1
+endmacro
+
+macro TASK_DISABLE(task_ref):
+    0B13: task_ref 2 0
+endmacro
+
+macro TASK_RUN_IF_ENABLED(task_ref):
+    0B12: 59@ task_ref 2
+    00D6: 59@ 1 @TASK_DO_RUN
+    000A: @TASK_DONE
+    :TASK_DO_RUN
+    0B12: 58@ task_ref 1
+    0D00: 58@
+    :TASK_DONE
+endmacro
+
+macro MATH_DOT2(out_value, ax, ay, bx, by):
+    0008: 57@ ax bx
+    0008: 56@ ay by
+    0006: out_value 57@ 56@
+endmacro
+
+macro MATH_DOT3(out_value, ax, ay, az, bx, by, bz):
+    0008: 55@ ax bx
+    0008: 54@ ay by
+    0008: 53@ az bz
+    0006: 52@ 55@ 54@
+    0006: out_value 52@ 53@
+endmacro
+
+; ===== Namespace / Nested Namespace system (100% structured access) =====
+#define NS_SEP "::"
+
+macro NS_BEGIN(ns_name):
+    0004: $NS_CURRENT ns_name
+endmacro
+
+macro NS_END():
+    0004: $NS_CURRENT ""
+endmacro
+
+macro NS_NEST2(parent_ns, child_ns):
+    0004: $NS_CURRENT parent_ns
+    0004: $NS_PARENT parent_ns
+    0004: $NS_CHILD child_ns
+endmacro
+
+macro NS_NEST3(root_ns, parent_ns, child_ns):
+    0004: $NS_ROOT root_ns
+    0004: $NS_PARENT parent_ns
+    0004: $NS_CHILD child_ns
+endmacro
+
+macro NS_MEMBER_SET(ns_ref, member_slot, value):
+    0B13: ns_ref member_slot value
+endmacro
+
+macro NS_MEMBER_GET(out_value, ns_ref, member_slot):
+    0B12: out_value ns_ref member_slot
+endmacro
+
+macro NS_OBJECT_NEW(slot_count, out_ns_obj):
+    0B14: slot_count out_ns_obj
+endmacro
+
+macro NS_LINK_CHILD(parent_ns_obj, child_slot, child_ns_obj):
+    0B13: parent_ns_obj child_slot child_ns_obj
+endmacro
+
+macro NS_GET_CHILD(out_child, parent_ns_obj, child_slot):
+    0B12: out_child parent_ns_obj child_slot
+endmacro
+
+macro NS_RESOLVE2(out_value, root_ns_obj, child_slot, member_slot):
+    0B12: 51@ root_ns_obj child_slot
+    0B12: out_value 51@ member_slot
+endmacro
+
+macro NS_RESOLVE3(out_value, root_ns_obj, child_slot_a, child_slot_b, member_slot):
+    0B12: 50@ root_ns_obj child_slot_a
+    0B12: 49@ 50@ child_slot_b
+    0B12: out_value 49@ member_slot
+endmacro
+
+macro NS_ALIAS(alias_slot, ns_obj_ref, alias_table):
+    0B13: alias_table alias_slot ns_obj_ref
+endmacro
+
+macro NS_ALIAS_GET(out_ns_obj, alias_slot, alias_table):
+    0B12: out_ns_obj alias_table alias_slot
+endmacro
+
+macro NS_MEMBER_SET_PATH2(root_ns_obj, child_slot, member_slot, value):
+    0B12: 48@ root_ns_obj child_slot
+    0B13: 48@ member_slot value
+endmacro
+
+macro NS_MEMBER_GET_PATH2(out_value, root_ns_obj, child_slot, member_slot):
+    0B12: 47@ root_ns_obj child_slot
+    0B12: out_value 47@ member_slot
+endmacro
+
+macro NS_MEMBER_SET_PATH3(root_ns_obj, slot_a, slot_b, member_slot, value):
+    0B12: 46@ root_ns_obj slot_a
+    0B12: 45@ 46@ slot_b
+    0B13: 45@ member_slot value
+endmacro
+
+macro NS_MEMBER_GET_PATH3(out_value, root_ns_obj, slot_a, slot_b, member_slot):
+    0B12: 44@ root_ns_obj slot_a
+    0B12: 43@ 44@ slot_b
+    0B12: out_value 43@ member_slot
+endmacro
+
+macro NS_MEMBER_SET_PATH4(root_ns_obj, slot_a, slot_b, slot_c, member_slot, value):
+    0B12: 42@ root_ns_obj slot_a
+    0B12: 41@ 42@ slot_b
+    0B12: 40@ 41@ slot_c
+    0B13: 40@ member_slot value
+endmacro
+
+macro NS_MEMBER_GET_PATH4(out_value, root_ns_obj, slot_a, slot_b, slot_c, member_slot):
+    0B12: 39@ root_ns_obj slot_a
+    0B12: 38@ 39@ slot_b
+    0B12: 37@ 38@ slot_c
+    0B12: out_value 37@ member_slot
+endmacro
+
+; ===== Ultra std: namespace+RTTI integration and STL-style algorithms =====
+macro NS_RTTI_SET(ns_obj, rtti_kind):
+    0B13: ns_obj 15 rtti_kind
+endmacro
+
+macro NS_RTTI_GET(out_kind, ns_obj):
+    0B12: out_kind ns_obj 15
+endmacro
+
+macro NS_RTTI_ASSERT(ns_obj, expected_kind, fail_label):
+    0B12: 36@ ns_obj 15
+    00D6: 36@ expected_kind @NS_RTTI_OK
+    000A: fail_label
+    :NS_RTTI_OK
+endmacro
+
+macro VECTOR_SUM_I32(out_value, vec_ref, logical_size):
+    0004: out_value 0
+    0004: 35@ 0
+    :VEC_SUM_LOOP
+    00D9: 35@ logical_size @VEC_SUM_BODY
+    000A: @VEC_SUM_DONE
+    :VEC_SUM_BODY
+    0006: 34@ 35@ 2
+    0B12: 33@ vec_ref 34@
+    0006: out_value out_value 33@
+    0006: 35@ 35@ 1
+    000A: @VEC_SUM_LOOP
+    :VEC_SUM_DONE
+endmacro
+
+macro VECTOR_FIND_I32(out_index, vec_ref, logical_size, needle):
+    0004: out_index -1
+    0004: 32@ 0
+    :VEC_FIND_LOOP
+    00D9: 32@ logical_size @VEC_FIND_BODY
+    000A: @VEC_FIND_DONE
+    :VEC_FIND_BODY
+    0006: 31@ 32@ 2
+    0B12: 30@ vec_ref 31@
+    00D6: 30@ needle @VEC_FIND_HIT
+    0006: 32@ 32@ 1
+    000A: @VEC_FIND_LOOP
+    :VEC_FIND_HIT
+    0004: out_index 32@
+    :VEC_FIND_DONE
+endmacro
+
+macro VECTOR_MAX_I32(out_max, vec_ref, logical_size, fail_label):
+    00D8: logical_size 0 @VEC_MAX_START
+    000A: fail_label
+    :VEC_MAX_START
+    0B12: out_max vec_ref 2
+    0004: 29@ 1
+    :VEC_MAX_LOOP
+    00D9: 29@ logical_size @VEC_MAX_BODY
+    000A: @VEC_MAX_DONE
+    :VEC_MAX_BODY
+    0006: 28@ 29@ 2
+    0B12: 27@ vec_ref 28@
+    00D8: 27@ out_max @VEC_MAX_SET
+    000A: @VEC_MAX_NEXT
+    :VEC_MAX_SET
+    0004: out_max 27@
+    :VEC_MAX_NEXT
+    0006: 29@ 29@ 1
+    000A: @VEC_MAX_LOOP
+    :VEC_MAX_DONE
 endmacro
