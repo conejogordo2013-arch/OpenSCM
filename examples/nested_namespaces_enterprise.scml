@@ -1,0 +1,27 @@
+#include "../std.scmlh"
+
+:MAIN
+; Enterprise-like namespace tree:
+; Company::Platform::Runtime::Scheduler
+NS_OBJECT_NEW(16, 0@)
+NS_OBJECT_NEW(16, 1@)
+NS_OBJECT_NEW(16, 2@)
+NS_OBJECT_NEW(16, 3@)
+
+NS_LINK_CHILD(0@, 0, 1@)
+NS_LINK_CHILD(1@, 1, 2@)
+NS_LINK_CHILD(2@, 2, 3@)
+
+NS_MEMBER_SET_PATH4(0@, 0, 1, 2, 0, 777)
+NS_MEMBER_GET_PATH4(10@, 0@, 0, 1, 2, 0)
+PRINT(10@)
+
+; Alias table to simulate "using namespace" / imported nested scope
+NS_OBJECT_NEW(8, 20@)
+NS_ALIAS(0, 3@, 20@)
+NS_ALIAS_GET(11@, 0, 20@)
+NS_MEMBER_SET(11@, 1, 888)
+NS_MEMBER_GET(12@, 11@, 1)
+PRINT(12@)
+
+END_THREAD()

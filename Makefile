@@ -35,4 +35,17 @@ editor-example: bin/scml_editor examples/gameplay.scml
 clean:
 	rm -f $(CLI_OBJ) $(DEBUGGER_OBJ) bin/scml bin/scml_gameplay_example bin/scml_editor examples/*.scmlbin log.txt
 
-.PHONY: all clean cpp-example editor-example
+.PHONY: all clean cpp-example editor-example core test doctor tooling
+
+core: bin/scml
+
+tooling:
+	@echo "Tooling scripts:"
+	@echo "  - tools/scml_doctor.sh"
+	@echo "  - tests/smoke_suite.sh"
+
+test: bin/scml
+	bash tests/smoke_suite.sh
+
+doctor: bin/scml
+	bash tools/scml_doctor.sh

@@ -1,0 +1,35 @@
+#include "../std.scmlh"
+#include "../scmlspec/fixtures/scml_iso_advanced_preprocessed.scmlh"
+
+:main
+scml_emit_iso_banner("MEGA")
+scml_emit_mega_iso("FULL")
+
+CLASS_NEW_TYPED("PlayerState", SCML_RTTI_KIND_OBJECT, 0@)
+CLASS_FIELD_SET_I32(0@, 2, 100)
+CLASS_FIELD_GET_I32(1@, 0@, 2)
+PRINT(1@)
+
+VECTOR_NEW_CAP(32, 2@)
+VECTOR_PUSH_I32(2@, 7)
+VECTOR_PUSH_I32(2@, 14)
+VECTOR_GET_I32(3@, 2@, 1)
+PRINT(3@)
+
+FOR_RANGE_I32(4@, 0, 3, 1, @loop_body, @loop_end)
+:loop_body
+PRINT(4@)
+000A: @__FOR_RANGE_NEXT
+:loop_end
+
+SWITCH2(3@, 7, @case_a, 14, @case_b, @case_default)
+:case_a
+PRINT("A")
+000A: @done
+:case_b
+PRINT("B")
+000A: @done
+:case_default
+PRINT("?")
+:done
+END_THREAD()
