@@ -173,6 +173,11 @@ SCML now includes additional opcodes and std macros for richer scripting:
 - `TO_INT` (`0B23`) and `TO_FLOAT` (`0B24`) for type conversion
 - `MOD` (`0B20`) arithmetic remainder
 - `IF_GE` (`0B25`) and `IF_LE` (`0B26`) for extended conditionals
+- `BIT_AND/OR/XOR/NOT` (`0B27`-`0B2A`) and `SHL/SHR` (`0B2B`/`0B2C`) for bitwise workflows
+- `POW` (`0B2D`) for exponent math
+- `STRLEN` (`0B2E`) + `SUBSTR` (`0B2F`) for richer string handling
+- `ARRAY_LEN` (`0B30`) for heap/array introspection
+- Added float family aliases in std macros: `FLOAT`, `FLOAT2`, `FLOAT4`, `FLOAT8`, `FLOAT16`, `FLOAT32`, `FLOAT64`
 
 Demo:
 

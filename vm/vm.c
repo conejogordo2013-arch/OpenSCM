@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 typedef struct Var { char *name; ScmlValue value; } Var;
 typedef struct HeapObject { int active; uint32_t id; size_t size; int32_t *data; } HeapObject;
@@ -702,6 +703,64 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         ScmlValue v=eval(vm,&ops[1]);
         set_var(vm, ops[0].s, value_float(value_to_float(&v)));
         value_free(&v);
+        break;
+    }
+    case SCML_OP_BIT_AND: case SCML_OP_BIT_OR: case SCML_OP_BIT_XOR: case SCML_OP_SHL: case SCML_OP_SHR: {
+        ScmlValue a = eval(vm, &ops[1]), b = eval(vm, &ops[2]);
+        int x = value_to_int(&a), y = value_to_int(&b), r = 0;
+        if (op == SCML_OP_BIT_AND) r = x & y;
+        else if (op == SCML_OP_BIT_OR) r = x | y;
+        else if (op == SCML_OP_BIT_XOR) r = x ^ y;
+        else if (op == SCML_OP_SHL) r = x << y;
+        else r = x >> y;
+        set_var(vm, ops[0].s, value_int(r));
+        value_free(&a); value_free(&b);
+        break;
+    }
+    case SCML_OP_BIT_NOT: {
+        ScmlValue v = eval(vm, &ops[1]);
+        set_var(vm, ops[0].s, value_int(~value_to_int(&v)));
+        value_free(&v);
+        break;
+    }
+    case SCML_OP_POW: {
+        ScmlValue a = eval(vm, &ops[1]), b = eval(vm, &ops[2]);
+        float p = powf(value_to_float(&a), value_to_float(&b));
+        set_var(vm, ops[0].s, value_float(p));
+        value_free(&a); value_free(&b);
+        break;
+    }
+    case SCML_OP_STRLEN: {
+        ScmlValue s = eval(vm, &ops[1]);
+        char sb[256];
+        set_var(vm, ops[0].s, value_int((int32_t)strlen(value_to_cstr(&s, sb, sizeof(sb)))));
+        value_free(&s);
+        break;
+    }
+    case SCML_OP_SUBSTR: {
+        ScmlValue src = eval(vm, &ops[1]), start = eval(vm, &ops[2]), len = eval(vm, &ops[3]);
+        char sb[512];
+        const char *s = value_to_cstr(&src, sb, sizeof(sb));
+        int st = value_to_int(&start), ln = value_to_int(&len);
+        size_t sl = strlen(s);
+        if (st < 0) st = 0;
+        if (ln < 0) ln = 0;
+        if ((size_t)st > sl) st = (int)sl;
+        if ((size_t)(st + ln) > sl) ln = (int)(sl - (size_t)st);
+        char *tmp = (char *)malloc((size_t)ln + 1);
+        if (!tmp) { value_free(&src); value_free(&start); value_free(&len); error_at(vm, ins_pc, err, err_size, "out of memory"); free_decoded(ops, argc); return -1; }
+        memcpy(tmp, s + st, (size_t)ln);
+        tmp[ln] = '\0';
+        set_var(vm, ops[0].s, value_str(tmp));
+        free(tmp);
+        value_free(&src); value_free(&start); value_free(&len);
+        break;
+    }
+    case SCML_OP_ARRAY_LEN: {
+        ScmlValue refv = eval(vm, &ops[1]);
+        HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&refv));
+        set_var(vm, ops[0].s, value_int(obj ? (int32_t)obj->size : 0));
+        value_free(&refv);
         break;
     }
     default:
