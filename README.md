@@ -141,6 +141,18 @@ while (running) {
 }
 ```
 
+
+## Mega advanced script (ASCII + matemáticas + OOP/RTTI + namespaces + preprocesado + STL)
+
+Si quieres un ejemplo "todo en uno" orientado a superficie ISO completa, usa:
+
+```sh
+bin/scml compile examples/mega_everything_advanced.scml examples/mega_everything_advanced.scmlbin
+bin/scml run examples/mega_everything_advanced.scmlbin --trace
+```
+
+El archivo `examples/mega_everything_advanced.scml` combina render ASCII complejo, punteros, matemáticas avanzadas, RTTI/OOP orientado a namespaces y capa STL/template-style mediante macros SCML.
+
 ## SCML Mega Bootstrap Surface (SCML-style)
 
 The repository now includes a dedicated SCML bootstrap catalog under `scmlspec/` with:
@@ -150,3 +162,21 @@ The repository now includes a dedicated SCML bootstrap catalog under `scmlspec/`
 - `scml_mega_bootstrap_manifest.md`: domain-by-domain bootstrap manifest.
 
 This is intentionally SCML-oriented and avoids requiring C++ syntax in SCML user scripts.
+
+
+## Advanced runtime extensions (input, conversion, string concat, extra conditionals)
+
+SCML now includes additional opcodes and std macros for richer scripting:
+
+- `INPUT` (`0B21`) for stdin capture
+- `STRCAT` (`0B22`) for string concatenation
+- `TO_INT` (`0B23`) and `TO_FLOAT` (`0B24`) for type conversion
+- `MOD` (`0B20`) arithmetic remainder
+- `IF_GE` (`0B25`) and `IF_LE` (`0B26`) for extended conditionals
+
+Demo:
+
+```sh
+bin/scml compile examples/mega_input_advanced.scml examples/mega_input_advanced.scmlbin
+printf '33\n' | bin/scml run examples/mega_input_advanced.scmlbin
+```

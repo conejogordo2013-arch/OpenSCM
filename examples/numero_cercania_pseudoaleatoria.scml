@@ -1,0 +1,47 @@
+#include "../std.scmlh"
+
+:MAIN
+03E5: "Ingresa un numero (simulado en $N)"
+0004: $N 37
+
+0008: $R $N 73
+0006: $R $R 41
+0009: $Q $R 97
+0008: $TMP $Q 97
+0007: $TARGET $R $TMP
+
+03E5: "Numero objetivo pseudo-aleatorio:"
+03E5: $TARGET
+
+0007: $DIFF $N $TARGET
+00D9: $DIFF 0 @NEG
+000A: @ABS_DONE
+:NEG
+0007: $DIFF 0 $DIFF
+:ABS_DONE
+
+03E5: "Tu numero:"
+03E5: $N
+03E5: "Distancia:"
+03E5: $DIFF
+
+00D6: $DIFF 0 @EXACTO
+00D9: $DIFF 3 @MUY_CERCA
+00D9: $DIFF 8 @CERCA
+000A: @LEJOS
+
+:EXACTO
+03E5: "Resultado: exacto"
+0D02:
+
+:MUY_CERCA
+03E5: "Resultado: muy cerca"
+0D02:
+
+:CERCA
+03E5: "Resultado: cerca"
+0D02:
+
+:LEJOS
+03E5: "Resultado: lejos"
+0D02:

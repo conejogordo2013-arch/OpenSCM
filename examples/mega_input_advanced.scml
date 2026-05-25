@@ -1,0 +1,27 @@
+#include "../std.scmlh"
+
+:MAIN
+0B21: "Ingresa un numero: " $RAW
+0B23: $N $RAW
+0B20: $R $N 97
+0006: $R $R 11
+0B22: $MSG "Numero procesado: " $RAW
+03E5: $MSG
+03E5: "Residuo pseudo-aleatorio:"
+03E5: $R
+
+0B26: $R 10 @LOW
+0B26: $R 40 @MID
+000A: @HIGH
+
+:LOW
+03E5: "Nivel: bajo"
+0D02:
+
+:MID
+03E5: "Nivel: medio"
+0D02:
+
+:HIGH
+03E5: "Nivel: alto"
+0D02:
