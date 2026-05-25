@@ -773,3 +773,47 @@ macro VECTOR_MAX_I32(out_max, vec_ref, logical_size, fail_label):
     000A: @VEC_MAX_LOOP
     :VEC_MAX_DONE
 endmacro
+
+
+; --- Advanced surface ---
+#define FLOAT float
+#define FLOAT2 float2
+#define FLOAT4 float4
+#define FLOAT8 float8
+#define FLOAT16 float16
+#define FLOAT32 float32
+#define FLOAT64 float64
+
+macro MOD(outvar, a, b):
+    0B20: outvar a b
+endmacro
+
+macro INPUT(prompt, outvar):
+    0B21: prompt outvar
+endmacro
+
+macro STRCAT(outvar, a, b):
+    0B22: outvar a b
+endmacro
+
+macro TO_INT(outvar, value):
+    0B23: outvar value
+endmacro
+
+macro TO_FLOAT(outvar, value):
+    0B24: outvar value
+endmacro
+
+macro IF_GE(a, b, label):
+    0B25: a b label
+endmacro
+
+macro IF_LE(a, b, label):
+    0B26: a b label
+endmacro
+
+macro SWITCH_I32(value, c1, l1, c2, l2, default_label):
+    IF_EQ(value, c1, l1)
+    IF_EQ(value, c2, l2)
+    JUMP(default_label)
+endmacro

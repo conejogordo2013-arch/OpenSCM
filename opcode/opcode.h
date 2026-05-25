@@ -43,7 +43,14 @@ typedef enum ScmlOpcode {
     SCML_OP_EVENT_BIND = 0x1C,
     SCML_OP_EVENT_TRIGGER = 0x1D,
     SCML_OP_FREE = 0x1E,
-    SCML_OP_ARRAY_CREATE = 0x1F
+    SCML_OP_ARRAY_CREATE = 0x1F,
+    SCML_OP_MOD = 0x20,
+    SCML_OP_INPUT = 0x21,
+    SCML_OP_STRCAT = 0x22,
+    SCML_OP_TO_INT = 0x23,
+    SCML_OP_TO_FLOAT = 0x24,
+    SCML_OP_IF_GE = 0x25,
+    SCML_OP_IF_LE = 0x26
 } ScmlOpcode;
 
 typedef enum ScmlOperandType {

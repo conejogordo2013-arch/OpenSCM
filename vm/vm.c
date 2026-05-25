@@ -527,14 +527,15 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         if (!set_var(vm, ops[0].s, v)) { error_at(vm, ins_pc, err, err_size, "variable table full"); free_decoded(ops, argc); return -1; }
         break;
     }
-    case SCML_OP_ADD: case SCML_OP_SUB: case SCML_OP_MUL: case SCML_OP_DIV: {
+    case SCML_OP_ADD: case SCML_OP_SUB: case SCML_OP_MUL: case SCML_OP_DIV: case SCML_OP_MOD: {
         ScmlValue a = eval(vm, &ops[1]);
         ScmlValue b = eval(vm, &ops[2]);
         int x = value_to_int(&a), y = value_to_int(&b), r = 0;
         if (op == SCML_OP_ADD) r = x + y;
         else if (op == SCML_OP_SUB) r = x - y;
         else if (op == SCML_OP_MUL) r = x * y;
-        else { if (y == 0) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "division by zero"); free_decoded(ops, argc); return -1; } r = x / y; }
+        else if (op == SCML_OP_DIV) { if (y == 0) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "division by zero"); free_decoded(ops, argc); return -1; } r = x / y; }
+        else { if (y == 0) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "mod by zero"); free_decoded(ops, argc); return -1; } r = x % y; }
         value_free(&a);
         value_free(&b);
         set_var(vm, ops[0].s, value_int(r));
@@ -543,14 +544,16 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     case SCML_OP_JMP:
         vm->pc = (size_t)ops[0].i;
         break;
-    case SCML_OP_IF_EQ: case SCML_OP_IF_NE: case SCML_OP_IF_GT: case SCML_OP_IF_LT: {
+    case SCML_OP_IF_EQ: case SCML_OP_IF_NE: case SCML_OP_IF_GT: case SCML_OP_IF_LT: case SCML_OP_IF_GE: case SCML_OP_IF_LE: {
         ScmlValue a = eval(vm, &ops[0]);
         ScmlValue b = eval(vm, &ops[1]);
         int x = value_to_int(&a), y = value_to_int(&b), take = 0;
         if (op == SCML_OP_IF_EQ) take = x == y;
         else if (op == SCML_OP_IF_NE) take = x != y;
         else if (op == SCML_OP_IF_GT) take = x > y;
-        else take = x < y;
+        else if (op == SCML_OP_IF_LT) take = x < y;
+        else if (op == SCML_OP_IF_GE) take = x >= y;
+        else take = x <= y;
         value_free(&a);
         value_free(&b);
         if (take) vm->pc = (size_t)ops[2].i;
@@ -660,6 +663,45 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         if (!obj || i >= obj->size) { value_free(&ref_value); value_free(&index); error_at(vm, ins_pc, err, err_size, "heap read out of range"); free_decoded(ops, argc); return -1; }
         set_var(vm, ops[0].s, value_int(obj->data[i]));
         value_free(&ref_value); value_free(&index);
+        break;
+    }
+    case SCML_OP_INPUT: {
+        ScmlValue prompt = eval(vm, &ops[0]);
+        char pb[128];
+        printf("%s", value_to_cstr(&prompt, pb, sizeof(pb)));
+        fflush(stdout);
+        char line[256];
+        if (!fgets(line, sizeof(line), stdin)) line[0] = '\0';
+        size_t n = strlen(line);
+        if (n && line[n-1] == '\n') line[n-1] = '\0';
+        set_var(vm, ops[1].s, value_str(line));
+        value_free(&prompt);
+        break;
+    }
+    case SCML_OP_STRCAT: {
+        ScmlValue a = eval(vm, &ops[1]), b = eval(vm, &ops[2]);
+        char ab[128], bb[128];
+        const char *as = value_to_cstr(&a, ab, sizeof(ab));
+        const char *bs = value_to_cstr(&b, bb, sizeof(bb));
+        size_t ln = strlen(as)+strlen(bs)+1;
+        char *tmp=(char*)malloc(ln);
+        if(!tmp){ value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "out of memory"); free_decoded(ops, argc); return -1; }
+        snprintf(tmp, ln, "%s%s", as, bs);
+        set_var(vm, ops[0].s, value_str(tmp));
+        free(tmp);
+        value_free(&a); value_free(&b);
+        break;
+    }
+    case SCML_OP_TO_INT: {
+        ScmlValue v=eval(vm,&ops[1]);
+        set_var(vm, ops[0].s, value_int(value_to_int(&v)));
+        value_free(&v);
+        break;
+    }
+    case SCML_OP_TO_FLOAT: {
+        ScmlValue v=eval(vm,&ops[1]);
+        set_var(vm, ops[0].s, value_float(value_to_float(&v)));
+        value_free(&v);
         break;
     }
     default:
