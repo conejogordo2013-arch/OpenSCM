@@ -19,6 +19,7 @@ extern "C" {
 #define SCML_EVENT_QUEUE_MAX 256
 #define SCML_ENTITIES_MAX 128
 #define SCML_NATIVE_FUNCS_MAX 128
+#define SCML_NATIVE_MODULES_MAX 32
 
 typedef enum ScmlValueType { SCML_VAL_INT, SCML_VAL_STRING, SCML_VAL_FLOAT } ScmlValueType;
 
@@ -41,6 +42,7 @@ typedef struct ScmlEntity {
 
 typedef struct ScmlVM ScmlVM;
 typedef int (*ScmlNativeFunc)(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data);
+typedef int (*ScmlModuleResolver)(ScmlVM *vm, const char *function, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data);
 
 ScmlVM *scml_vm_create(void);
 void scml_vm_destroy(ScmlVM *vm);
@@ -55,6 +57,9 @@ int scml_vm_set_float(ScmlVM *vm, const char *name, float value);
 int scml_vm_get_float(ScmlVM *vm, const char *name, float *out);
 int scml_vm_set_string(ScmlVM *vm, const char *name, const char *value);
 int scml_vm_register_function(ScmlVM *vm, const char *name, ScmlNativeFunc fn, void *user_data);
+int scml_vm_register_module(ScmlVM *vm, const char *name, ScmlModuleResolver resolver, void *user_data);
+int scml_vm_unregister_module(ScmlVM *vm, const char *name);
+int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue *args, size_t arg_count, ScmlValue *ret);
 int scml_vm_bind_event(ScmlVM *vm, const char *event_name, uint32_t handler_pc);
 int scml_vm_trigger_event(ScmlVM *vm, const char *event_name, char *err, size_t err_size);
 void scml_vm_dump_memory(ScmlVM *vm, FILE *out);

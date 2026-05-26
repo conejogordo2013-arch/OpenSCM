@@ -51,6 +51,7 @@ static const ScmlOpcodeInfo g_opcodes[] = {
     {0x0B2E, SCML_OP_STRLEN, "STRLEN", 2, 2},
     {0x0B2F, SCML_OP_SUBSTR, "SUBSTR", 4, 4},
     {0x0B30, SCML_OP_ARRAY_LEN, "ARRAY_LEN", 2, 2},
+    {0x0B31, SCML_OP_CALL_NATIVE, "CALL_NATIVE", 1, 8},
     {0x0C00, SCML_OP_HEAP_ALLOC, "HEAP_ALLOC", 2, 2},
     {0x0C01, SCML_OP_HEAP_STORE, "HEAP_STORE", 3, 3},
     {0x0C02, SCML_OP_HEAP_LOAD, "HEAP_LOAD", 3, 3},

@@ -1,0 +1,9 @@
+:MAIN
+; Direct native-style instruction syntax (auto-mapped to CALL_NATIVE by parser):
+gpu.draw_triangle 0 0 1 0 0 1
+gpu.draw_triangle: 0 0 1 0 0 1
+audio.play_sound "explosion.wav"
+file.open_file "data.txt"
+net.open_socket "127.0.0.1:9000"
+03E5: "native instruction style executed"
+0001:

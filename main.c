@@ -1,4 +1,5 @@
 #include "compiler/compiler.h"
+#include "runtime/scml_runtime_modules.h"
 #include "vm/vm.h"
 
 #include <stdio.h>
@@ -9,7 +10,7 @@ static void usage(const char *argv0) {
             "usage:\n"
             "  %s compile input.scml output.scmlbin\n"
             "  %s compile input1.scml input2.scml output.scmlbin\n"
-            "  %s run input.scmlbin [--trace] [--dump-memory] [--trigger EVENT]\n",
+            "  %s run input.scmlbin [--trace] [--dump-memory] [--no-builtin-modules] [--trigger EVENT]\n",
             argv0, argv0, argv0);
 }
 
@@ -33,10 +34,12 @@ int main(int argc, char **argv) {
         if (argc < 3) { usage(argv[0]); return 1; }
         ScmlVM *vm = scml_vm_create();
         int dump_memory = 0;
+        int install_builtin_modules = 1;
         if (!vm) { fprintf(stderr, "out of memory\n"); return 1; }
         for (int i = 3; i < argc; i++) {
             if (strcmp(argv[i], "--trace") == 0) scml_vm_set_trace(vm, 1);
             else if (strcmp(argv[i], "--dump-memory") == 0) dump_memory = 1;
+            else if (strcmp(argv[i], "--no-builtin-modules") == 0) install_builtin_modules = 0;
             else if (strcmp(argv[i], "--trigger") == 0 && i + 1 < argc) {
                 if (!scml_vm_trigger_event(vm, argv[++i], err, sizeof(err))) {
                     fprintf(stderr, "runtime error: %s\n", err);
@@ -48,6 +51,11 @@ int main(int argc, char **argv) {
                 scml_vm_destroy(vm);
                 return 1;
             }
+        }
+        if (install_builtin_modules && !scml_runtime_install_builtin_module_registry(vm)) {
+            fprintf(stderr, "runtime error: cannot install builtin module registry\n");
+            scml_vm_destroy(vm);
+            return 1;
         }
         if (!scml_vm_load_file(vm, argv[2], err, sizeof(err)) || !scml_vm_run(vm, err, sizeof(err))) {
             fprintf(stderr, "runtime error: %s\n", err);

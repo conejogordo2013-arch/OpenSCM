@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <math.h>
 
 typedef struct Var { char *name; ScmlValue value; } Var;
@@ -16,6 +15,7 @@ typedef struct EventQueueItem { char *name; size_t handler_index; } EventQueueIt
 typedef struct LineEntry { uint32_t pc; uint32_t line; } LineEntry;
 typedef struct LabelEntry { char *name; uint32_t pc; } LabelEntry;
 typedef struct NativeFunc { char *name; ScmlNativeFunc fn; void *user_data; } NativeFunc;
+typedef struct NativeModule { char *name; ScmlModuleResolver resolver; void *user_data; } NativeModule;
 
 typedef struct DecOp { ScmlOperandType type; int32_t i; float f; char *s; } DecOp;
 
@@ -38,14 +38,14 @@ struct ScmlVM {
     EventQueueItem event_queue[SCML_EVENT_QUEUE_MAX];
     size_t event_head;
     size_t event_tail;
-    ScmlEntity entities[SCML_ENTITIES_MAX];
-    int next_entity_id;
     LineEntry *lines;
     size_t line_count;
     LabelEntry *labels;
     size_t label_count;
     NativeFunc natives[SCML_NATIVE_FUNCS_MAX];
     size_t native_count;
+    NativeModule modules[SCML_NATIVE_MODULES_MAX];
+    size_t module_count;
 };
 
 static char *xstrdup(const char *s) {
@@ -245,6 +245,14 @@ static NativeFunc *native_find(ScmlVM *vm, const char *name) {
     return NULL;
 }
 
+
+static NativeModule *module_find(ScmlVM *vm, const char *name) {
+    for (size_t i = 0; i < vm->module_count; i++) {
+        if (strcmp(vm->modules[i].name, name) == 0) return &vm->modules[i];
+    }
+    return NULL;
+}
+
 static EventEntry *event_find(ScmlVM *vm, const char *name, int create) {
     for (size_t i = 0; i < vm->event_count; i++) if (strcmp(vm->events[i].name, name) == 0) return &vm->events[i];
     if (!create || vm->event_count >= SCML_EVENTS_MAX) return NULL;
@@ -304,16 +312,10 @@ static int dispatch_next_event(ScmlVM *vm) {
     return 0;
 }
 
-static void wait_ms(int ms) {
-    clock_t end = clock() + (clock_t)((double)ms * CLOCKS_PER_SEC / 1000.0);
-    while (clock() < end) {}
-}
-
 ScmlVM *scml_vm_create(void) {
     ScmlVM *vm = (ScmlVM *)calloc(1, sizeof(*vm));
     if (!vm) return NULL;
     vm->next_ref = 1;
-    vm->next_entity_id = 1;
     return vm;
 }
 
@@ -328,6 +330,7 @@ void scml_vm_destroy(ScmlVM *vm) {
     for (size_t i = 0; i < SCML_HEAP_OBJECTS_MAX; i++) free(vm->heap[i].data);
     for (size_t i = 0; i < vm->event_count; i++) free(vm->events[i].name);
     for (size_t i = 0; i < vm->native_count; i++) free(vm->natives[i].name);
+    for (size_t i = 0; i < vm->module_count; i++) free(vm->modules[i].name);
     while (vm->event_head != vm->event_tail) {
         free(vm->event_queue[vm->event_head].name);
         vm->event_head = (vm->event_head + 1) % SCML_EVENT_QUEUE_MAX;
@@ -425,6 +428,44 @@ int scml_vm_register_function(ScmlVM *vm, const char *name, ScmlNativeFunc fn, v
 }
 
 
+
+int scml_vm_register_module(ScmlVM *vm, const char *name, ScmlModuleResolver resolver, void *user_data) {
+    NativeModule *existing = module_find(vm, name);
+    if (existing) { existing->resolver = resolver; existing->user_data = user_data; return 1; }
+    if (vm->module_count >= SCML_NATIVE_MODULES_MAX) return 0;
+    NativeModule *module = &vm->modules[vm->module_count++];
+    module->name = xstrdup(name);
+    module->resolver = resolver;
+    module->user_data = user_data;
+    return module->name != NULL;
+}
+
+int scml_vm_unregister_module(ScmlVM *vm, const char *name) {
+    if (!vm || !name) return 0;
+    for (size_t i = 0; i < vm->module_count; i++) {
+        if (strcmp(vm->modules[i].name, name) == 0) {
+            free(vm->modules[i].name);
+            if (i + 1 < vm->module_count) memmove(&vm->modules[i], &vm->modules[i + 1], (vm->module_count - i - 1) * sizeof(vm->modules[0]));
+            vm->module_count--;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
+    const char *dot = strchr(qualified_name ? qualified_name : "", '.');
+    if (!dot || dot == qualified_name || dot[1] == '\0') return 0;
+    size_t mn = (size_t)(dot - qualified_name);
+    char module_name[64];
+    if (mn >= sizeof(module_name)) return 0;
+    memcpy(module_name, qualified_name, mn);
+    module_name[mn] = '\0';
+    NativeModule *module = module_find(vm, module_name);
+    if (!module || !module->resolver) return 0;
+    return module->resolver(vm, dot + 1, args, arg_count, ret, module->user_data);
+}
+
 size_t scml_vm_pc(const ScmlVM *vm) { return vm ? vm->pc : 0; }
 
 uint32_t scml_vm_current_line(const ScmlVM *vm) {
@@ -498,14 +539,13 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         } else {
             const char *name = ops[0].type == SCML_OPERAND_STRING ? ops[0].s : ops[0].s;
             NativeFunc *native = native_find(vm, name);
-            if (!native || !native->fn) { error_at(vm, ins_pc, err, err_size, "native function not registered"); free_decoded(ops, argc); return -1; }
             ScmlValue args[7];
             memset(args, 0, sizeof(args));
             for (uint8_t ai = 1; ai < argc; ai++) args[ai - 1] = eval(vm, &ops[ai]);
             ScmlValue ret = value_int(0);
-            int ok = native->fn(vm, args, argc - 1, &ret, native->user_data);
+            int ok = (native && native->fn) ? native->fn(vm, args, argc - 1, &ret, native->user_data) : scml_vm_call_native(vm, name, args, argc - 1, &ret);
             for (uint8_t ai = 1; ai < argc; ai++) value_free(&args[ai - 1]);
-            if (!ok) { value_free(&ret); error_at(vm, ins_pc, err, err_size, "native function failed"); free_decoded(ops, argc); return -1; }
+            if (!ok) { value_free(&ret); error_at(vm, ins_pc, err, err_size, "native call unresolved/failed"); free_decoded(ops, argc); return -1; }
             set_var(vm, "$RETVAL", value_clone(&ret));
             value_free(&ret);
         }
@@ -569,36 +609,31 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     }
     case SCML_OP_WAIT: {
         ScmlValue v = eval(vm, &ops[0]);
-        wait_ms(value_to_int(&v));
+        ScmlValue ret = value_int(0);
+        int ok = scml_vm_call_native(vm, "runtime.wait", &v, 1, &ret);
         value_free(&v);
+        value_free(&ret);
+        if (!ok) { error_at(vm, ins_pc, err, err_size, "WAIT requires runtime.wait"); free_decoded(ops, argc); return -1; }
         break;
     }
     case SCML_OP_FILE_READ: {
         ScmlValue path = eval(vm, &ops[0]);
-        char path_buf[64];
-        FILE *file = fopen(value_to_cstr(&path, path_buf, sizeof(path_buf)), "rb");
-        char *data = xstrdup("");
-        if (file) {
-            fseek(file, 0, SEEK_END);
-            long n = ftell(file);
-            rewind(file);
-            data = (char *)realloc(data, (size_t)n + 1);
-            if (fread(data, 1, (size_t)n, file) == (size_t)n) data[n] = '\0'; else data[0] = '\0';
-            fclose(file);
-        }
-        set_var(vm, ops[1].s, value_str(data));
-        free(data);
+        ScmlValue ret = value_int(0);
+        int ok = scml_vm_call_native(vm, "file.read", &path, 1, &ret);
         value_free(&path);
+        if (!ok) { value_free(&ret); error_at(vm, ins_pc, err, err_size, "FILE_READ requires file.read"); free_decoded(ops, argc); return -1; }
+        set_var(vm, ops[1].s, value_clone(&ret));
+        value_free(&ret);
         break;
     }
     case SCML_OP_FILE_WRITE: {
-        ScmlValue path = eval(vm, &ops[0]);
-        ScmlValue data = eval(vm, &ops[1]);
-        char path_buf[64], data_buf[64];
-        FILE *file = fopen(value_to_cstr(&path, path_buf, sizeof(path_buf)), "ab");
-        if (file) { fputs(value_to_cstr(&data, data_buf, sizeof(data_buf)), file); fputc('\n', file); fclose(file); }
-        value_free(&path);
-        value_free(&data);
+        ScmlValue args[2];
+        args[0] = eval(vm, &ops[0]);
+        args[1] = eval(vm, &ops[1]);
+        ScmlValue ret = value_int(0);
+        int ok = scml_vm_call_native(vm, "file.write", args, 2, &ret);
+        value_free(&args[0]); value_free(&args[1]); value_free(&ret);
+        if (!ok) { error_at(vm, ins_pc, err, err_size, "FILE_WRITE requires file.write"); free_decoded(ops, argc); return -1; }
         break;
     }
     case SCML_OP_EVENT_BIND: {
@@ -618,17 +653,14 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         break;
     }
     case SCML_OP_ENTITY_SPAWN: {
-        ScmlValue model = eval(vm, &ops[0]), x = eval(vm, &ops[1]), y = eval(vm, &ops[2]), z = eval(vm, &ops[3]);
-        int id = vm->next_entity_id++;
-        for (size_t i = 0; i < SCML_ENTITIES_MAX; i++) if (!vm->entities[i].active) {
-            vm->entities[i].active = 1;
-            vm->entities[i].id = id;
-            snprintf(vm->entities[i].model, sizeof(vm->entities[i].model), "%s", model.type == SCML_VAL_STRING ? model.string : "entity");
-            vm->entities[i].x = value_to_int(&x); vm->entities[i].y = value_to_int(&y); vm->entities[i].z = value_to_int(&z);
-            break;
-        }
-        set_var(vm, ops[4].s, value_int(id));
-        value_free(&model); value_free(&x); value_free(&y); value_free(&z);
+        ScmlValue args[4];
+        args[0] = eval(vm, &ops[0]); args[1] = eval(vm, &ops[1]); args[2] = eval(vm, &ops[2]); args[3] = eval(vm, &ops[3]);
+        ScmlValue ret = value_int(0);
+        int ok = scml_vm_call_native(vm, "gpu.entity_spawn", args, 4, &ret);
+        for (int i = 0; i < 4; i++) value_free(&args[i]);
+        if (!ok) { value_free(&ret); error_at(vm, ins_pc, err, err_size, "ENTITY_SPAWN requires gpu.entity_spawn"); free_decoded(ops, argc); return -1; }
+        set_var(vm, ops[4].s, value_clone(&ret));
+        value_free(&ret);
         break;
     }
     case SCML_OP_ENTITY_SET:
@@ -668,15 +700,12 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     }
     case SCML_OP_INPUT: {
         ScmlValue prompt = eval(vm, &ops[0]);
-        char pb[128];
-        printf("%s", value_to_cstr(&prompt, pb, sizeof(pb)));
-        fflush(stdout);
-        char line[256];
-        if (!fgets(line, sizeof(line), stdin)) line[0] = '\0';
-        size_t n = strlen(line);
-        if (n && line[n-1] == '\n') line[n-1] = '\0';
-        set_var(vm, ops[1].s, value_str(line));
+        ScmlValue ret = value_int(0);
+        int ok = scml_vm_call_native(vm, "input.read", &prompt, 1, &ret);
         value_free(&prompt);
+        if (!ok) { value_free(&ret); error_at(vm, ins_pc, err, err_size, "INPUT requires input.read"); free_decoded(ops, argc); return -1; }
+        set_var(vm, ops[1].s, value_clone(&ret));
+        value_free(&ret);
         break;
     }
     case SCML_OP_STRCAT: {
@@ -761,6 +790,19 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&refv));
         set_var(vm, ops[0].s, value_int(obj ? (int32_t)obj->size : 0));
         value_free(&refv);
+        break;
+    }
+    case SCML_OP_CALL_NATIVE: {
+        const char *name = ops[0].s;
+        ScmlValue args[7];
+        memset(args, 0, sizeof(args));
+        for (uint8_t ai = 1; ai < argc; ai++) args[ai - 1] = eval(vm, &ops[ai]);
+        ScmlValue ret = value_int(0);
+        int ok = scml_vm_call_native(vm, name, args, argc - 1, &ret);
+        for (uint8_t ai = 1; ai < argc; ai++) value_free(&args[ai - 1]);
+        if (!ok) { value_free(&ret); error_at(vm, ins_pc, err, err_size, "native call unresolved/failed"); free_decoded(ops, argc); return -1; }
+        set_var(vm, "$RETVAL", value_clone(&ret));
+        value_free(&ret);
         break;
     }
     default:

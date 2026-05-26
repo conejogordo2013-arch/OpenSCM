@@ -840,6 +840,109 @@ endmacro
 macro INPUT(prompt, outvar):
     0B21: prompt outvar
 endmacro
+macro CALL_NATIVE(name, a):
+    0B31: name a
+endmacro
+macro CALL_NATIVE3(name, a, b, c):
+    0B31: name a b c
+endmacro
+macro CALL_NATIVE4(name, a, b, c, d):
+    0B31: name a b c d
+endmacro
+macro CALL_NATIVE6(name, a, b, c, d, e, f):
+    0B31: name a b c d e f
+endmacro
+
+; --- High-level stdlib wrappers over native modules ---
+macro drawTriangle(x1, y1, x2, y2, x3, y3):
+    CALL_NATIVE6("gpu.drawTriangle", x1, y1, x2, y2, x3, y3)
+endmacro
+macro draw_triangle(x1, y1, x2, y2, x3, y3):
+    CALL_NATIVE6("gpu.draw_triangle", x1, y1, x2, y2, x3, y3)
+endmacro
+macro createWindow(width, height, title):
+    CALL_NATIVE3("gpu.createWindow", width, height, title)
+endmacro
+macro create_window(width, height, title):
+    CALL_NATIVE3("gpu.create_window", width, height, title)
+endmacro
+macro playSound(path):
+    CALL_NATIVE("audio.play", path)
+endmacro
+macro play_sound(path):
+    CALL_NATIVE("audio.play_sound", path)
+endmacro
+macro loadTexture(path):
+    CALL_NATIVE("gpu.load_texture", path)
+endmacro
+macro openFile(path):
+    CALL_NATIVE("file.open", path)
+endmacro
+macro open_file(path):
+    CALL_NATIVE("file.open_file", path)
+endmacro
+macro readFile(path):
+    CALL_NATIVE("file.read", path)
+endmacro
+macro read_file(path):
+    CALL_NATIVE("file.read_file", path)
+endmacro
+macro writeFile(path, data):
+    CALL_NATIVE3("file.write", path, data, 0)
+endmacro
+macro write_file(path, data):
+    CALL_NATIVE3("file.write_file", path, data, 0)
+endmacro
+macro netRequest(url):
+    CALL_NATIVE("net.request", url)
+endmacro
+macro connectSocket(addr):
+    CALL_NATIVE("net.open_socket", addr)
+endmacro
+
+; SCML-style uppercase native wrappers (style-preserving surface)
+macro DRAW_TRIANGLE(x1, y1, x2, y2, x3, y3):
+    CALL_NATIVE6("gpu.draw_triangle", x1, y1, x2, y2, x3, y3)
+endmacro
+macro PLAY_SOUND(path):
+    CALL_NATIVE("audio.play_sound", path)
+endmacro
+macro OPEN_FILE(path):
+    CALL_NATIVE("file.open_file", path)
+endmacro
+macro READ_FILE(path):
+    CALL_NATIVE("file.read_file", path)
+endmacro
+macro CONNECT_SOCKET(addr):
+    CALL_NATIVE("net.open_socket", addr)
+endmacro
+macro LOAD_IMAGE(path):
+    CALL_NATIVE("image.load_image", path)
+endmacro
+macro SAVE_IMAGE(path):
+    CALL_NATIVE("image.save_image", path)
+endmacro
+macro READ_TXT(path):
+    CALL_NATIVE("file.read_txt", path)
+endmacro
+macro WRITE_TXT(path, data):
+    CALL_NATIVE3("file.write_txt", path, data, 0)
+endmacro
+macro GPU_BACKEND_INFO():
+    CALL_NATIVE("gpu.backend_info", 0)
+endmacro
+macro AUDIO_BACKEND_INFO():
+    CALL_NATIVE("audio.backend_info", 0)
+endmacro
+macro SLEEP_MS(ms):
+    CALL_NATIVE("runtime.wait", ms)
+endmacro
+macro NET_OPEN_SOCKET(addr):
+    CALL_NATIVE("net.open_socket", addr)
+endmacro
+macro NET_SEND_DATA(sock, payload):
+    CALL_NATIVE3("net.send_data", sock, payload, 0)
+endmacro
 
 macro STRCAT(outvar, a, b):
     0B22: outvar a b

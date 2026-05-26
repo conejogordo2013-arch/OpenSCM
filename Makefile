@@ -3,7 +3,7 @@ CXX ?= c++
 CFLAGS ?= -std=c99 -O2 -Wall -Wextra -pedantic
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
 LDLIBS ?= -lm
-CORE_SRC = vm/vm.c compiler/compiler.c parser/parser.c lexer/lexer.c opcode/opcode.c
+CORE_SRC = vm/vm.c compiler/compiler.c parser/parser.c lexer/lexer.c opcode/opcode.c runtime/scml_runtime_modules.c
 DEBUGGER_SRC = debugger/debugger.c
 CLI_SRC = main.c $(CORE_SRC)
 CLI_OBJ = $(CLI_SRC:.c=.o)

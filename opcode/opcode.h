@@ -60,7 +60,8 @@ typedef enum ScmlOpcode {
     SCML_OP_POW = 0x2D,
     SCML_OP_STRLEN = 0x2E,
     SCML_OP_SUBSTR = 0x2F,
-    SCML_OP_ARRAY_LEN = 0x30
+    SCML_OP_ARRAY_LEN = 0x30,
+    SCML_OP_CALL_NATIVE = 0x31
 } ScmlOpcode;
 
 typedef enum ScmlOperandType {
