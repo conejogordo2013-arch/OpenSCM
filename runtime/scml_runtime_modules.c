@@ -272,14 +272,12 @@ static int rt_net_connect(ScmlVM *vm, const ScmlValue *args, size_t arg_count, S
     char hbuf[256], pbuf[64];
     const char *host = arg_to_cstr(&args[0], hbuf, sizeof(hbuf));
     const char *port = arg_to_cstr(&args[1], pbuf, sizeof(pbuf));
-    struct addrinfo hints, *res = NULL;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    if (getaddrinfo(host, port, &hints, &res) != 0 || !res) return 0;
-    int rc = connect(g_builtin.socket_fd, res->ai_addr, res->ai_addrlen);
-    freeaddrinfo(res);
-    if (rc != 0) return 0;
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons((uint16_t)atoi(port));
+    if (inet_pton(AF_INET, host, &addr.sin_addr) <= 0) return 0;
+    if (connect(g_builtin.socket_fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) return 0;
 #endif
     *ret = scml_value_int(0);
     return 1;
@@ -624,7 +622,7 @@ static int rt_runtime_sleep_ms(ScmlVM *vm, const ScmlValue *args, size_t arg_cou
     return 1;
 #else
     if (ms < 0) ms = 0;
-    usleep((useconds_t)ms * 1000u);
+    usleep((unsigned int)ms * 1000u);
     *ret = scml_value_int(0);
     return 1;
 #endif

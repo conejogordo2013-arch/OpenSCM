@@ -969,3 +969,452 @@ macro SWITCH_I32(value, c1, l1, c2, l2, default_label):
     IF_EQ(value, c2, l2)
     JUMP(default_label)
 endmacro
+
+; ==========================================================
+; SCML BLOCK 1 — Systems Core (SCML-style, no C++ syntax)
+; Primitive tags + explicit heap/reference/memory macros
+; ==========================================================
+
+#define SCML_T_INT 1
+#define SCML_T_FLOAT 2
+#define SCML_T_CHAR 3
+#define SCML_T_BOOL 4
+#define SCML_T_PTR 5
+
+macro TYPE_INT(outvar, value):
+    0004: outvar value
+endmacro
+
+macro TYPE_FLOAT(outvar, value):
+    0B24: outvar value
+endmacro
+
+macro TYPE_CHAR(outvar, value):
+    0004: outvar value
+endmacro
+
+macro TYPE_BOOL(outvar, value):
+    0004: outvar value
+endmacro
+
+; Heap object layout:
+; slot0 = type_tag
+; slot1 = payload_0
+; slot2 = payload_1 (optional / alignment-friendly extra slot)
+macro NEW_TYPED(type_tag, payload0, outref):
+    ARRAY_CREATE(3, outref)
+    HEAP_WRITE(outref, 0, type_tag)
+    HEAP_WRITE(outref, 1, payload0)
+    HEAP_WRITE(outref, 2, 0)
+endmacro
+
+macro DELETE_TYPED(ref):
+    HEAP_FREE(ref)
+endmacro
+
+macro PTR_NEW_INT(value, outref):
+    NEW_TYPED(SCML_T_INT, value, outref)
+endmacro
+
+macro PTR_NEW_FLOAT(value, outref):
+    NEW_TYPED(SCML_T_FLOAT, value, outref)
+endmacro
+
+macro PTR_LOAD(outvar, ref):
+    HEAP_READ(outvar, ref, 1)
+endmacro
+
+macro PTR_STORE(ref, value):
+    HEAP_WRITE(ref, 1, value)
+endmacro
+
+macro PTR_TYPEOF(out_type, ref):
+    HEAP_READ(out_type, ref, 0)
+endmacro
+
+; Stack/local aliasing helpers (SCML frame-local variables)
+macro REF_BIND(local_ref, target_ref):
+    0004: local_ref target_ref
+endmacro
+
+macro CAST_INT(outvar, value):
+    0B23: outvar value
+endmacro
+
+macro CAST_FLOAT(outvar, value):
+    0B24: outvar value
+endmacro
+
+; ==========================================================
+; SCML BLOCK 2 — Data Model (STRUCT / UNION / CLASS)
+; SCML-native surface for OOP/data layout without C++ syntax
+; ==========================================================
+
+#define SCML_KIND_STRUCT 11
+#define SCML_KIND_UNION 12
+#define SCML_KIND_CLASS 13
+
+; Common object header:
+; slot0 = kind tag
+; slot1 = field count
+; slot2..N = payload fields
+macro STRUCT_NEW(field_count, out_obj):
+    0006: 90@ field_count 2
+    ARRAY_CREATE(90@, out_obj)
+    HEAP_WRITE(out_obj, 0, SCML_KIND_STRUCT)
+    HEAP_WRITE(out_obj, 1, field_count)
+endmacro
+
+macro UNION_NEW(field_count, out_obj):
+    0006: 90@ field_count 2
+    ARRAY_CREATE(90@, out_obj)
+    HEAP_WRITE(out_obj, 0, SCML_KIND_UNION)
+    HEAP_WRITE(out_obj, 1, field_count)
+    HEAP_WRITE(out_obj, 2, 0)
+endmacro
+
+macro CLASS_NEW(field_count, out_obj):
+    0006: 90@ field_count 2
+    ARRAY_CREATE(90@, out_obj)
+    HEAP_WRITE(out_obj, 0, SCML_KIND_CLASS)
+    HEAP_WRITE(out_obj, 1, field_count)
+endmacro
+
+macro OBJ_DELETE(obj_ref):
+    HEAP_FREE(obj_ref)
+endmacro
+
+; Field access is zero-based logical index, mapped to heap slot +2
+macro FIELD_SET(obj_ref, logical_index, value):
+    0006: 91@ logical_index 2
+    HEAP_WRITE(obj_ref, 91@, value)
+endmacro
+
+macro FIELD_GET(outvar, obj_ref, logical_index):
+    0006: 92@ logical_index 2
+    HEAP_READ(outvar, obj_ref, 92@)
+endmacro
+
+macro OBJ_KIND(out_kind, obj_ref):
+    HEAP_READ(out_kind, obj_ref, 0)
+endmacro
+
+macro OBJ_FIELD_COUNT(out_count, obj_ref):
+    HEAP_READ(out_count, obj_ref, 1)
+endmacro
+
+; UNION semantics: active tag lives in slot2, payload starts at slot3
+macro UNION_SET_ACTIVE(union_ref, active_index):
+    HEAP_WRITE(union_ref, 2, active_index)
+endmacro
+
+macro UNION_GET_ACTIVE(out_index, union_ref):
+    HEAP_READ(out_index, union_ref, 2)
+endmacro
+
+macro UNION_SET_VALUE(union_ref, value):
+    HEAP_WRITE(union_ref, 3, value)
+endmacro
+
+macro UNION_GET_VALUE(outvar, union_ref):
+    HEAP_READ(outvar, union_ref, 3)
+endmacro
+
+; ==========================================================
+; SCML BLOCK 3 — Generic + Compile-Time-style helpers
+; AUTO / TYPEOF / constexpr-like SCML surface
+; ==========================================================
+
+#define SCML_META_UNSET -1
+
+; Generic box layout:
+; slot0 = type_tag
+; slot1 = value
+macro GEN_BOX_NEW(type_tag, value, out_box):
+    ARRAY_CREATE(2, out_box)
+    HEAP_WRITE(out_box, 0, type_tag)
+    HEAP_WRITE(out_box, 1, value)
+endmacro
+
+macro GEN_BOX_GET(out_value, box_ref):
+    HEAP_READ(out_value, box_ref, 1)
+endmacro
+
+macro GEN_BOX_TYPE(out_type, box_ref):
+    HEAP_READ(out_type, box_ref, 0)
+endmacro
+
+; AUTO-style bind with explicit runtime tag
+macro AUTO_BIND(type_tag, value, out_box):
+    GEN_BOX_NEW(type_tag, value, out_box)
+endmacro
+
+; DECLTYPE-style read of boxed type metadata
+macro DECLTYPE_BOX(out_type, box_ref):
+    GEN_BOX_TYPE(out_type, box_ref)
+endmacro
+
+; constexpr-like compile/eval helpers (SCML macro-evaluated constants)
+macro CONSTEXPR_I32(outvar, value):
+    0004: outvar value
+endmacro
+
+macro CONSTEXPR_ADD(outvar, a, b):
+    0006: outvar a b
+endmacro
+
+macro CONSTEXPR_SUB(outvar, a, b):
+    0007: outvar a b
+endmacro
+
+macro CONSTEXPR_MUL(outvar, a, b):
+    0008: outvar a b
+endmacro
+
+macro CONSTEXPR_DIV(outvar, a, b):
+    0009: outvar a b
+endmacro
+
+; Generic transform over VECTOR-like heap array:
+; out[i] = in[i] + addend
+macro GEN_TRANSFORM_ADD(vec_ref, len, addend):
+    0004: 90@ 0
+    :GEN_TRANSFORM_LOOP
+    00D8: 90@ len @GEN_TRANSFORM_END
+    HEAP_READ(91@, vec_ref, 90@)
+    0006: 92@ 91@ addend
+    HEAP_WRITE(vec_ref, 90@, 92@)
+    0006: 90@ 90@ 1
+    000A: @GEN_TRANSFORM_LOOP
+    :GEN_TRANSFORM_END
+endmacro
+
+; ==========================================================
+; SCML BLOCK 4 — Exceptions + RTTI (SCML-style surface)
+; TRY/CATCH-like status flow + runtime type tags
+; ==========================================================
+
+#define SCML_OK 0
+#define SCML_ERR_GENERIC 1
+#define SCML_ERR_TYPE 2
+
+; TRY_BEGIN initializes status and jump labels are explicit in SCML style.
+macro TRY_BEGIN(err_var):
+    0004: err_var SCML_OK
+endmacro
+
+macro THROW(err_var, err_code):
+    0004: err_var err_code
+endmacro
+
+macro CATCH_IF(err_var, err_code, label):
+    IF_EQ(err_var, err_code, label)
+endmacro
+
+macro FINALLY_GOTO(label):
+    JUMP(label)
+endmacro
+
+; RTTI helpers over objects created in Block 2:
+; slot0 = kind tag (STRUCT/UNION/CLASS)
+macro TYPE_INFO(out_kind, obj_ref):
+    HEAP_READ(out_kind, obj_ref, 0)
+endmacro
+
+macro IS_A(obj_ref, expected_kind, out_bool):
+    TYPE_INFO(93@, obj_ref)
+    0004: out_bool 0
+    IF_EQ(93@, expected_kind, @IS_A_TRUE)
+    JUMP(@IS_A_END)
+    :IS_A_TRUE
+    0004: out_bool 1
+    :IS_A_END
+endmacro
+
+macro CAST_SAFE(obj_ref, expected_kind, out_ref, err_var):
+    IS_A(obj_ref, expected_kind, 94@)
+    IF_EQ(94@, 1, @CAST_SAFE_OK)
+    THROW(err_var, SCML_ERR_TYPE)
+    0004: out_ref 0
+    JUMP(@CAST_SAFE_END)
+    :CAST_SAFE_OK
+    0004: out_ref obj_ref
+    :CAST_SAFE_END
+endmacro
+
+; ==========================================================
+; SCML BLOCK 5 — Stdlib Core (STRING / VECTOR / MAP + algos)
+; ==========================================================
+
+; STRING: lightweight heap object
+; slot0=type, slot1=length(meta), slot2=data(ref/value)
+#define SCML_STD_STRING 21
+macro STRING_NEW(value, out_str):
+    ARRAY_CREATE(3, out_str)
+    HEAP_WRITE(out_str, 0, SCML_STD_STRING)
+    HEAP_WRITE(out_str, 1, 0)
+    HEAP_WRITE(out_str, 2, value)
+endmacro
+
+macro STRING_SET(str_ref, value):
+    HEAP_WRITE(str_ref, 2, value)
+endmacro
+
+macro STRING_GET(out_value, str_ref):
+    HEAP_READ(out_value, str_ref, 2)
+endmacro
+
+; VECTOR: slot0=size, slot1=capacity, slot2..data
+macro VECTOR_NEW(capacity, out_vec):
+    0006: 95@ capacity 2
+    ARRAY_CREATE(95@, out_vec)
+    HEAP_WRITE(out_vec, 0, 0)
+    HEAP_WRITE(out_vec, 1, capacity)
+endmacro
+
+macro VECTOR_SIZE(out_size, vec_ref):
+    HEAP_READ(out_size, vec_ref, 0)
+endmacro
+
+macro VECTOR_PUSH(vec_ref, value):
+    HEAP_READ(96@, vec_ref, 0)
+    0006: 97@ 96@ 2
+    HEAP_WRITE(vec_ref, 97@, value)
+    0006: 96@ 96@ 1
+    HEAP_WRITE(vec_ref, 0, 96@)
+endmacro
+
+macro VECTOR_GET(out_value, vec_ref, index):
+    0006: 98@ index 2
+    HEAP_READ(out_value, vec_ref, 98@)
+endmacro
+
+; MAP: key/value flat pairs in heap array
+; slot0=count pairs, slot1=capacity pairs, then [k0,v0,k1,v1...]
+macro MAP_NEW(capacity_pairs, out_map):
+    0008: 80@ capacity_pairs 2
+    0006: 80@ 80@ 2
+    ARRAY_CREATE(80@, out_map)
+    HEAP_WRITE(out_map, 0, 0)
+    HEAP_WRITE(out_map, 1, capacity_pairs)
+endmacro
+
+macro MAP_PUT(map_ref, key, value):
+    HEAP_READ(81@, map_ref, 0)
+    0008: 82@ 81@ 2
+    0006: 82@ 82@ 2
+    HEAP_WRITE(map_ref, 82@, key)
+    0006: 83@ 82@ 1
+    HEAP_WRITE(map_ref, 83@, value)
+    0006: 81@ 81@ 1
+    HEAP_WRITE(map_ref, 0, 81@)
+endmacro
+
+macro MAP_GET_OR(out_value, map_ref, key, default_value):
+    0004: out_value default_value
+    HEAP_READ(84@, map_ref, 0)
+    0004: 85@ 0
+    :MAP_GET_LOOP
+    00D8: 85@ 84@ @MAP_GET_END
+    0008: 86@ 85@ 2
+    0006: 86@ 86@ 2
+    HEAP_READ(87@, map_ref, 86@)
+    IF_EQ(87@, key, @MAP_GET_HIT)
+    0006: 85@ 85@ 1
+    000A: @MAP_GET_LOOP
+    :MAP_GET_HIT
+    0006: 88@ 86@ 1
+    HEAP_READ(out_value, map_ref, 88@)
+    :MAP_GET_END
+endmacro
+
+; Algorithms
+macro ALG_FIND_EQ(out_index, vec_ref, len, needle):
+    0004: out_index -1
+    0004: 70@ 0
+    :ALG_FIND_LOOP
+    00D8: 70@ len @ALG_FIND_END
+    VECTOR_GET(71@, vec_ref, 70@)
+    IF_EQ(71@, needle, @ALG_FIND_HIT)
+    0006: 70@ 70@ 1
+    000A: @ALG_FIND_LOOP
+    :ALG_FIND_HIT
+    0004: out_index 70@
+    :ALG_FIND_END
+endmacro
+
+macro ALG_SORT2_ASC(a_ref, b_ref):
+    IF_GT(a_ref, b_ref, @ALG_SWAP2)
+    JUMP(@ALG_SWAP2_END)
+    :ALG_SWAP2
+    0004: 72@ a_ref
+    0004: a_ref b_ref
+    0004: b_ref 72@
+    :ALG_SWAP2_END
+endmacro
+
+; ==========================================================
+; SCML BLOCK 6 — Modules / Link Surface / ABI-like contracts
+; SCML-native symbol export/import conventions
+; ==========================================================
+
+; Module manifest slots:
+; slot0 = module_id
+; slot1 = version_major
+; slot2 = version_minor
+; slot3 = version_patch
+; slot4 = export_count
+macro MODULE_MANIFEST_NEW(module_id, vmaj, vmin, vpatch, out_manifest):
+    ARRAY_CREATE(5, out_manifest)
+    HEAP_WRITE(out_manifest, 0, module_id)
+    HEAP_WRITE(out_manifest, 1, vmaj)
+    HEAP_WRITE(out_manifest, 2, vmin)
+    HEAP_WRITE(out_manifest, 3, vpatch)
+    HEAP_WRITE(out_manifest, 4, 0)
+endmacro
+
+macro MODULE_EXPORT_COUNT_SET(manifest_ref, count):
+    HEAP_WRITE(manifest_ref, 4, count)
+endmacro
+
+macro MODULE_EXPORT_COUNT_GET(out_count, manifest_ref):
+    HEAP_READ(out_count, manifest_ref, 4)
+endmacro
+
+; Flat symbol table (key/value pairs): key=symbol_id, value=addr_or_ref
+macro SYMBOL_TABLE_NEW(capacity_pairs, out_table):
+    MAP_NEW(capacity_pairs, out_table)
+endmacro
+
+macro SYMBOL_EXPORT(table_ref, symbol_id, symbol_ref):
+    MAP_PUT(table_ref, symbol_id, symbol_ref)
+endmacro
+
+macro SYMBOL_RESOLVE(out_ref, table_ref, symbol_id, default_ref):
+    MAP_GET_OR(out_ref, table_ref, symbol_id, default_ref)
+endmacro
+
+; ABI contract box:
+; slot0 = abi_id
+; slot1 = call_conv
+; slot2 = arg_count
+; slot3 = ret_type_tag
+macro ABI_CONTRACT_NEW(abi_id, call_conv, arg_count, ret_type_tag, out_contract):
+    ARRAY_CREATE(4, out_contract)
+    HEAP_WRITE(out_contract, 0, abi_id)
+    HEAP_WRITE(out_contract, 1, call_conv)
+    HEAP_WRITE(out_contract, 2, arg_count)
+    HEAP_WRITE(out_contract, 3, ret_type_tag)
+endmacro
+
+macro ABI_ARGC_GET(out_argc, contract_ref):
+    HEAP_READ(out_argc, contract_ref, 2)
+endmacro
+
+macro ABI_RET_GET(out_ret_type, contract_ref):
+    HEAP_READ(out_ret_type, contract_ref, 3)
+endmacro
+
+macro MODULE_UNLOAD_SAFE(ref):
+    HEAP_FREE(ref)
+endmacro
