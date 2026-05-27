@@ -1,0 +1,37 @@
+#include "../stscm/std.scmlh"
+
+:MAIN
+; Block 1 demo (SCML systems core style)
+; - Primitive intent markers
+; - Typed heap allocations
+; - Pointer-like read/write
+; - Explicit cast flow
+
+0004: $I 10
+0B24: $F 25
+0004: $C 65
+0004: $B 1
+
+0B14: 3 $PINT
+0B13: $PINT 0 SCML_T_INT
+0B13: $PINT 1 $I
+0B13: $PINT 2 0
+0B12: $R0 $PINT 1
+03E5: "PINT initial:"
+03E5: $R0
+
+0B13: $PINT 1 99
+0B12: $R1 $PINT 1
+03E5: "PINT after store:"
+03E5: $R1
+
+0B12: $T0 $PINT 0
+03E5: "PINT type tag:"
+03E5: $T0
+
+0B24: $FX $R1
+03E5: "CAST_FLOAT result:"
+03E5: $FX
+
+0B11: $PINT
+0001:
