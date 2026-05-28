@@ -33,6 +33,8 @@ int scml_runtime_select_backend(ScmlVM *vm, const char *module_name, const char 
 int scml_runtime_unregister_module(ScmlVM *vm, const char *module_name);
 
 int scml_runtime_resolve_module(ScmlVM *vm, const char *module_name);
+int scml_runtime_call_module_function(ScmlVM *vm, const char *qualified_name, const ScmlValue *args, size_t arg_count, ScmlValue *ret);
+size_t scml_runtime_registered_module_count(void);
 int scml_runtime_install_builtin_module_registry(ScmlVM *vm);
 
 #ifdef __cplusplus

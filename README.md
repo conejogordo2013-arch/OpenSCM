@@ -276,3 +276,6 @@ For practical per-OS installation/build requirements (MSYS2/Linux/macOS, X11, Vu
 
 
 Runtime defaults now include additional concrete handlers (`runtime.wait` sleep behavior and baseline `net.open_socket`/`net.send_data` responses) so SCML libraries can prototype richer systems with less boilerplate while still using the native-module boundary.
+
+
+Runtime module C API now explicitly covers: module registration, backend registration, dynamic backend selection, module resolution, and function dispatch (`scml_runtime_call_module_function`), plus builtin catalogs for GPU/Audio/File/Net/Input/Window/Runtime.
