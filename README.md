@@ -173,6 +173,11 @@ SCML now includes additional opcodes and std macros for richer scripting:
 - `TO_INT` (`0B23`) and `TO_FLOAT` (`0B24`) for type conversion
 - `MOD` (`0B20`) arithmetic remainder
 - `IF_GE` (`0B25`) and `IF_LE` (`0B26`) for extended conditionals
+- `BIT_AND/OR/XOR/NOT` (`0B27`-`0B2A`) and `SHL/SHR` (`0B2B`/`0B2C`) for bitwise workflows
+- `POW` (`0B2D`) for exponent math
+- `STRLEN` (`0B2E`) + `SUBSTR` (`0B2F`) for richer string handling
+- `ARRAY_LEN` (`0B30`) for heap/array introspection
+- Added float family aliases in std macros: `FLOAT`, `FLOAT2`, `FLOAT4`, `FLOAT8`, `FLOAT16`, `FLOAT32`, `FLOAT64`
 
 Demo:
 
@@ -180,3 +185,97 @@ Demo:
 bin/scml compile examples/mega_input_advanced.scml examples/mega_input_advanced.scmlbin
 printf '33\n' | bin/scml run examples/mega_input_advanced.scmlbin
 ```
+
+
+## Native module boundary (portable VM core)
+
+The VM core is now designed to delegate host/platform behavior via native modules instead of performing it directly.
+
+- New opcode: `CALL_NATIVE` (`0B31`) with qualified target names like `module.function`.
+- VM API adds dynamic module registration and resolution:
+  - `scml_vm_register_module(name, resolver)`
+  - `scml_vm_call_native("module.function", args...)`
+  - runtime registry also supports `unregister_module(name)` semantics via `scml_runtime_unregister_module`
+- Legacy opcodes that imply platform behavior (`WAIT`, `FILE_READ`, `FILE_WRITE`, `INPUT`, `ENTITY_SPAWN`) now route through module callbacks (`runtime.*`, `file.*`, `input.*`, `gpu.*`) and do not execute host APIs in VM core.
+
+Example targets:
+- `gpu.drawTriangle`
+- `audio.play`
+- `file.read`
+- `net.request`
+
+
+
+## Modular standard library runtime (JVM-style boundary)
+
+SCML now ships a runtime-side modular standard-library registry outside VM core:
+
+- Runtime API: `register_module(name, function_table)`, `resolve_module(name)`, `call_module(module.function, args...)`.
+- Reference modules: `gpu`, `audio`, `file`, `net`, `input` (plus `runtime.wait`).
+- VM remains bytecode/memory/call-dispatch only; host features are plugin modules.
+- Backends are replaceable (e.g., SDL/OpenGL/Vulkan/sockets) without changing VM bytecode.
+
+The default CLI installs a builtin module registry with null backends as placeholders. Production hosts should register real backend function tables from C/C++.
+
+
+### Multi-backend native modules
+
+`runtime/scml_runtime_modules.*` now supports per-module **multiple backends** with runtime selection:
+
+- `register_module(name, function_table)` (compat/default backend)
+- `register_backend(module, backend_impl)`
+- `resolve_module(name)`
+- `call_module(module.function, args...)` through VM `CALL_NATIVE`
+- `select_backend(module, backend_name)`
+
+Builtin abstract modules and function families:
+
+- `gpu`: `create_window`, `begin_frame`, `draw_triangle`, `draw_mesh`, `present` (+ `load_texture`)
+- `audio`: `play_sound`, `stop_sound`, `set_volume`, `stream_audio`
+- `input`: `get_keyboard_state`, `get_mouse_position`, `poll_events`
+- `file`: `open_file`, `read_file`, `write_file`, `list_directory`
+- `net`: `open_socket`, `send_data`, `receive_data`
+
+Builtin backend names are pre-registered as placeholders (null backend callbacks) for portability: 
+`gpu`: `opengl`, `vulkan`, `directx12`, `metal`, `opengles`; `audio`: `sdl_audio`, `openal`; others default-only by design.
+
+This keeps VM core OS/hardware agnostic while allowing host runtime backends to be swapped without bytecode changes.
+
+
+Use `--no-builtin-modules` to run with **zero optional capabilities** installed; in this mode `CALL_NATIVE` fails in a controlled way for missing modules.
+
+
+### Extensible instruction style (without touching VM C for every new instruction)
+
+The parser now supports **native-instruction style**: if an opcode token is unknown but looks like `module.function`, it is compiled as `CALL_NATIVE "module.function" ...args`.
+
+That means you can add new host/runtime capabilities by installing modules/backends, then call them directly from SCML without adding a new C opcode each time:
+
+```scml
+gpu.draw_triangle 0 0 1 0 0 1
+audio.play_sound "explosion.wav"
+file.open_file "data.txt"
+gpu.draw_triangle: 0 0 1 0 0 1  ; SCM-style colon also works
+```
+
+This keeps the VM core stable while enabling complex SCML libraries layered over module APIs.
+
+
+SCML-style uppercase wrappers are also available in `stscm/std.scmlh` (`DRAW_TRIANGLE`, `PLAY_SOUND`, `OPEN_FILE`, `READ_FILE`, `CONNECT_SOCKET`) to keep a classic SCML visual style while still using `CALL_NATIVE`.
+
+
+Default runtime module catalog now also includes optional `image.*` and extended `file.*` TXT/image-oriented entries (all placeholder backends by default). They are intended to be consumed through SCML libraries/macros over `CALL_NATIVE`, keeping VM/core unchanged while API surface expands.
+
+
+`runtime/scml_runtime_modules.c` now includes optional real backend imports behind compile flags (`SCML_USE_SDL2`, `SCML_USE_OPENGL`, `SCML_USE_OPENGLES`) and implements real TXT read/write runtime handlers by default (`file.read_txt`, `file.write_txt`).
+
+
+The runtime module layer now declares broader backend hooks (Vulkan, DirectX, Metal, SDL2, OpenGL, OpenGL ES) behind compile flags and exposes `*.backend_info` endpoints so SCML libraries can introspect active compile-time backend capabilities via `CALL_NATIVE`.
+
+For practical per-OS installation/build requirements (MSYS2/Linux/macOS, X11, Vulkan, SDL2, etc.), see `README_RUNTIME_BACKENDS.md`.
+
+
+Runtime defaults now include additional concrete handlers (`runtime.wait` sleep behavior and baseline `net.open_socket`/`net.send_data` responses) so SCML libraries can prototype richer systems with less boilerplate while still using the native-module boundary.
+
+
+Runtime module C API now explicitly covers: module registration, backend registration, dynamic backend selection, module resolution, and function dispatch (`scml_runtime_call_module_function`), plus builtin catalogs for GPU/Audio/File/Net/Input/Window/Runtime.

@@ -169,6 +169,24 @@ endmacro
 macro FLOAT32(outvar, value):
     0004: outvar value
 endmacro
+macro FLOAT(outvar, value):
+    0004: outvar value
+endmacro
+macro FLOAT2(outvar, value):
+    0004: outvar value
+endmacro
+macro FLOAT4(outvar, value):
+    0004: outvar value
+endmacro
+macro FLOAT8(outvar, value):
+    0004: outvar value
+endmacro
+macro FLOAT16(outvar, value):
+    0004: outvar value
+endmacro
+macro FLOAT64(outvar, value):
+    0004: outvar value
+endmacro
 
 macro STRING(outvar, value):
     0004: outvar value
@@ -225,6 +243,37 @@ endmacro
 macro IF_ELSE_LT(a, b, true_label, false_label):
     00D9: a b true_label
     000A: false_label
+endmacro
+
+macro BIT_AND(outvar, a, b):
+    0B27: outvar a b
+endmacro
+macro BIT_OR(outvar, a, b):
+    0B28: outvar a b
+endmacro
+macro BIT_XOR(outvar, a, b):
+    0B29: outvar a b
+endmacro
+macro BIT_NOT(outvar, v):
+    0B2A: outvar v
+endmacro
+macro SHL(outvar, a, bits):
+    0B2B: outvar a bits
+endmacro
+macro SHR(outvar, a, bits):
+    0B2C: outvar a bits
+endmacro
+macro POW(outvar, a, b):
+    0B2D: outvar a b
+endmacro
+macro STRLEN(outvar, s):
+    0B2E: outvar s
+endmacro
+macro SUBSTR(outvar, s, idx, len):
+    0B2F: outvar s idx len
+endmacro
+macro ARRAY_LEN(outvar, ref):
+    0B30: outvar ref
 endmacro
 
 macro CLASS_METHOD(class_ref, method_name, label):
@@ -790,6 +839,109 @@ endmacro
 
 macro INPUT(prompt, outvar):
     0B21: prompt outvar
+endmacro
+macro CALL_NATIVE(name, a):
+    0B31: name a
+endmacro
+macro CALL_NATIVE3(name, a, b, c):
+    0B31: name a b c
+endmacro
+macro CALL_NATIVE4(name, a, b, c, d):
+    0B31: name a b c d
+endmacro
+macro CALL_NATIVE6(name, a, b, c, d, e, f):
+    0B31: name a b c d e f
+endmacro
+
+; --- High-level stdlib wrappers over native modules ---
+macro drawTriangle(x1, y1, x2, y2, x3, y3):
+    CALL_NATIVE6("gpu.drawTriangle", x1, y1, x2, y2, x3, y3)
+endmacro
+macro draw_triangle(x1, y1, x2, y2, x3, y3):
+    CALL_NATIVE6("gpu.draw_triangle", x1, y1, x2, y2, x3, y3)
+endmacro
+macro createWindow(width, height, title):
+    CALL_NATIVE3("gpu.createWindow", width, height, title)
+endmacro
+macro create_window(width, height, title):
+    CALL_NATIVE3("gpu.create_window", width, height, title)
+endmacro
+macro playSound(path):
+    CALL_NATIVE("audio.play", path)
+endmacro
+macro play_sound(path):
+    CALL_NATIVE("audio.play_sound", path)
+endmacro
+macro loadTexture(path):
+    CALL_NATIVE("gpu.load_texture", path)
+endmacro
+macro openFile(path):
+    CALL_NATIVE("file.open", path)
+endmacro
+macro open_file(path):
+    CALL_NATIVE("file.open_file", path)
+endmacro
+macro readFile(path):
+    CALL_NATIVE("file.read", path)
+endmacro
+macro read_file(path):
+    CALL_NATIVE("file.read_file", path)
+endmacro
+macro writeFile(path, data):
+    CALL_NATIVE3("file.write", path, data, 0)
+endmacro
+macro write_file(path, data):
+    CALL_NATIVE3("file.write_file", path, data, 0)
+endmacro
+macro netRequest(url):
+    CALL_NATIVE("net.request", url)
+endmacro
+macro connectSocket(addr):
+    CALL_NATIVE("net.open_socket", addr)
+endmacro
+
+; SCML-style uppercase native wrappers (style-preserving surface)
+macro DRAW_TRIANGLE(x1, y1, x2, y2, x3, y3):
+    CALL_NATIVE6("gpu.draw_triangle", x1, y1, x2, y2, x3, y3)
+endmacro
+macro PLAY_SOUND(path):
+    CALL_NATIVE("audio.play_sound", path)
+endmacro
+macro OPEN_FILE(path):
+    CALL_NATIVE("file.open_file", path)
+endmacro
+macro READ_FILE(path):
+    CALL_NATIVE("file.read_file", path)
+endmacro
+macro CONNECT_SOCKET(addr):
+    CALL_NATIVE("net.open_socket", addr)
+endmacro
+macro LOAD_IMAGE(path):
+    CALL_NATIVE("image.load_image", path)
+endmacro
+macro SAVE_IMAGE(path):
+    CALL_NATIVE("image.save_image", path)
+endmacro
+macro READ_TXT(path):
+    CALL_NATIVE("file.read_txt", path)
+endmacro
+macro WRITE_TXT(path, data):
+    CALL_NATIVE3("file.write_txt", path, data, 0)
+endmacro
+macro GPU_BACKEND_INFO():
+    CALL_NATIVE("gpu.backend_info", 0)
+endmacro
+macro AUDIO_BACKEND_INFO():
+    CALL_NATIVE("audio.backend_info", 0)
+endmacro
+macro SLEEP_MS(ms):
+    CALL_NATIVE("runtime.wait", ms)
+endmacro
+macro NET_OPEN_SOCKET(addr):
+    CALL_NATIVE("net.open_socket", addr)
+endmacro
+macro NET_SEND_DATA(sock, payload):
+    CALL_NATIVE3("net.send_data", sock, payload, 0)
 endmacro
 
 macro STRCAT(outvar, a, b):
