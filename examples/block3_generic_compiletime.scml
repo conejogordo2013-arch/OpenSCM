@@ -1,0 +1,22 @@
+:MAIN
+; Block 3 simplified generic/compile-time style smoke
+
+0004: 20@ 7
+0004: 21@ 5
+0006: 22@ 20@ 21@
+0008: 23@ 20@ 21@
+03E5: "CONSTEXPR add/mul:"
+03E5: 22@
+03E5: 23@
+
+0B14: 2 24@
+0B13: 24@ 0 1
+0B13: 24@ 1 123
+0B12: 25@ 24@ 0
+0B12: 26@ 24@ 1
+03E5: "BOX type/value:"
+03E5: 25@
+03E5: 26@
+
+0B11: 24@
+0001:
