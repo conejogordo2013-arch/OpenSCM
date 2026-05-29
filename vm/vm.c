@@ -11,7 +11,8 @@ typedef struct Var { char *name; ScmlValue value; } Var;
 typedef struct HeapObject { int active; uint32_t id; size_t size; size_t elem_size; int pinned; unsigned char *data; } HeapObject;
 typedef struct CallFrame { size_t return_pc; Var locals[SCML_LOCAL_VARS_MAX]; size_t local_count; } CallFrame;
 typedef struct EventEntry { char *name; uint32_t handlers[SCML_EVENT_HANDLERS_MAX]; size_t handler_count; } EventEntry;
-typedef struct EventQueueItem { char *name; size_t handler_index; } EventQueueItem;
+typedef struct EventQueueItem { char *name; size_t handler_index; uint32_t direct_pc; uint32_t task_id; } EventQueueItem;
+typedef struct AsyncTask { int active; int done; uint32_t id; uint32_t entry_pc; } AsyncTask;
 typedef struct LineEntry { uint32_t pc; uint32_t line; } LineEntry;
 typedef struct LabelEntry { char *name; uint32_t pc; } LabelEntry;
 typedef struct NativeFunc { char *name; ScmlNativeFunc fn; void *user_data; } NativeFunc;
@@ -48,6 +49,9 @@ struct ScmlVM {
     size_t native_count;
     NativeModule modules[SCML_NATIVE_MODULES_MAX];
     size_t module_count;
+    AsyncTask async_tasks[SCML_ASYNC_TASKS_MAX];
+    uint32_t next_task_id;
+    uint32_t current_task_id;
 };
 
 static char *xstrdup(const char *s) {
@@ -380,6 +384,8 @@ int scml_vm_trigger_event(ScmlVM *vm, const char *event_name, char *err, size_t 
         return 0;
     }
     vm->event_queue[vm->event_tail].handler_index = 0;
+    vm->event_queue[vm->event_tail].direct_pc = UINT32_MAX;
+    vm->event_queue[vm->event_tail].task_id = 0;
     vm->event_tail = next;
     return 1;
 }
@@ -390,19 +396,47 @@ static int queue_event_handler(ScmlVM *vm, const char *event_name, size_t handle
     vm->event_queue[vm->event_tail].name = xstrdup(event_name);
     if (!vm->event_queue[vm->event_tail].name) return 0;
     vm->event_queue[vm->event_tail].handler_index = handler_index;
+    vm->event_queue[vm->event_tail].direct_pc = UINT32_MAX;
+    vm->event_queue[vm->event_tail].task_id = 0;
+    vm->event_tail = next;
+    return 1;
+}
+
+static AsyncTask *async_task_find(ScmlVM *vm, uint32_t id) {
+    for (size_t i = 0; i < SCML_ASYNC_TASKS_MAX; i++) {
+        if (vm->async_tasks[i].active && vm->async_tasks[i].id == id) return &vm->async_tasks[i];
+    }
+    return NULL;
+}
+
+static int queue_async_task(ScmlVM *vm, uint32_t pc, uint32_t task_id) {
+    size_t next = (vm->event_tail + 1) % SCML_EVENT_QUEUE_MAX;
+    if (next == vm->event_head) return 0;
+    vm->event_queue[vm->event_tail].name = NULL;
+    vm->event_queue[vm->event_tail].handler_index = 0;
+    vm->event_queue[vm->event_tail].direct_pc = pc;
+    vm->event_queue[vm->event_tail].task_id = task_id;
     vm->event_tail = next;
     return 1;
 }
 
 static int dispatch_next_event(ScmlVM *vm) {
     if (vm->event_head == vm->event_tail) return 0;
-    char *event_name = vm->event_queue[vm->event_head].name;
-    size_t handler_index = vm->event_queue[vm->event_head].handler_index;
+    EventQueueItem item = vm->event_queue[vm->event_head];
     vm->event_head = (vm->event_head + 1) % SCML_EVENT_QUEUE_MAX;
+    if (item.direct_pc != UINT32_MAX) {
+        vm->pc = item.direct_pc;
+        vm->current_task_id = item.task_id;
+        vm->halted = 0;
+        return 1;
+    }
+    char *event_name = item.name;
+    size_t handler_index = item.handler_index;
     EventEntry *event = event_find(vm, event_name, 0);
     if (event && handler_index < event->handler_count) {
         if (handler_index + 1 < event->handler_count) queue_event_handler(vm, event_name, handler_index + 1);
         vm->pc = event->handlers[handler_index];
+        vm->current_task_id = 0;
         vm->halted = 0;
         free(event_name);
         return 1;
@@ -415,6 +449,7 @@ ScmlVM *scml_vm_create(void) {
     ScmlVM *vm = (ScmlVM *)calloc(1, sizeof(*vm));
     if (!vm) return NULL;
     vm->next_ref = 1;
+    vm->next_task_id = 1;
     return vm;
 }
 
@@ -610,6 +645,11 @@ void scml_vm_dump_memory(ScmlVM *vm, FILE *out) {
 
 int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     if (vm->halted || vm->pc >= vm->code_size) {
+        if (vm->current_task_id) {
+            AsyncTask *task = async_task_find(vm, vm->current_task_id);
+            if (task) task->done = 1;
+            vm->current_task_id = 0;
+        }
         if (dispatch_next_event(vm)) return 1;
         vm->halted = 1;
         return 0;
@@ -639,7 +679,14 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     switch (op) {
     case SCML_OP_NOP: break;
     case SCML_OP_HALT: vm->halted = 1; break;
-    case SCML_OP_END_THREAD: vm->halted = !dispatch_next_event(vm); break;
+    case SCML_OP_END_THREAD:
+        if (vm->current_task_id) {
+            AsyncTask *task = async_task_find(vm, vm->current_task_id);
+            if (task) task->done = 1;
+            vm->current_task_id = 0;
+        }
+        vm->halted = !dispatch_next_event(vm);
+        break;
     case SCML_OP_RETURN:
         if (vm->call_depth == 0) { error_at(vm, ins_pc, err, err_size, "return without call"); free_decoded(ops, argc); return -1; }
         clear_frame(&vm->calls[vm->call_depth - 1]);
@@ -822,6 +869,12 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         value_free(&v);
         value_free(&ret);
         if (!ok) { error_at(vm, ins_pc, err, err_size, "WAIT requires runtime.wait"); free_decoded(ops, argc); return -1; }
+        if (vm->event_head != vm->event_tail) {
+            size_t resume_pc = vm->pc;
+            uint32_t resume_task = vm->current_task_id;
+            if (!queue_async_task(vm, (uint32_t)resume_pc, resume_task)) { error_at(vm, ins_pc, err, err_size, "async queue full"); free_decoded(ops, argc); return -1; }
+            if (!dispatch_next_event(vm)) { vm->pc = resume_pc; vm->current_task_id = resume_task; }
+        }
         break;
     }
     case SCML_OP_FILE_READ: {
@@ -973,6 +1026,50 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
             fputc('\n', stdout);
         }
         value_free(&ref_value); value_free(&width_value); value_free(&height_value);
+        break;
+    }
+
+    case SCML_OP_ASYNC_SPAWN: {
+        uint32_t task_id = 0;
+        AsyncTask *slot = NULL;
+        if (ops[0].type != SCML_OPERAND_ADDRESS) { error_at(vm, ins_pc, err, err_size, "ASYNC_SPAWN requires label entry"); free_decoded(ops, argc); return -1; }
+        for (size_t i = 0; i < SCML_ASYNC_TASKS_MAX; i++) {
+            if (!vm->async_tasks[i].active || vm->async_tasks[i].done) { slot = &vm->async_tasks[i]; break; }
+        }
+        if (!slot) { error_at(vm, ins_pc, err, err_size, "async task table full"); free_decoded(ops, argc); return -1; }
+        task_id = vm->next_task_id++;
+        if (task_id == 0) task_id = vm->next_task_id++;
+        slot->active = 1;
+        slot->done = 0;
+        slot->id = task_id;
+        slot->entry_pc = (uint32_t)ops[0].i;
+        if (!queue_async_task(vm, slot->entry_pc, task_id)) { slot->active = 0; error_at(vm, ins_pc, err, err_size, "async queue full"); free_decoded(ops, argc); return -1; }
+        set_var(vm, ops[1].s, value_int((int32_t)task_id));
+        break;
+    }
+    case SCML_OP_ASYNC_DONE: {
+        ScmlValue task_value = eval(vm, &ops[0]);
+        AsyncTask *task = async_task_find(vm, (uint32_t)value_to_int(&task_value));
+        set_var(vm, ops[1].s, value_int((task && task->done) ? 1 : 0));
+        value_free(&task_value);
+        break;
+    }
+    case SCML_OP_TYPE_DECL:
+        break;
+    case SCML_OP_TYPE_ASSERT: {
+        ScmlValue value = eval(vm, &ops[0]);
+        ScmlValue expected = eval(vm, &ops[1]);
+        const char *type_name = ops[1].type == SCML_OPERAND_STRING ? ops[1].s : NULL;
+        char type_buf[32];
+        if (!type_name) type_name = value_to_cstr(&expected, type_buf, sizeof(type_buf));
+        int ok = 0;
+        if (strcmp(type_name, "i32") == 0 || strcmp(type_name, "int") == 0) ok = value.type == SCML_VAL_INT;
+        else if (strcmp(type_name, "f32") == 0 || strcmp(type_name, "float") == 0) ok = value.type == SCML_VAL_FLOAT;
+        else if (strcmp(type_name, "str") == 0 || strcmp(type_name, "string") == 0) ok = value.type == SCML_VAL_STRING;
+        else if (strcmp(type_name, "any") == 0) ok = 1;
+        set_var(vm, ops[2].s, value_int(ok));
+        value_free(&value);
+        value_free(&expected);
         break;
     }
     case SCML_OP_INPUT: {

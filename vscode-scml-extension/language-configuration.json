@@ -10,5 +10,10 @@
     { "open": "\"", "close": "\"", "notIn": ["string", "comment"] }
   ],
   "surroundingPairs": [["{", "}"], ["[", "]"], ["(", ")"], ["\"", "\""]],
-  "folding": { "markers": { "start": "^\\s*:(MAIN|[A-Z_][A-Z0-9_]*)", "end": "^\\s*0001:\\s*$" } }
+  "wordPattern": "(@?[A-Za-z_][A-Za-z0-9_@.$-]*|[0-9A-Fa-f]{4})",
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(macro\\b.*:|:[A-Za-z_][A-Za-z0-9_]*\\b)",
+    "decreaseIndentPattern": "^\\s*(endmacro|0001:)\\b"
+  },
+  "folding": { "markers": { "start": "^\\s*(:[A-Za-z_][A-Za-z0-9_]*|macro\\b)", "end": "^\\s*(0001:|endmacro)\\b" } }
 }

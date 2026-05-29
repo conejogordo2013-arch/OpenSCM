@@ -45,6 +45,9 @@ Supported source concepts include:
 - Array/block memory opcodes: `0B10 ALLOC`, `0B11 FREE`, `0B12 READ`, `0B13 WRITE`, and `0B14 ARRAY_CREATE`.
 - Debug tracing with source line mapping, `scml_vm_step`, and a memory inspector (`scml_vm_dump_memory`).
 - Multi-script compilation for shared global symbols and cross-script calls.
+- Hostless application helpers through the default runtime module registry for files, console, timing, input, network, audio, windows, and graphics when available.
+- Cooperative async tasks with `ASYNC_SPAWN`, `ASYNC_DONE`, and polling/await macros on top of the VM event queue.
+- Compile-time checked `TYPE_DECL` / `LET_I32` / `LET_F32` / `LET_STR` declarations plus runtime `TYPE_ASSERT` for advanced static-typing style contracts.
 
 ## Build
 
@@ -72,6 +75,14 @@ Compile several scripts into one global bytecode image:
 bin/scml compile examples/modular_main.scml examples/modular_functions.scml examples/modular.scmlbin
 bin/scml run examples/modular.scmlbin
 ```
+
+Compile and run the hostless async/static-typing demo:
+
+```sh
+bin/scml compile examples/hostless_async_static.scml examples/hostless_async_static.scmlbin
+bin/scml run examples/hostless_async_static.scmlbin
+```
+
 
 Inspect memory and trace source lines:
 
