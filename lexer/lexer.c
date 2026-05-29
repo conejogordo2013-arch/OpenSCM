@@ -94,14 +94,29 @@ int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, 
             i += 2;
             continue;
         }
-        if (strchr("+-*/%&|^~!?()[]{}.<>,", line[i])) {
-            if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 1, line_no, col)) return 0;
-            i++;
-            continue;
-        }
         if ((line[i] == '+' || line[i] == '-') && line[i + 1] == '=') {
             if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 2, line_no, col)) return 0;
             i += 2;
+            continue;
+        }
+        if ((line[i] == '+' || line[i] == '-') && isdigit((unsigned char)line[i + 1])) {
+            size_t s = i++;
+            if (line[i] == '0' && (line[i + 1] == 'x' || line[i + 1] == 'X')) {
+                i += 2;
+                while (isxdigit((unsigned char)line[i])) i++;
+            } else {
+                while (isdigit((unsigned char)line[i])) i++;
+                if (line[i] == '.') {
+                    i++;
+                    while (isdigit((unsigned char)line[i])) i++;
+                }
+            }
+            if (!add_token(out, SCML_TOK_NUMBER, line + s, i - s, line_no, col)) return 0;
+            continue;
+        }
+        if (strchr("+-*/%&|^~!?()[]{}.<>,", line[i])) {
+            if (!add_token(out, SCML_TOK_IDENTIFIER, line + i, 1, line_no, col)) return 0;
+            i++;
             continue;
         }
         if (line[i] == '=') {

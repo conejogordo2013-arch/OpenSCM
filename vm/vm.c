@@ -152,8 +152,10 @@ static float rf32(ScmlVM *vm) { union { uint32_t u; float f; } cvt; cvt.u = r32(
 static Var *find_var_in(Var *vars, size_t *count, size_t max, const char *name, int create) {
     for (size_t i = 0; i < *count; i++) if (strcmp(vars[i].name, name) == 0) return &vars[i];
     if (!create || *count >= max) return NULL;
+    char *owned_name = xstrdup(name);
+    if (!owned_name) return NULL;
     Var *v = &vars[(*count)++];
-    v->name = xstrdup(name);
+    v->name = owned_name;
     v->value = value_int(0);
     return v;
 }
@@ -268,25 +270,30 @@ static int heap_alloc(ScmlVM *vm, size_t size, uint32_t *out_ref) {
 
 
 static NativeFunc *native_find(ScmlVM *vm, const char *name) {
+    if (!name) return NULL;
     for (size_t i = 0; i < vm->native_count; i++) {
-        if (strcmp(vm->natives[i].name, name) == 0) return &vm->natives[i];
+        if (vm->natives[i].name && strcmp(vm->natives[i].name, name) == 0) return &vm->natives[i];
     }
     return NULL;
 }
 
 
 static NativeModule *module_find(ScmlVM *vm, const char *name) {
+    if (!name) return NULL;
     for (size_t i = 0; i < vm->module_count; i++) {
-        if (strcmp(vm->modules[i].name, name) == 0) return &vm->modules[i];
+        if (vm->modules[i].name && strcmp(vm->modules[i].name, name) == 0) return &vm->modules[i];
     }
     return NULL;
 }
 
 static EventEntry *event_find(ScmlVM *vm, const char *name, int create) {
-    for (size_t i = 0; i < vm->event_count; i++) if (strcmp(vm->events[i].name, name) == 0) return &vm->events[i];
+    if (!name) return NULL;
+    for (size_t i = 0; i < vm->event_count; i++) if (vm->events[i].name && strcmp(vm->events[i].name, name) == 0) return &vm->events[i];
     if (!create || vm->event_count >= SCML_EVENTS_MAX) return NULL;
+    char *owned_name = xstrdup(name);
+    if (!owned_name) return NULL;
     EventEntry *event = &vm->events[vm->event_count++];
-    event->name = xstrdup(name);
+    event->name = owned_name;
     event->handler_count = 0;
     return event;
 }
@@ -446,27 +453,33 @@ int scml_vm_get_float(ScmlVM *vm, const char *name, float *out) {
 int scml_vm_set_string(ScmlVM *vm, const char *name, const char *value) { return set_var(vm, name, value_str(value)); }
 
 int scml_vm_register_function(ScmlVM *vm, const char *name, ScmlNativeFunc fn, void *user_data) {
+    if (!vm || !name || !fn) return 0;
     NativeFunc *existing = native_find(vm, name);
     if (existing) { existing->fn = fn; existing->user_data = user_data; return 1; }
     if (vm->native_count >= SCML_NATIVE_FUNCS_MAX) return 0;
+    char *owned_name = xstrdup(name);
+    if (!owned_name) return 0;
     NativeFunc *native = &vm->natives[vm->native_count++];
-    native->name = xstrdup(name);
+    native->name = owned_name;
     native->fn = fn;
     native->user_data = user_data;
-    return native->name != NULL;
+    return 1;
 }
 
 
 
 int scml_vm_register_module(ScmlVM *vm, const char *name, ScmlModuleResolver resolver, void *user_data) {
+    if (!vm || !name || !resolver) return 0;
     NativeModule *existing = module_find(vm, name);
     if (existing) { existing->resolver = resolver; existing->user_data = user_data; return 1; }
     if (vm->module_count >= SCML_NATIVE_MODULES_MAX) return 0;
+    char *owned_name = xstrdup(name);
+    if (!owned_name) return 0;
     NativeModule *module = &vm->modules[vm->module_count++];
-    module->name = xstrdup(name);
+    module->name = owned_name;
     module->resolver = resolver;
     module->user_data = user_data;
-    return module->name != NULL;
+    return 1;
 }
 
 int scml_vm_unregister_module(ScmlVM *vm, const char *name) {
@@ -828,6 +841,12 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     case SCML_OP_BIT_AND: case SCML_OP_BIT_OR: case SCML_OP_BIT_XOR: case SCML_OP_SHL: case SCML_OP_SHR: {
         ScmlValue a = eval(vm, &ops[1]), b = eval(vm, &ops[2]);
         int x = value_to_int(&a), y = value_to_int(&b), r = 0;
+        if ((op == SCML_OP_SHL || op == SCML_OP_SHR) && (y < 0 || y >= 31)) {
+            value_free(&a); value_free(&b);
+            error_at(vm, ins_pc, err, err_size, "invalid shift count");
+            free_decoded(ops, argc);
+            return -1;
+        }
         if (op == SCML_OP_BIT_AND) r = x & y;
         else if (op == SCML_OP_BIT_OR) r = x | y;
         else if (op == SCML_OP_BIT_XOR) r = x ^ y;
@@ -866,10 +885,12 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         if (st < 0) st = 0;
         if (ln < 0) ln = 0;
         if ((size_t)st > sl) st = (int)sl;
-        if ((size_t)(st + ln) > sl) ln = (int)(sl - (size_t)st);
+        size_t start_index = (size_t)st;
+        size_t max_len = sl - start_index;
+        if ((size_t)ln > max_len) ln = (int)max_len;
         char *tmp = (char *)malloc((size_t)ln + 1);
         if (!tmp) { value_free(&src); value_free(&start); value_free(&len); error_at(vm, ins_pc, err, err_size, "out of memory"); free_decoded(ops, argc); return -1; }
-        memcpy(tmp, s + st, (size_t)ln);
+        memcpy(tmp, s + start_index, (size_t)ln);
         tmp[ln] = '\0';
         set_var(vm, ops[0].s, value_str(tmp));
         free(tmp);
