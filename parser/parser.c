@@ -235,7 +235,7 @@ static int preprocess_text(const char *path, const char *text, Macro **macros, c
             namebuf[ni]=0;
             const char *after_name=skip_spaces_const(head+ni);
             Macro*m=find_macro(*macros,namebuf);
-            if(m && m->argc>0 && *after_name=='('){ char *expanded=expand_macro_call(m,head); free(lineout); lineout=expanded; }
+            if(m && *after_name=='('){ char *expanded=expand_macro_call(m,head); free(lineout); lineout=expanded; }
             for(Macro*d=*macros;d;d=d->next) if(d->argc==0){ char *ne=replace_all(lineout,d->name,d->body?d->body:""); free(lineout); lineout=ne; }
             append(out,&olen,&ocap,lineout); append(out,&olen,&ocap,"\n"); free(lineout);
         }
