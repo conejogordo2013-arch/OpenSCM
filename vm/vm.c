@@ -108,6 +108,35 @@ static float value_to_float(const ScmlValue *v) {
     return v->string ? (float)atof(v->string) : 0.0f;
 }
 
+static int values_equal(const ScmlValue *a, const ScmlValue *b) {
+    if (a->type == SCML_VAL_STRING && b->type == SCML_VAL_STRING) {
+        const char *as = a->string ? a->string : "";
+        const char *bs = b->string ? b->string : "";
+        return strcmp(as, bs) == 0;
+    }
+    if (a->type == SCML_VAL_FLOAT || b->type == SCML_VAL_FLOAT) {
+        return value_to_float(a) == value_to_float(b);
+    }
+    return value_to_int(a) == value_to_int(b);
+}
+
+static int values_compare(const ScmlValue *a, const ScmlValue *b) {
+    if (a->type == SCML_VAL_STRING && b->type == SCML_VAL_STRING) {
+        const char *as = a->string ? a->string : "";
+        const char *bs = b->string ? b->string : "";
+        int cmp = strcmp(as, bs);
+        return (cmp > 0) - (cmp < 0);
+    }
+    if (a->type == SCML_VAL_FLOAT || b->type == SCML_VAL_FLOAT) {
+        float x = value_to_float(a);
+        float y = value_to_float(b);
+        return (x > y) - (x < y);
+    }
+    int x = value_to_int(a);
+    int y = value_to_int(b);
+    return (x > y) - (x < y);
+}
+
 static const char *value_to_cstr(const ScmlValue *v, char *buf, size_t n) {
     if (v->type == SCML_VAL_STRING) return v->string ? v->string : "";
     if (v->type == SCML_VAL_FLOAT) { snprintf(buf, n, "%g", v->real); return buf; }
@@ -598,13 +627,15 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     case SCML_OP_IF_EQ: case SCML_OP_IF_NE: case SCML_OP_IF_GT: case SCML_OP_IF_LT: case SCML_OP_IF_GE: case SCML_OP_IF_LE: {
         ScmlValue a = eval(vm, &ops[0]);
         ScmlValue b = eval(vm, &ops[1]);
-        int x = value_to_int(&a), y = value_to_int(&b), take = 0;
-        if (op == SCML_OP_IF_EQ) take = x == y;
-        else if (op == SCML_OP_IF_NE) take = x != y;
-        else if (op == SCML_OP_IF_GT) take = x > y;
-        else if (op == SCML_OP_IF_LT) take = x < y;
-        else if (op == SCML_OP_IF_GE) take = x >= y;
-        else take = x <= y;
+        int cmp = values_compare(&a, &b);
+        int eq = values_equal(&a, &b);
+        int take = 0;
+        if (op == SCML_OP_IF_EQ) take = eq;
+        else if (op == SCML_OP_IF_NE) take = !eq;
+        else if (op == SCML_OP_IF_GT) take = cmp > 0;
+        else if (op == SCML_OP_IF_LT) take = cmp < 0;
+        else if (op == SCML_OP_IF_GE) take = cmp >= 0;
+        else take = cmp <= 0;
         value_free(&a);
         value_free(&b);
         if (take) vm->pc = (size_t)ops[2].i;
@@ -725,8 +756,10 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         break;
     case SCML_OP_HEAP_ALLOC: case SCML_OP_ARRAY_CREATE: {
         ScmlValue sz = eval(vm, &ops[0]);
+        int count = value_to_int(&sz);
         uint32_t ref = 0;
-        if (!heap_alloc(vm, (size_t)value_to_int(&sz), &ref)) { value_free(&sz); error_at(vm, ins_pc, err, err_size, "heap allocation failed"); free_decoded(ops, argc); return -1; }
+        if (count < 0) { value_free(&sz); error_at(vm, ins_pc, err, err_size, "negative heap allocation size"); free_decoded(ops, argc); return -1; }
+        if (!heap_alloc(vm, (size_t)count, &ref)) { value_free(&sz); error_at(vm, ins_pc, err, err_size, "heap allocation failed"); free_decoded(ops, argc); return -1; }
         set_var(vm, ops[1].s, value_int((int32_t)ref));
         value_free(&sz);
         break;
@@ -880,7 +913,13 @@ int scml_vm_update(ScmlVM *vm, char *err, size_t err_size) {
 int scml_vm_run(ScmlVM *vm, char *err, size_t err_size) {
     for (;;) {
         int rc = scml_vm_step(vm, err, err_size);
-        if (rc < 0) return 0;
-        if (rc == 0) return 1;
+        if (rc < 0) {
+            fflush(stdout);
+            return 0;
+        }
+        if (rc == 0) {
+            fflush(stdout);
+            return 1;
+        }
     }
 }

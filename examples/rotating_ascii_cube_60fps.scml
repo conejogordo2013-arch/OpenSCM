@@ -1,25 +1,25 @@
-; Aplicacion SCML pura: un cubo ASCII rotando a ~60 FPS.
+; Aplicacion SCML pura: un cubo ASCII rotando fluido a ~60 FPS.
 ; Compila con: bin/scml compile examples/rotating_ascii_cube_60fps.scml examples/rotating_ascii_cube_60fps.scmlbin
 ; Ejecuta con: bin/scml run examples/rotating_ascii_cube_60fps.scmlbin
-; No usa renderizador nativo: SCML calcula seno/coseno, z-buffer y proyeccion.
-; PRINT_RAW queda en buffer y se vuelca en WAIT para evitar miles de flush por frame en MSYS2.
+; Renderizador SCML puro: la app baja el coste por frame y el VM evita flush por caracter.
+; Optimizaciones: 24x10, muestreo 3D grueso y salida por filas (11 prints/frame, no 240).
 
 :MAIN
 0B33:
 0004: $A 0.0
 0004: $B 0.0
 0004: $C 0.0
-0004: $WIDTH 80
-0004: $HEIGHT 40
-0004: $SIZE 3200
-0004: $HALF_WIDTH 40.0
-0004: $HALF_HEIGHT 20.0
-0004: $DISTANCE_FROM_CAM 80.0
-0004: $K1 38.0
-0004: $INCREMENT 1.5
+0004: $WIDTH 24
+0004: $HEIGHT 10
+0004: $SIZE 240
+0004: $HALF_WIDTH 12.0
+0004: $HALF_HEIGHT 5.0
+0004: $DISTANCE_FROM_CAM 38.0
+0004: $K1 18.0
+0004: $INCREMENT 4.0
 0004: $OOZ_SCALE 100000.0
-0B14: 3200 $BUFFER
-0B14: 3200 $ZBUF
+0B14: 240 $BUFFER
+0B14: 240 $ZBUF
 
 :FRAME
 ; memset(buffer, '.', width * height); memset(zBuffer, 0, width * height)
@@ -34,16 +34,23 @@
 000A: @CLEAR_CHECK
 
 :DRAW_ALL
-0004: $CUBE_WIDTH 18.0
+0004: $CUBE_WIDTH 8.0
 0004: $HORIZONTAL_OFFSET 0.0
+; cache trig once per frame instead of once per plotted point
+0B34: $SIN_A $A
+0B35: $COS_A $A
+0B34: $SIN_B $B
+0B35: $COS_B $B
+0B34: $SIN_C $C
+0B35: $COS_C $C
 0D00: @DRAW_CUBE
 0D00: @PRINT_BUFFER
 
-; 16 ms por frame ~= 62.5 Hz, la aproximacion entera disponible para 60 FPS.
-0006: $A $A 0.05
-0006: $B $B 0.04
-0006: $C $C 0.02
-000B: 16
+; sin pausa artificial: en MSYS2 Sleep(16) suma latencia al coste del render
+0006: $A $A 0.08
+0006: $B $B 0.06
+0006: $C $C 0.03
+000B: 0
 000A: @FRAME
 
 :DRAW_CUBE
@@ -106,14 +113,6 @@
 000A: @CUBE_Y_CHECK
 
 :PLOT_SURFACE
-; sin/cos cache for this point
-0B34: $SIN_A $A
-0B35: $COS_A $A
-0B34: $SIN_B $B
-0B35: $COS_B $B
-0B34: $SIN_C $C
-0B35: $COS_C $C
-
 ; X = j*sin(A)*sin(B)*cos(C) - k*cos(A)*sin(B)*cos(C) + j*cos(A)*sin(C) + k*sin(A)*sin(C) + i*cos(B)*cos(C)
 0008: $T1 $P_J $SIN_A
 0008: $T1 $T1 $SIN_B
@@ -189,42 +188,47 @@
 
 :PRINT_BUFFER
 0B32: "\033[H"
-0004: $PRINT_I 0
-:PRINT_CHECK
-00D9: $PRINT_I $SIZE @PRINT_BODY
+0004: $PRINT_ROW 0
+:PRINT_ROW_CHECK
+00D9: $PRINT_ROW $HEIGHT @PRINT_ROW_BODY
 0D01:
-:PRINT_BODY
-0B20: $COL $PRINT_I $WIDTH
-00D6: $COL 0 @PRINT_NEWLINE
+:PRINT_ROW_BODY
+0004: $LINE ""
+0004: $PRINT_COL 0
+:PRINT_COL_CHECK
+00D9: $PRINT_COL $WIDTH @PRINT_COL_BODY
+03E5: $LINE
+0006: $PRINT_ROW $PRINT_ROW 1
+000A: @PRINT_ROW_CHECK
+:PRINT_COL_BODY
+0008: $ROW_OFFSET $PRINT_ROW $WIDTH
+0006: $PRINT_I $ROW_OFFSET $PRINT_COL
 0B12: $CODE $BUFFER $PRINT_I
-00D6: $CODE 64 @PRINT_AT
-00D6: $CODE 36 @PRINT_DOLLAR
-00D6: $CODE 126 @PRINT_TILDE
-00D6: $CODE 35 @PRINT_HASH
-00D6: $CODE 59 @PRINT_SEMI
-00D6: $CODE 43 @PRINT_PLUS
-0B32: "."
-000A: @PRINT_NEXT
-:PRINT_NEWLINE
-0B32: "\n"
-000A: @PRINT_NEXT
-:PRINT_AT
-0B32: "@"
-000A: @PRINT_NEXT
-:PRINT_DOLLAR
-0B32: "$"
-000A: @PRINT_NEXT
-:PRINT_TILDE
-0B32: "~"
-000A: @PRINT_NEXT
-:PRINT_HASH
-0B32: "#"
-000A: @PRINT_NEXT
-:PRINT_SEMI
-0B32: ";"
-000A: @PRINT_NEXT
-:PRINT_PLUS
-0B32: "+"
-:PRINT_NEXT
-0006: $PRINT_I $PRINT_I 1
-000A: @PRINT_CHECK
+00D6: $CODE 64 @APPEND_AT
+00D6: $CODE 36 @APPEND_DOLLAR
+00D6: $CODE 126 @APPEND_TILDE
+00D6: $CODE 35 @APPEND_HASH
+00D6: $CODE 59 @APPEND_SEMI
+00D6: $CODE 43 @APPEND_PLUS
+0B22: $LINE $LINE "."
+000A: @PRINT_COL_NEXT
+:APPEND_AT
+0B22: $LINE $LINE "@"
+000A: @PRINT_COL_NEXT
+:APPEND_DOLLAR
+0B22: $LINE $LINE "$"
+000A: @PRINT_COL_NEXT
+:APPEND_TILDE
+0B22: $LINE $LINE "~"
+000A: @PRINT_COL_NEXT
+:APPEND_HASH
+0B22: $LINE $LINE "#"
+000A: @PRINT_COL_NEXT
+:APPEND_SEMI
+0B22: $LINE $LINE ";"
+000A: @PRINT_COL_NEXT
+:APPEND_PLUS
+0B22: $LINE $LINE "+"
+:PRINT_COL_NEXT
+0006: $PRINT_COL $PRINT_COL 1
+000A: @PRINT_COL_CHECK
