@@ -767,6 +767,63 @@ static int rt_console_home(ScmlVM *vm, const ScmlValue *args, size_t arg_count, 
     return 1;
 }
 
+static int runtime_checked_int_arg(const ScmlValue *args, size_t arg_count, size_t index, int min_value, int max_value, int *out) {
+    if (index >= arg_count) return 0;
+    int value = args[index].type == SCML_VAL_FLOAT ? (int)args[index].real : (args[index].type == SCML_VAL_INT ? args[index].integer : atoi(args[index].string ? args[index].string : "0"));
+    if (value < min_value || value > max_value) return 0;
+    *out = value;
+    return 1;
+}
+
+static int rt_console_color(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    int fg = 0, bg = -1;
+    if (!runtime_checked_int_arg(args, arg_count, 0, 0, 255, &fg)) return 0;
+    if (arg_count > 1 && !runtime_checked_int_arg(args, arg_count, 1, 0, 255, &bg)) return 0;
+    if (bg >= 0) fprintf(stdout, "\033[38;5;%dm\033[48;5;%dm", fg, bg);
+    else fprintf(stdout, "\033[38;5;%dm", fg);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
+static int rt_console_reset(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+    fputs("\033[0m", stdout);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
+static int rt_console_move(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    int row = 0, col = 0;
+    if (!runtime_checked_int_arg(args, arg_count, 0, 1, 9999, &row) ||
+        !runtime_checked_int_arg(args, arg_count, 1, 1, 9999, &col)) return 0;
+    fprintf(stdout, "\033[%d;%dH", row, col);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
+static int rt_console_erase_line(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+    fputs("\033[2K", stdout);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
+static int rt_console_style(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    int style = 0;
+    if (!runtime_checked_int_arg(args, arg_count, 0, 0, 9, &style)) return 0;
+    fprintf(stdout, "\033[%dm", style);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
 static int rt_capability_info(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)args; (void)arg_count; (void)user_data;
     char buf[512];
@@ -863,7 +920,8 @@ static const ScmlRuntimeFunctionEntry k_window[] = {
 };
 static const ScmlRuntimeFunctionEntry k_console[] = {
     {"write", rt_console_write}, {"flush", rt_console_flush}, {"clear", rt_console_clear},
-    {"home", rt_console_home}
+    {"home", rt_console_home}, {"color", rt_console_color}, {"reset", rt_console_reset},
+    {"move", rt_console_move}, {"erase_line", rt_console_erase_line}, {"style", rt_console_style}
 };
 static const ScmlRuntimeFunctionEntry k_runtime[] = {
     {"wait", rt_runtime_sleep_ms}, {"get_time_ms", rt_runtime_get_time_ms}, {"get_time_us", rt_runtime_get_time_us}, {"get_ticks", rt_runtime_get_ticks}

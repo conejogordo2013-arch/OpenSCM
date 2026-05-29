@@ -12,6 +12,7 @@ echo "[doctor] building core CLI"
 make bin/scml
 
 echo "[doctor] running compiler smoke"
+mkdir -p .scml
 bin/scml compile examples/helloworld.scml .scml/helloworld.scmlbin
 bin/scml compile examples/variables.scml .scml/variables.scmlbin
 bin/scml compile examples/complexlogic.scml .scml/complexlogic.scmlbin

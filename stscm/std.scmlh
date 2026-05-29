@@ -1446,6 +1446,30 @@ macro CONSOLE_HOME():
     0B31: "console.home"
 endmacro
 
+macro CONSOLE_COLOR(fg):
+    0B3E: fg
+endmacro
+
+macro CONSOLE_COLOR_BG(fg, bg):
+    0B3E: fg bg
+endmacro
+
+macro CONSOLE_RESET():
+    0B3F:
+endmacro
+
+macro CONSOLE_MOVE(row, col):
+    0B40: row col
+endmacro
+
+macro CONSOLE_ERASE_LINE():
+    0B41:
+endmacro
+
+macro CONSOLE_STYLE(style):
+    0B42: style
+endmacro
+
 macro SIN(outvar, radians):
     0B34: outvar radians
 endmacro
