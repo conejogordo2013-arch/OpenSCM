@@ -1063,9 +1063,14 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         char type_buf[32];
         if (!type_name) type_name = value_to_cstr(&expected, type_buf, sizeof(type_buf));
         int ok = 0;
-        if (strcmp(type_name, "i32") == 0 || strcmp(type_name, "int") == 0) ok = value.type == SCML_VAL_INT;
-        else if (strcmp(type_name, "f32") == 0 || strcmp(type_name, "float") == 0) ok = value.type == SCML_VAL_FLOAT;
-        else if (strcmp(type_name, "str") == 0 || strcmp(type_name, "string") == 0) ok = value.type == SCML_VAL_STRING;
+        if (strcmp(type_name, "i32") == 0 || strcmp(type_name, "int") == 0 || strcmp(type_name, "integer") == 0 ||
+            strcmp(type_name, "bool") == 0 || strcmp(type_name, "i8") == 0 || strcmp(type_name, "i16") == 0 ||
+            strcmp(type_name, "i64") == 0 || strcmp(type_name, "u8") == 0 || strcmp(type_name, "u16") == 0 ||
+            strcmp(type_name, "u32") == 0 || strcmp(type_name, "u64") == 0 || strcmp(type_name, "usize") == 0 ||
+            strcmp(type_name, "isize") == 0 || strcmp(type_name, "ref") == 0 || strncmp(type_name, "array<", 6) == 0 ||
+            strncmp(type_name, "vec<", 4) == 0 || strncmp(type_name, "option<", 7) == 0 || strncmp(type_name, "result<", 7) == 0) ok = value.type == SCML_VAL_INT;
+        else if (strcmp(type_name, "f32") == 0 || strcmp(type_name, "f64") == 0 || strcmp(type_name, "float") == 0 || strcmp(type_name, "number") == 0) ok = value.type == SCML_VAL_FLOAT || value.type == SCML_VAL_INT;
+        else if (strcmp(type_name, "str") == 0 || strcmp(type_name, "string") == 0 || strcmp(type_name, "text") == 0) ok = value.type == SCML_VAL_STRING;
         else if (strcmp(type_name, "any") == 0) ok = 1;
         set_var(vm, ops[2].s, value_int(ok));
         value_free(&value);

@@ -1,0 +1,12 @@
+use "std.scmlh";
+use <mathkit.scmlh>;
+
+script MAIN {
+    let $COUNT: u32 = 32;
+    let $ITEMS: array<any> = 0;
+    MATHKIT_ADD_TEN($TOTAL, $COUNT)
+    type_assert($TOTAL, "u32", $TYPE_OK)
+    print("enterprise project");
+    print($TOTAL);
+    print($TYPE_OK);
+}

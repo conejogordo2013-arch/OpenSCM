@@ -1,5 +1,5 @@
-#include "./root.scmlh"
-#include "nested/deeper/feature.scmlh"
+use "./root.scmlh";
+use "nested/deeper/feature.scmlh";
 
 :MAIN
 03E5: ROOT_MSG

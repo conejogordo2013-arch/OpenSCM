@@ -1,0 +1,5 @@
+name = "enterprise-demo"
+source = "src/main.scml"
+package = "packages/mathkit"
+output = "build/enterprise-demo.scmlbin"
+jobs = 4

@@ -1,4 +1,4 @@
-#include "module_a.scmlh"
+use "module_a.scmlh";
 :MAIN
 0004: $PLAYER_HEALTH START_HEALTH
 heal_player()

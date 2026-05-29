@@ -1,4 +1,4 @@
-#include "../stscm/std.scmlh"
+use "../stscm/std.scmlh";
 
 :MAIN
 ; Block 1 demo (SCML systems core style)

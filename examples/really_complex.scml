@@ -1,4 +1,4 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
 :MAIN
 03E5: "~b~OpenSCM ~w~// SCM STYLE BOOT"

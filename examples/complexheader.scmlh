@@ -1,7 +1,7 @@
 #define LOOP_LIMIT 3
-macro inc(dst, src):
+macro inc(dst, src) {
     0006: dst src 1
-endmacro
-macro print_var(v):
+}
+macro print_var(v) {
     03E5: v
-endmacro
+}

@@ -1,37 +1,98 @@
 {
   "Main Loop": {
     "prefix": "mainloop",
-    "body": [":MAIN", "0004: counter 0", ":LOOP", "03E5: \"tick\"", "0006: counter counter 1", "00D8: 3 counter @LOOP", "0001:"],
+    "body": [
+      ":MAIN",
+      "0004: counter 0",
+      ":LOOP",
+      "03E5: \"tick\"",
+      "0006: counter counter 1",
+      "00D8: 3 counter @LOOP",
+      "0001:"
+    ],
     "description": "Basic SCML main loop"
   },
   "Macro": {
     "prefix": "scmacro",
-    "body": ["macro ${1:name}(${2:arg}):", "    ${3:03E5: \"${1:name}\" ${2:arg}}", "endmacro"],
+    "body": [
+      "macro ${1:name}(${2:arg}):",
+      "    ${3:03E5: \"${1:name}\" ${2:arg}}",
+      "endmacro"
+    ],
     "description": "SCML macro template"
   },
   "Ifdef Block": {
     "prefix": "ifdef",
-    "body": ["#ifdef ${1:SYMBOL}", "    ${2:03E5: \"enabled\"}", "#else", "    ${3:03E5: \"disabled\"}", "#endif"],
+    "body": [
+      "#ifdef ${1:SYMBOL}",
+      "    ${2:03E5: \"enabled\"}",
+      "#else",
+      "    ${3:03E5: \"disabled\"}",
+      "#endif"
+    ],
     "description": "Preprocessor ifdef"
   },
   "Async Task Pair": {
     "prefix": "asyncpair",
-    "body": ["ASYNC_SPAWN(@${1:WORKER}, ${2:$TASK})", ":${1:WORKER}", "    ${3:03E5: \"work\"}", "    END_THREAD()"],
+    "body": [
+      "ASYNC_SPAWN(@${1:WORKER}, ${2:$TASK})",
+      ":${1:WORKER}",
+      "    ${3:03E5: \"work\"}",
+      "    END_THREAD()"
+    ],
     "description": "Spawn a cooperative async task and declare its label"
   },
   "Typed Integer": {
     "prefix": "leti32",
-    "body": ["LET_I32(${1:$NAME}, ${2:0})"],
+    "body": [
+      "LET_I32(${1:$NAME}, ${2:0})"
+    ],
     "description": "Declare and initialize a statically checked i32"
   },
   "Typed String": {
     "prefix": "letstr",
-    "body": ["LET_STR(${1:$NAME}, \"${2:value}\")"],
+    "body": [
+      "LET_STR(${1:$NAME}, \"${2:value}\")"
+    ],
     "description": "Declare and initialize a statically checked string"
   },
   "Type Assert": {
     "prefix": "typeassert",
-    "body": ["TYPE_ASSERT(${1:$VALUE}, \"${2|i32,f32,str,any|}\", ${3:$OK})"],
+    "body": [
+      "TYPE_ASSERT(${1:$VALUE}, \"${2|i32,f32,str,any|}\", ${3:$OK})"
+    ],
     "description": "Runtime SCML type assertion"
+  },
+  "Modern Script": {
+    "prefix": "scscript",
+    "body": [
+      "use \"std.scmlh\";",
+      "",
+      "script ${1:MAIN} {",
+      "    let ${2:$COUNT}: ${3|i32,u32,f32,f64,str,bool,ref,array<any>|} = ${4:0};",
+      "    print(${5:\"hello modern SCML\"});",
+      "}"
+    ],
+    "description": "Modern SCML script block lowered to legacy opcodes"
+  },
+  "Modern If Else": {
+    "prefix": "scif",
+    "body": [
+      "if (${1:$A} ${2|==,!=,>,<,>=,<=|} ${3:$B}) {",
+      "    ${4:print(\"true\");}",
+      "} else {",
+      "    ${5:log(\"false\");}",
+      "}"
+    ],
+    "description": "Modern SCML if/else block"
+  },
+  "Modern Function": {
+    "prefix": "scfn",
+    "body": [
+      "fn ${1:HELPER}() {",
+      "    ${2:print(\"helper\");}",
+      "}"
+    ],
+    "description": "Modern SCML function label block"
   }
 }

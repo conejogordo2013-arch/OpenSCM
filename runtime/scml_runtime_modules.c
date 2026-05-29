@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <pthread.h>
 #endif
 
 #if defined(SCML_USE_SDL2)
@@ -69,6 +70,11 @@ typedef struct RuntimeBuiltinState {
     int audio_volume, socket_open;
     int socket_fd;
     char last_net_payload[1024];
+    int thread_active[64];
+    int thread_done[64];
+#if !defined(_WIN32)
+    pthread_t thread_handles[64];
+#endif
 #if defined(SCML_USE_OPENGL)
     GLuint active_vbo;
 #endif
@@ -713,8 +719,71 @@ static int rt_system_get_working_directory(ScmlVM *vm, const ScmlValue *args, si
     return 1;
 }
 
-static int rt_thread_create(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; *ret = scml_value_int(++g_builtin.next_handle); return 1; }
-static int rt_thread_join(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; *ret = scml_value_int(0); return 1; }
+typedef struct ThreadSleepJob { int slot; int ms; } ThreadSleepJob;
+
+#if !defined(_WIN32)
+static void *rt_thread_sleep_main(void *arg) {
+    ThreadSleepJob *job = (ThreadSleepJob *)arg;
+    int slot = job->slot;
+    int ms = job->ms;
+    free(job);
+    if (ms < 0) ms = 0;
+    scml_runtime_sleep_us((unsigned int)ms * 1000u);
+    g_builtin.thread_done[slot] = 1;
+    return NULL;
+}
+#endif
+
+static int rt_thread_create(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    int ms = arg_count > 0 ? args[0].integer : 0;
+    for (int i = 0; i < 64; i++) {
+        if (!g_builtin.thread_active[i]) {
+            g_builtin.thread_active[i] = 1;
+            g_builtin.thread_done[i] = 0;
+#if defined(_WIN32)
+            Sleep((DWORD)(ms < 0 ? 0 : ms));
+            g_builtin.thread_done[i] = 1;
+#else
+            ThreadSleepJob *job = (ThreadSleepJob *)malloc(sizeof(*job));
+            if (!job) { g_builtin.thread_active[i] = 0; return 0; }
+            job->slot = i;
+            job->ms = ms;
+            if (pthread_create(&g_builtin.thread_handles[i], NULL, rt_thread_sleep_main, job) != 0) {
+                free(job);
+                g_builtin.thread_active[i] = 0;
+                return 0;
+            }
+#endif
+            *ret = scml_value_int(i + 1);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int rt_thread_join(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    int slot = args[0].integer - 1;
+    if (slot < 0 || slot >= 64 || !g_builtin.thread_active[slot]) return 0;
+#if !defined(_WIN32)
+    pthread_join(g_builtin.thread_handles[slot], NULL);
+#endif
+    g_builtin.thread_done[slot] = 1;
+    g_builtin.thread_active[slot] = 0;
+    *ret = scml_value_int(0);
+    return 1;
+}
+
+static int rt_thread_done(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    int slot = args[0].integer - 1;
+    *ret = scml_value_int(slot >= 0 && slot < 64 && g_builtin.thread_active[slot] && g_builtin.thread_done[slot]);
+    return 1;
+}
+
 static int rt_thread_yield(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; scml_runtime_sleep_us(0); *ret = scml_value_int(0); return 1; }
 
 static int rt_runtime_sleep_ms(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
@@ -931,7 +1000,7 @@ static const ScmlRuntimeFunctionEntry k_system[] = {
     {"get_working_directory", rt_system_get_working_directory}, {"backend_info", rt_capability_info}
 };
 static const ScmlRuntimeFunctionEntry k_thread[] = {
-    {"create", rt_thread_create}, {"join", rt_thread_join}, {"sleep", rt_runtime_sleep_ms}, {"yield", rt_thread_yield}
+    {"create", rt_thread_create}, {"join", rt_thread_join}, {"done", rt_thread_done}, {"sleep", rt_runtime_sleep_ms}, {"yield", rt_thread_yield}
 };
 
 

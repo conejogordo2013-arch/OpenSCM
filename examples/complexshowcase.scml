@@ -1,4 +1,4 @@
-#include "libraryexample.scmlh"
+use "libraryexample.scmlh";
 :MAIN
 03E5: "showcase begin"
 SPAWN_PLAYER(player_id)

@@ -23,78 +23,78 @@
 #define NULLPTR 0
 
 ; --- Operators expressed as macros using existing opcodes ---
-macro ASSIGN(dst, value):
+macro ASSIGN(dst, value) {
     dst = value
-endmacro
-macro ADD_ASSIGN(dst, value):
+}
+macro ADD_ASSIGN(dst, value) {
     dst += value
-endmacro
-macro SUB_ASSIGN(dst, value):
+}
+macro SUB_ASSIGN(dst, value) {
     dst -= value
-endmacro
-macro INC(dst):
+}
+macro INC(dst) {
     dst += 1
-endmacro
-macro DEC(dst):
+}
+macro DEC(dst) {
     dst -= 1
-endmacro
+}
 
 ; --- Comparison helpers map to IF opcodes ---
-macro IF_EQ(a, b, label):
+macro IF_EQ(a, b, label) {
     00D6: a b label
-endmacro
-macro IF_NE(a, b, label):
+}
+macro IF_NE(a, b, label) {
     00D7: a b label
-endmacro
-macro IF_GT(a, b, label):
+}
+macro IF_GT(a, b, label) {
     00D8: a b label
-endmacro
-macro IF_LT(a, b, label):
+}
+macro IF_LT(a, b, label) {
     00D9: a b label
-endmacro
+}
 
 ; --- Flow helpers ---
-macro GOTO(label):
+macro GOTO(label) {
     jump label
-endmacro
-macro RETURN():
+}
+macro RETURN() {
     return
-endmacro
-macro BREAK_THREAD():
+}
+macro BREAK_THREAD() {
     end_thread
-endmacro
+}
 
 ; --- Function bridge helpers ---
-macro CALL_NATIVE(name, a):
+macro CALL_NATIVE(name, a) {
     CALL name a
-endmacro
-macro CALL_NATIVE3(name, a, b, c):
+}
+macro CALL_NATIVE3(name, a, b, c) {
     CALL name a b c
-endmacro
+}
 
 ; --- Memory / array helpers ---
-macro NEW_ARRAY(size, outref):
+macro NEW_ARRAY(size, outref) {
     0B14: size outref
-endmacro
-macro DELETE_ARRAY(ref):
+}
+macro DELETE_ARRAY(ref) {
     0B11: ref
-endmacro
-macro ARRAY_SET(ref, idx, value):
+}
+macro ARRAY_SET(ref, idx, value) {
     0B13: ref idx value
-endmacro
-macro ARRAY_GET(outvar, ref, idx):
+}
+macro ARRAY_GET(outvar, ref, idx) {
     0B12: outvar ref idx
-endmacro
+}
 
 ; --- Entity helpers ---
-macro NEW_ENTITY(model, x, y, z, outid):
+macro NEW_ENTITY(model, x, y, z, outid) {
     0B00: model x y z outid
-endmacro
+}
 
 ; --- Logging ---
-macro LOG_MSG(msg):
+macro LOG_MSG(msg) {
     03E5: msg
-endmacro
-macro LOG_FILE(path, msg):
+}
+macro LOG_FILE(path, msg) {
     0A20: path msg
-endmacro
+}

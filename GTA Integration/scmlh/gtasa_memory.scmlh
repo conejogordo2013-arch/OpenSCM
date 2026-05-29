@@ -1,20 +1,20 @@
 ; CLEO-style memory/input wrappers for GTA hosts.
 
-macro READ_MEMORY(address, size, protect, outvar):
+macro READ_MEMORY(address, size, protect, outvar) {
     CALL "GTA_ReadMemory" address size protect
     0004: outvar $RETVAL
-endmacro
+}
 
-macro WRITE_MEMORY(address, size, value, protect):
+macro WRITE_MEMORY(address, size, value, protect) {
     CALL "GTA_WriteMemory" address size value protect
-endmacro
+}
 
-macro KEY_PRESSED(key):
+macro KEY_PRESSED(key) {
     CALL "GTA_KeyPressed" key
     0004: $GTA_LAST_CONDITION $RETVAL
-endmacro
+}
 
-macro CONTROL_KEY_PRESSED(device, key):
+macro CONTROL_KEY_PRESSED(device, key) {
     CALL "GTA_ControlKeyPressed" device key
     0004: $GTA_LAST_CONDITION $RETVAL
-endmacro
+}

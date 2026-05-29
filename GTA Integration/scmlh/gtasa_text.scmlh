@@ -1,26 +1,26 @@
 ; GTA text, HUD, and radar wrappers.
 
-macro PRINT_NOW(text, time_ms):
+macro PRINT_NOW(text, time_ms) {
     CALL "GTA_PrintNow" text time_ms
-endmacro
+}
 
-macro PRINT_BIG(text, time_ms, style):
+macro PRINT_BIG(text, time_ms, style) {
     CALL "GTA_PrintBig" text time_ms style
-endmacro
+}
 
-macro CLEAR_HELP():
+macro CLEAR_HELP() {
     CALL "GTA_ClearHelp"
-endmacro
+}
 
-macro DISPLAY_RADAR(enabled):
+macro DISPLAY_RADAR(enabled) {
     CALL "GTA_DisplayRadar" enabled
-endmacro
+}
 
-macro ADD_BLIP_FOR_COORD(x, y, z, outvar):
+macro ADD_BLIP_FOR_COORD(x, y, z, outvar) {
     CALL "GTA_AddBlipForCoord" x y z
     0004: outvar $RETVAL
-endmacro
+}
 
-macro REMOVE_BLIP(blip):
+macro REMOVE_BLIP(blip) {
     CALL "GTA_RemoveBlip" blip
-endmacro
+}

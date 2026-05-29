@@ -1,4 +1,4 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
 :MAIN
 CLASS_DEFINE("Entity", entity_class)
@@ -19,7 +19,7 @@ TYPE_OF(car_type, car)
 BOOL(enabled, 1)
 TYPE_OF(enabled_type, enabled)
 03E5: enabled_type
-NULL(nothing)
+NULL_REF(nothing)
 TYPE_OF(nothing_type, nothing)
 03E5: nothing_type
 FLOAT32(speed, 88)

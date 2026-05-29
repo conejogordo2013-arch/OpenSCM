@@ -1,16 +1,16 @@
 #pragma once
-#include "pointers.scmlh"
+use "pointers.scmlh";
 
 #define CLASS_ACTOR 101
 
-macro CLASS_ACTOR_NEW(handle, hp):
+macro CLASS_ACTOR_NEW(handle, hp) {
     0B14: 2 handle
     0B13: handle SLOT_HP hp
     0B13: handle SLOT_FLAGS CLASS_ACTOR
-endmacro
+}
 
-macro CLASS_ACTOR_HEAL(handle, amount):
+macro CLASS_ACTOR_HEAL(handle, amount) {
     0B12: 95@ handle SLOT_HP
     0006: 95@ 95@ amount
     0B13: handle SLOT_HP 95@
-endmacro
+}

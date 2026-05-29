@@ -1,35 +1,38 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
-:MAIN
-LET_I32($TOTAL, 0)
-LET_STR($TITLE, "SCML hostless async/static demo")
-PRINT($TITLE)
-ASYNC_SPAWN(@WORKER_A, $TASK_A)
-ASYNC_SPAWN(@WORKER_B, $TASK_B)
-:MAIN_WAIT
-ASYNC_DONE($TASK_A, $DONE_A)
-ASYNC_DONE($TASK_B, $DONE_B)
-00D6: $DONE_A 1 @CHECK_B
-WAIT(1)
-000A: @MAIN_WAIT
-:CHECK_B
-00D6: $DONE_B 1 @ALL_DONE
-WAIT(1)
-000A: @MAIN_WAIT
-:ALL_DONE
-TYPE_ASSERT($TOTAL, "i32", $TYPE_OK)
-PRINT("TOTAL")
-PRINT($TOTAL)
-PRINT("TYPE_OK")
-PRINT($TYPE_OK)
-0001:
+script MAIN {
+    let $TOTAL: i32 = 0;
+    let $TITLE: str = "SCML hostless async/static demo";
+    print($TITLE);
+    spawn WORKER_A -> $TASK_A;
+    spawn WORKER_B -> $TASK_B;
 
-:WORKER_A
-LET_I32(local_a, 40)
-0006: $TOTAL $TOTAL local_a
-END_THREAD()
+    :MAIN_WAIT
+    async_done($TASK_A, $DONE_A)
+    async_done($TASK_B, $DONE_B)
+    00D6: $DONE_A 1 @CHECK_B
+    wait(1);
+    goto MAIN_WAIT;
 
-:WORKER_B
-LET_I32(local_b, 2)
-0006: $TOTAL $TOTAL local_b
-END_THREAD()
+    :CHECK_B
+    00D6: $DONE_B 1 @ALL_DONE
+    wait(1);
+    goto MAIN_WAIT;
+
+    :ALL_DONE
+    type_assert($TOTAL, "i32", $TYPE_OK)
+    print("TOTAL");
+    print($TOTAL);
+    print("TYPE_OK");
+    print($TYPE_OK);
+}
+
+task WORKER_A {
+    let local_a: i32 = 40;
+    0006: $TOTAL $TOTAL local_a
+}
+
+task WORKER_B {
+    let local_b: i32 = 2;
+    0006: $TOTAL $TOTAL local_b
+}

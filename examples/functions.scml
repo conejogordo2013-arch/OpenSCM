@@ -1,10 +1,11 @@
-#include "complexheader.scmlh"
-:MAIN
-0004: $PLAYER_HEALTH 40
-CALL @FUNC_HEAL_PLAYER
-03E5: $PLAYER_HEALTH
-0001:
+use "complexheader.scmlh";
 
-:FUNC_HEAL_PLAYER
-$PLAYER_HEALTH += 50
-return
+script MAIN {
+    let $PLAYER_HEALTH: i32 = 40;
+    call FUNC_HEAL_PLAYER;
+    print($PLAYER_HEALTH);
+}
+
+fn FUNC_HEAL_PLAYER() {
+    $PLAYER_HEALTH += 50;
+}

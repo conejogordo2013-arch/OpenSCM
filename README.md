@@ -11,7 +11,7 @@ Se añadió una guía didáctica completa para aprender SCML desde cero hasta us
 
 ## Language shape
 
-SCML source deliberately avoids Lua/Python-like syntax:
+SCML keeps its legacy SCM/opcode syntax as the stable core, and now also accepts an opt-in modern C/C#/SCML surface that is lowered by the preprocessor into the same legacy bytecode path. Legacy source remains valid:
 
 ```scml
 :MAIN
@@ -23,6 +23,29 @@ SCML source deliberately avoids Lua/Python-like syntax:
 0001:
 ```
 
+Modern surface syntax can live in the same `.scml` files:
+
+```scml
+use "std.scmlh";
+
+script MAIN {
+    let $count: u32 = 0;
+    while ($count < 3) {
+        $count += 1;
+    }
+
+    if ($count == 3) {
+        print("modern SCML");
+    } else {
+        log("unexpected count");
+    }
+}
+
+fn HELPER() {
+    print("called through legacy CALL");
+}
+```
+
 Supported source concepts include:
 
 - Labels such as `:MAIN`, `:LOOP`, and `:FUNC_HEAL_PLAYER`.
@@ -30,8 +53,12 @@ Supported source concepts include:
 - Jump labels through `000A: @LABEL` or `JUMP @LABEL`.
 - SCM-style calls through `CALL @FUNC` and `return`.
 - Thread/event handler termination through `end_thread`.
-- Header files (`.scmlh`) with `#define`, `#include`, and `macro name(args): ... endmacro`.
+- Header files (`.scmlh`) with `#define`, legacy `#include`, modern `use`, legacy `macro name(args): ... endmacro`, and modern `macro name(args) { ... }`.
 - Optional convenience assignment such as `$PLAYER_HEALTH += 50`, compiled to the existing `ADD` opcode.
+- Modern declarations such as `let $COUNT: u32 = 32;`, `var`, and `const`, lowered to `TYPE_DECL` + `SET`.
+- Modern blocks: `script`, `fn`/`function`, `task`, `if/else`, `while`, `goto`, `call`, `spawn`, `return`, `halt`, and `yield`.
+- Modern calls such as `print(value);`, `log(value);`, `wait(ms);`, and native module calls like `runtime.get_ticks() -> $TICKS;`.
+- Modern package imports through `use "std.scmlh";`, `use <mathkit.scmlh>;`, or namespace-style `use vendor.mathkit;`.
 
 ## Architecture
 
@@ -62,6 +89,38 @@ Supported source concepts include:
 make
 ```
 
+## Project-scale workflow
+
+SCML now supports manifest-driven projects for large codebases. A `scml.pkg` file can list many source files, package include roots, an output artifact, and a documented `jobs` setting for build orchestration metadata:
+
+```ini
+name = "enterprise-demo"
+source = "src/main.scml"
+package = "packages/mathkit"
+output = "build/enterprise-demo.scmlbin"
+jobs = 4
+```
+
+Useful tooling commands:
+
+```sh
+bin/scml init my_app my_app
+bin/scml build my_app/scml.pkg
+bin/scml check my_app/scml.pkg
+bin/scml fmt my_app/src/main.scml
+```
+
+Project packages are added to `SCML_PATH`, so headers can be included ergonomically with `#include <package_header.scmlh>` or modern `use <package_header.scmlh>;`. The standard library also exposes richer type-contract aliases (`bool`, `u32`, `i64`, `f64`, `ref`, `array<T>`, `vec<T>`, `option<T>`, `result<T>`) on top of the current VM value families, host-backed OS-thread helpers (`THREAD_CREATE_SLEEP`, `THREAD_DONE`, `THREAD_JOIN`, `THREAD_YIELD`) for real native concurrency around runtime jobs, and raised VM capacity defaults for much larger scripts, event queues, async tasks, globals, stack frames, native modules, and heap objects.
+
+The migration is intentionally incremental: `std.scmlh` now uses modern brace-style macro declarations in the migrated std/example headers and includes lower-case modern aliases such as `set`, `add`, `array_new`, `array_get`, `array_set`, `vector_new`, `vector_push`, `vector_pop`, `type_assert`, `async_spawn`, and `thread_join`, while the uppercase legacy macros continue to work. The starter examples (`helloworld`, `variables`, `functions`, `complexlogic`, `std_usage`, `dynamic_arrays`, `hostless_async_static`, and the enterprise project) now demonstrate mixed modern + legacy SCML style.
+
+Try the package/project example:
+
+```sh
+bin/scml build examples/enterprise_project/scml.pkg
+bin/scml run examples/enterprise_project/build/enterprise-demo.scmlbin
+```
+
 ## Compile and run
 
 ```sh
@@ -81,6 +140,13 @@ Compile several scripts into one global bytecode image:
 ```sh
 bin/scml compile examples/modular_main.scml examples/modular_functions.scml examples/modular.scmlbin
 bin/scml run examples/modular.scmlbin
+```
+
+Compile and run the mixed modern/legacy syntax demo:
+
+```sh
+bin/scml compile examples/modern_surface.scml examples/modern_surface.scmlbin
+bin/scml run examples/modern_surface.scmlbin
 ```
 
 Compile and run the hostless async/static-typing demo:

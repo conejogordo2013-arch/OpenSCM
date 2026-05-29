@@ -1,11 +1,11 @@
 #pragma once
-#include "../../../../std.scmlh"
+use "../../../../std.scmlh";
 
 #define SCENARIO_NAME "STD+RTTI+PTR"
 #define BASE_HP 120
 #define HEAL_STEP 15
 
-macro PRINT_TAG(tag, value):
+macro PRINT_TAG(tag, value) {
     03E5: tag
     03E5: value
-endmacro
+}

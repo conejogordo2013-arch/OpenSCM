@@ -1,3 +1,3 @@
-:MAIN
-03E5: "Hello from SCML"
-0001:
+script MAIN {
+    print("Hello from SCML");
+}

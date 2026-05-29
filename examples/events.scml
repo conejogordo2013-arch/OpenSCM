@@ -1,4 +1,4 @@
-#include "../stscm/stscm.scml"
+use "../stscm/stscm.scml";
 :MAIN
 EVENT_BIND("PLAYER_DAMAGE", @ON_PLAYER_DAMAGE)
 EVENT_BIND("PLAYER_DAMAGE", @ON_PLAYER_DAMAGE_LOG)

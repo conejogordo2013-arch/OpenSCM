@@ -1,5 +1,5 @@
 #pragma once
-#include "../std.scmlh"
+use "../std.scmlh";
 
 #define MEGA_NS_ROOT "OpenSCM::Mega"
 #define MEGA_STD_READY 1
@@ -7,18 +7,18 @@
 #define MEGA_ASCII_H 36
 #define MEGA_ASCII_SIZE 4320
 
-macro MEGA_BOOTSTRAP(tag):
+macro MEGA_BOOTSTRAP(tag) {
 PRINT("MEGA_BOOTSTRAP")
 PRINT(tag)
 PRINT(MEGA_NS_ROOT)
-endmacro
+}
 
-macro MEGA_ASCII_ALLOC(buffer, zbuf):
+macro MEGA_ASCII_ALLOC(buffer, zbuf) {
 0B14: MEGA_ASCII_SIZE buffer
 0B14: MEGA_ASCII_SIZE zbuf
-endmacro
+}
 
-macro MEGA_ASCII_FREE(buffer, zbuf):
+macro MEGA_ASCII_FREE(buffer, zbuf) {
 0B11: buffer
 0B11: zbuf
-endmacro
+}

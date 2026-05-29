@@ -18,52 +18,52 @@
 #define EVT_KILL 104
 #define EVT_STOP 105
 
-macro LOG(msg):
+macro LOG(msg) {
     03E5: msg
-endmacro
+}
 
-macro SETI(dst,val):
+macro SETI(dst,val) {
     0004: dst val
-endmacro
+}
 
-macro ADDI(dst,a,b):
+macro ADDI(dst,a,b) {
     0006: dst a b
-endmacro
+}
 
-macro SUBI(dst,a,b):
+macro SUBI(dst,a,b) {
     0007: dst a b
-endmacro
+}
 
-macro MULI(dst,a,b):
+macro MULI(dst,a,b) {
     0008: dst a b
-endmacro
+}
 
-macro DIVI(dst,a,b):
+macro DIVI(dst,a,b) {
     0009: dst a b
-endmacro
+}
 
-macro WAIT0():
+macro WAIT0() {
     000B: 0
-endmacro
+}
 
-macro RET():
+macro RET() {
     0D01:
-endmacro
+}
 
-macro ENDT():
+macro ENDT() {
     0D02:
-endmacro
+}
 
-macro ARR_SET(arr,idx,val):
+macro ARR_SET(arr,idx,val) {
     0B13: arr idx val
-endmacro
+}
 
-macro ARR_GET(out,arr,idx):
+macro ARR_GET(out,arr,idx) {
     0B12: out arr idx
-endmacro
+}
 
-macro PUSH_EVT(code):
+macro PUSH_EVT(code) {
     ADDI($EVT_COUNT,$EVT_COUNT,1)
     SUBI(90@,$EVT_COUNT,1)
     ARR_SET($ARR_EVT,90@,code)
-endmacro
+}

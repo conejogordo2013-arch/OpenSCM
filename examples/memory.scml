@@ -1,4 +1,4 @@
-#include "memory.scmlh"
+use "memory.scmlh";
 :MAIN
 make_buffer(4, ptr)
 poke(ptr, 0, 77)

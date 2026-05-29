@@ -1,33 +1,30 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
-:MAIN
-PRINT("std.scmlh demo")
-SET($counter, 0)
-ARRAY_NEW(3, $values)
-ARRAY_SET($values, 0, 7)
-ARRAY_SET($values, 1, 11)
-ARRAY_SET($values, 2, 13)
-gosub @SUM_VALUES
-IF_ELSE_GT($total, 20, @BIG_TOTAL, @SMALL_TOTAL)
+script MAIN {
+    print("std.scmlh demo");
+    let $counter: i32 = 0;
+    array_new($values, 3);
+    array_set($values, 0, 7);
+    array_set($values, 1, 11);
+    array_set($values, 2, 13);
+    call SUM_VALUES;
 
-:BIG_TOTAL
-PRINT("total is big")
-goto @DONE
+    if ($total > 20) {
+        print("total is big");
+    } else {
+        print("total is small");
+    }
 
-:SMALL_TOTAL
-PRINT("total is small")
+    print($total);
+}
 
-:DONE
-PRINT($total)
-END_SCRIPT()
+fn SUM_VALUES() {
+    let $i: i32 = 0;
+    let $total: i32 = 0;
 
-:SUM_VALUES
-SET($i, 0)
-SET($total, 0)
-
-:SUM_LOOP
-ARRAY_GET($item, $values, $i)
-ADD($total, $total, $item)
-ADD($i, $i, 1)
-IF_LT($i, 3, @SUM_LOOP)
-RETURN()
+    while ($i < 3) {
+        array_get($item, $values, $i);
+        add($total, $total, $item);
+        $i += 1;
+    }
+}

@@ -1,11 +1,11 @@
 ; Aggregate GTA SA integration header.
 ; Include this from gameplay scripts; keep main_compat.scmlh only for legacy main.txt ingestion.
 
-#include "gtasa_core.scmlh"
-#include "gtasa_text.scmlh"
-#include "gtasa_streaming.scmlh"
-#include "gtasa_player.scmlh"
-#include "gtasa_actor.scmlh"
-#include "gtasa_vehicle.scmlh"
-#include "gtasa_camera.scmlh"
-#include "gtasa_memory.scmlh"
+use "gtasa_core.scmlh";
+use "gtasa_text.scmlh";
+use "gtasa_streaming.scmlh";
+use "gtasa_player.scmlh";
+use "gtasa_actor.scmlh";
+use "gtasa_vehicle.scmlh";
+use "gtasa_camera.scmlh";
+use "gtasa_memory.scmlh";

@@ -1,65 +1,65 @@
 ; STSCM - standard library wrappers built as macros over core SCML opcodes.
 ; The library keeps high-level names outside the VM core: every helper expands to an existing opcode.
-macro PRINT(msg):
+macro PRINT(msg) {
     03E5: msg
-endmacro
-macro LOG(msg):
+}
+macro LOG(msg) {
     03E6: msg
-endmacro
-macro LOG_FILE(path, data):
+}
+macro LOG_FILE(path, data) {
     0A20: path data
-endmacro
-macro FILE_WRITE(path, data):
+}
+macro FILE_WRITE(path, data) {
     0A20: path data
-endmacro
-macro FILE_APPEND(path, data):
+}
+macro FILE_APPEND(path, data) {
     0A20: path data
-endmacro
-macro FILE_READ(path, outvar):
+}
+macro FILE_READ(path, outvar) {
     0A10: path outvar
-endmacro
-macro WAIT(ms):
+}
+macro WAIT(ms) {
     000B: ms
-endmacro
-macro TIMER_SLEEP(ms):
+}
+macro TIMER_SLEEP(ms) {
     000B: ms
-endmacro
-macro ENTITY_SPAWN(model, x, y, z, outvar):
+}
+macro ENTITY_SPAWN(model, x, y, z, outvar) {
     0B00: model x y z outvar
-endmacro
-macro ENTITY_SET(entity, field, value):
+}
+macro ENTITY_SET(entity, field, value) {
     0B01: entity field value
-endmacro
-macro EVENT_BIND(name, label):
+}
+macro EVENT_BIND(name, label) {
     0A30: name label
-endmacro
-macro EVENT_TRIGGER(name):
+}
+macro EVENT_TRIGGER(name) {
     0A31: name
-endmacro
-macro ALLOC(size, outvar):
+}
+macro ALLOC(size, outvar) {
     0B10: size outvar
-endmacro
-macro FREE(ref):
+}
+macro FREE(ref) {
     0B11: ref
-endmacro
-macro READ(outvar, ref, index):
+}
+macro READ(outvar, ref, index) {
     0B12: outvar ref index
-endmacro
-macro WRITE(ref, index, value):
+}
+macro WRITE(ref, index, value) {
     0B13: ref index value
-endmacro
-macro ARRAY_CREATE(size, outvar):
+}
+macro ARRAY_CREATE(size, outvar) {
     0B14: size outvar
-endmacro
-macro MATH_ADD(outvar, a, b):
+}
+macro MATH_ADD(outvar, a, b) {
     0006: outvar a b
-endmacro
-macro MATH_SUB(outvar, a, b):
+}
+macro MATH_SUB(outvar, a, b) {
     0007: outvar a b
-endmacro
-macro MATH_MUL(outvar, a, b):
+}
+macro MATH_MUL(outvar, a, b) {
     0008: outvar a b
-endmacro
-macro MATH_DIV(outvar, a, b):
+}
+macro MATH_DIV(outvar, a, b) {
     0009: outvar a b
-endmacro
+}

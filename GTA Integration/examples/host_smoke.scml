@@ -1,4 +1,4 @@
-#include "../scmlh/gtasa.scmlh"
+use "../scmlh/gtasa.scmlh";
 
 :MAIN
 PRINT_NOW("SCML GTA host smoke test", 1000)

@@ -1,4 +1,4 @@
-#include "mega_everything_advanced.scmlh"
+use "mega_everything_advanced.scmlh";
 
 :MAIN
 MEGA_BOOTSTRAP("MEGA")

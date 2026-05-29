@@ -2,8 +2,8 @@ CC ?= cc
 CXX ?= c++
 CFLAGS ?= -std=c99 -O2 -Wall -Wextra -pedantic
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
-LDLIBS ?= -lm
-CORE_SRC = vm/vm.c compiler/compiler.c parser/parser.c lexer/lexer.c opcode/opcode.c runtime/scml_runtime_modules.c
+LDLIBS ?= -lm -pthread
+CORE_SRC = vm/vm.c compiler/compiler.c compiler/project.c parser/parser.c lexer/lexer.c opcode/opcode.c runtime/scml_runtime_modules.c
 DEBUGGER_SRC = debugger/debugger.c
 CLI_SRC = main.c $(CORE_SRC)
 CLI_OBJ = $(CLI_SRC:.c=.o)
@@ -36,7 +36,7 @@ editor-example: bin/scml_editor examples/gameplay.scml
 clean:
 	rm -f $(CLI_OBJ) $(DEBUGGER_OBJ) bin/scml bin/scml_gameplay_example bin/scml_editor examples/*.scmlbin log.txt
 
-.PHONY: all clean cpp-example editor-example core test doctor tooling
+.PHONY: all clean cpp-example editor-example core test doctor tooling migration-audit verify-examples
 
 core: bin/scml
 
@@ -50,3 +50,9 @@ test: bin/scml
 
 doctor: bin/scml
 	bash tools/scml_doctor.sh
+
+migration-audit:
+	bash tools/scml_migration_audit.sh
+
+verify-examples:
+	bash tools/scml_verify_examples.sh
