@@ -5,7 +5,7 @@
 
 #define SCML_MAX_OPCODE 200
 #define SCML_MAGIC 0x4C4D4353u /* SCML */
-#define SCML_VERSION 4u
+#define SCML_VERSION 5u
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,7 +61,19 @@ typedef enum ScmlOpcode {
     SCML_OP_STRLEN = 0x2E,
     SCML_OP_SUBSTR = 0x2F,
     SCML_OP_ARRAY_LEN = 0x30,
-    SCML_OP_CALL_NATIVE = 0x31
+    SCML_OP_CALL_NATIVE = 0x31,
+    SCML_OP_PRINT_RAW = 0x32,
+    SCML_OP_CONSOLE_CLEAR = 0x33,
+    SCML_OP_SIN = 0x34,
+    SCML_OP_COS = 0x35,
+    SCML_OP_TAN = 0x36,
+    SCML_OP_SQRT = 0x37,
+    SCML_OP_ATAN2 = 0x38,
+    SCML_OP_FLOOR = 0x39,
+    SCML_OP_CEIL = 0x3A,
+    SCML_OP_ROUND = 0x3B,
+    SCML_OP_ABS = 0x3C,
+    SCML_OP_STR_REPEAT = 0x3D
 } ScmlOpcode;
 
 typedef enum ScmlOperandType {

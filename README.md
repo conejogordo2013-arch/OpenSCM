@@ -186,6 +186,37 @@ bin/scml compile examples/mega_input_advanced.scml examples/mega_input_advanced.
 printf '33\n' | bin/scml run examples/mega_input_advanced.scmlbin
 ```
 
+## Terminal rendering and complex math/string helpers
+
+SCML can now drive terminal animation directly from scripts with raw printing, ANSI clearing, trigonometric/math opcodes, string concatenation, and string repetition. The examples below intentionally avoid `#include`, std macros, and native generated-frame helpers so they demonstrate the language/VM surface itself:
+
+```scml
+:MAIN
+0B33:
+0004: $TICK 0
+:FRAME
+0B32: "\033[H"
+; ...SCML loop math decides what each terminal cell prints...
+0006: $TICK $TICK 1
+000B: 16
+000A: @FRAME
+```
+
+Useful raw opcodes include `PRINT_RAW` (`0B32`), `CONSOLE_CLEAR` (`0B33`), `SIN` (`0B34`), `COS` (`0B35`), `TAN` (`0B36`), `SQRT` (`0B37`), `ATAN2` (`0B38`), `FLOOR` (`0B39`), `CEIL` (`0B3A`), `ROUND` (`0B3B`), `ABS` (`0B3C`), and `STR_REPEAT` (`0B3D`).
+
+Pure SCML demos:
+
+```sh
+bin/scml compile examples/loading_spinner.scml examples/loading_spinner.scmlbin
+bin/scml run examples/loading_spinner.scmlbin
+
+bin/scml compile examples/terminal_render_math.scml examples/terminal_render_math.scmlbin
+bin/scml run examples/terminal_render_math.scmlbin
+
+bin/scml compile examples/rotating_ascii_cubes.scml examples/rotating_ascii_cubes.scmlbin
+bin/scml run examples/rotating_ascii_cubes.scmlbin
+```
+
 
 ## Native module boundary (portable VM core)
 
