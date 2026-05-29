@@ -937,6 +937,12 @@ endmacro
 macro SLEEP_MS(ms):
     CALL_NATIVE("runtime.wait", ms)
 endmacro
+macro CONSOLE_WRITE(text):
+    CALL_NATIVE("console.write", text)
+endmacro
+macro CONSOLE_FLUSH():
+    CALL_NATIVE("console.flush", 0)
+endmacro
 macro NET_OPEN_SOCKET(addr):
     CALL_NATIVE("net.open_socket", addr)
 endmacro

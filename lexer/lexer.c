@@ -54,7 +54,24 @@ int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, 
                 if (line[i] == '\\' && line[i + 1]) {
                     i++;
                     char c = line[i];
-                    if (c == 'n') c = '\n'; else if (c == 't') c = '\t';
+                    if (c == 'n') c = '\n';
+                    else if (c == 't') c = '\t';
+                    else if (c == 'r') c = '\r';
+                    else if (c == 'e') c = '\033';
+                    else if (c == 'x' && isxdigit((unsigned char)line[i + 1]) && isxdigit((unsigned char)line[i + 2])) {
+                        char hex[3] = { line[i + 1], line[i + 2], '\0' };
+                        c = (char)strtol(hex, NULL, 16);
+                        i += 2;
+                    } else if (c >= '0' && c <= '7') {
+                        int value = c - '0';
+                        int digits = 1;
+                        while (digits < 3 && line[i + 1] >= '0' && line[i + 1] <= '7') {
+                            value = value * 8 + (line[i + 1] - '0');
+                            i++;
+                            digits++;
+                        }
+                        c = (char)value;
+                    }
                     buf[bi++] = c;
                 } else {
                     buf[bi++] = line[i];

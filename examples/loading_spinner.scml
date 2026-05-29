@@ -1,0 +1,80 @@
+#include "../std.scmlh"
+
+; Port SCML del cargador C++ proporcionado: 21x11, centro (10,5), radio 4, 12 puntos.
+; El ángulo se integra a 60 FPS con paso fijo equivalente a speed=5.0f y frameTime=16ms.
+:MAIN
+0004: $ANGLE2_FIXED 0
+0004: $HEAD 0
+
+:LOOP
+0009: $HEAD $ANGLE2_FIXED 100
+0B20: $HEAD $HEAD 12
+00D6: $HEAD 0 @FRAME_0
+00D6: $HEAD 1 @FRAME_1
+00D6: $HEAD 2 @FRAME_2
+00D6: $HEAD 3 @FRAME_3
+00D6: $HEAD 4 @FRAME_4
+00D6: $HEAD 5 @FRAME_5
+00D6: $HEAD 6 @FRAME_6
+00D6: $HEAD 7 @FRAME_7
+00D6: $HEAD 8 @FRAME_8
+00D6: $HEAD 9 @FRAME_9
+00D6: $HEAD 10 @FRAME_10
+00D6: $HEAD 11 @FRAME_11
+000A: @FRAME_0
+
+:FRAME_0
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n          .          \n        .   .        \n             .       \n                     \n              .      \n                     \n                     \n                     \n                     \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_1
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n          .          \n            .        \n             .       \n                     \n              .      \n             .       \n                     \n                     \n                     \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_2
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n                     \n            .        \n             .       \n                     \n              .      \n             .       \n                     \n            .        \n                     \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_3
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n                     \n                     \n             .       \n                     \n              .      \n             .       \n                     \n            .        \n          .          \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_4
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n                     \n                     \n                     \n                     \n              .      \n             .       \n                     \n         .  .        \n          .          \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_5
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n                     \n                     \n                     \n                     \n                     \n       .     .       \n                     \n         .  .        \n          .          \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_6
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n                     \n                     \n                     \n                     \n      .              \n       .             \n                     \n         .  .        \n          .          \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_7
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n                     \n                     \n                     \n       .             \n      .              \n       .             \n                     \n         .           \n          .          \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_8
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n                     \n        .            \n                     \n       .             \n      .              \n       .             \n                     \n         .           \n                     \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_9
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n          .          \n        .            \n                     \n       .             \n      .              \n       .             \n                     \n                     \n                     \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_10
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n          .          \n        .   .        \n                     \n       .             \n      .              \n                     \n                     \n                     \n                     \n                     \n"
+000A: @AFTER_DRAW
+
+:FRAME_11
+0B31: "console.write" "\033[2J\033[HCargando...\n\n                     \n          .          \n        .   .        \n             .       \n       .             \n                     \n                     \n                     \n                     \n                     \n                     \n"
+000A: @AFTER_DRAW
+
+:AFTER_DRAW
+000B: 16
+; angle += speed * 0.016; head = int(angle * 2) % 12 => angle2_fixed += 16
+0006: $ANGLE2_FIXED $ANGLE2_FIXED 16
+00D9: $ANGLE2_FIXED 1200 @LOOP
+0004: $ANGLE2_FIXED 0
+000A: @LOOP
