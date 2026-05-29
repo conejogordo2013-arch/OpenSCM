@@ -571,15 +571,25 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     case SCML_OP_ADD: case SCML_OP_SUB: case SCML_OP_MUL: case SCML_OP_DIV: case SCML_OP_MOD: {
         ScmlValue a = eval(vm, &ops[1]);
         ScmlValue b = eval(vm, &ops[2]);
-        int x = value_to_int(&a), y = value_to_int(&b), r = 0;
-        if (op == SCML_OP_ADD) r = x + y;
-        else if (op == SCML_OP_SUB) r = x - y;
-        else if (op == SCML_OP_MUL) r = x * y;
-        else if (op == SCML_OP_DIV) { if (y == 0) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "division by zero"); free_decoded(ops, argc); return -1; } r = x / y; }
-        else { if (y == 0) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "mod by zero"); free_decoded(ops, argc); return -1; } r = x % y; }
+        int use_float = (a.type == SCML_VAL_FLOAT || b.type == SCML_VAL_FLOAT) && op != SCML_OP_MOD;
+        if (use_float) {
+            float x = value_to_float(&a), y = value_to_float(&b), r = 0.0f;
+            if (op == SCML_OP_ADD) r = x + y;
+            else if (op == SCML_OP_SUB) r = x - y;
+            else if (op == SCML_OP_MUL) r = x * y;
+            else if (op == SCML_OP_DIV) { if (y == 0.0f) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "division by zero"); free_decoded(ops, argc); return -1; } r = x / y; }
+            set_var(vm, ops[0].s, value_float(r));
+        } else {
+            int x = value_to_int(&a), y = value_to_int(&b), r = 0;
+            if (op == SCML_OP_ADD) r = x + y;
+            else if (op == SCML_OP_SUB) r = x - y;
+            else if (op == SCML_OP_MUL) r = x * y;
+            else if (op == SCML_OP_DIV) { if (y == 0) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "division by zero"); free_decoded(ops, argc); return -1; } r = x / y; }
+            else { if (y == 0) { value_free(&a); value_free(&b); error_at(vm, ins_pc, err, err_size, "mod by zero"); free_decoded(ops, argc); return -1; } r = x % y; }
+            set_var(vm, ops[0].s, value_int(r));
+        }
         value_free(&a);
         value_free(&b);
-        set_var(vm, ops[0].s, value_int(r));
         break;
     }
     case SCML_OP_JMP:
@@ -600,11 +610,56 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         if (take) vm->pc = (size_t)ops[2].i;
         break;
     }
-    case SCML_OP_PRINT: case SCML_OP_LOG: {
+    case SCML_OP_PRINT: case SCML_OP_LOG: case SCML_OP_PRINT_RAW: {
         ScmlValue v = eval(vm, &ops[0]);
-        char b[64];
-        printf("%s\n", value_to_cstr(&v, b, sizeof(b)));
+        char b[256];
+        fputs(value_to_cstr(&v, b, sizeof(b)), stdout);
+        if (op != SCML_OP_PRINT_RAW) fputc('\n', stdout);
+        fflush(stdout);
         value_free(&v);
+        break;
+    }
+    case SCML_OP_CONSOLE_CLEAR:
+        fputs("\033[2J\033[H", stdout);
+        fflush(stdout);
+        break;
+    case SCML_OP_SIN: case SCML_OP_COS: case SCML_OP_TAN: case SCML_OP_SQRT:
+    case SCML_OP_FLOOR: case SCML_OP_CEIL: case SCML_OP_ROUND: case SCML_OP_ABS: {
+        ScmlValue v = eval(vm, &ops[1]);
+        float x = value_to_float(&v), r = 0.0f;
+        if (op == SCML_OP_SIN) r = sinf(x);
+        else if (op == SCML_OP_COS) r = cosf(x);
+        else if (op == SCML_OP_TAN) r = tanf(x);
+        else if (op == SCML_OP_SQRT) { if (x < 0.0f) { value_free(&v); error_at(vm, ins_pc, err, err_size, "sqrt domain error"); free_decoded(ops, argc); return -1; } r = sqrtf(x); }
+        else if (op == SCML_OP_FLOOR) r = floorf(x);
+        else if (op == SCML_OP_CEIL) r = ceilf(x);
+        else if (op == SCML_OP_ROUND) r = roundf(x);
+        else r = fabsf(x);
+        set_var(vm, ops[0].s, value_float(r));
+        value_free(&v);
+        break;
+    }
+    case SCML_OP_ATAN2: {
+        ScmlValue yv = eval(vm, &ops[1]), xv = eval(vm, &ops[2]);
+        set_var(vm, ops[0].s, value_float(atan2f(value_to_float(&yv), value_to_float(&xv))));
+        value_free(&yv); value_free(&xv);
+        break;
+    }
+    case SCML_OP_STR_REPEAT: {
+        ScmlValue sv = eval(vm, &ops[1]), cv = eval(vm, &ops[2]);
+        char sb[256];
+        const char *str = value_to_cstr(&sv, sb, sizeof(sb));
+        int count = value_to_int(&cv);
+        if (count < 0) count = 0;
+        size_t unit = strlen(str), total = unit * (size_t)count;
+        char *tmp = (char *)malloc(total + 1);
+        if (!tmp) { value_free(&sv); value_free(&cv); error_at(vm, ins_pc, err, err_size, "out of memory"); free_decoded(ops, argc); return -1; }
+        char *w = tmp;
+        for (int i = 0; i < count; i++) { memcpy(w, str, unit); w += unit; }
+        tmp[total] = '\0';
+        set_var(vm, ops[0].s, value_str(tmp));
+        free(tmp);
+        value_free(&sv); value_free(&cv);
         break;
     }
     case SCML_OP_WAIT: {

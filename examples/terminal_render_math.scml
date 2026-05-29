@@ -1,0 +1,16 @@
+; Pure SCML string/math demo: no #include and no std macros.
+
+:MAIN
+0B32: "Pure SCML math/string demo\n"
+0B34: $S 1.5707963
+0B35: $C 0.0
+0B37: $R 81.0
+0B22: $LINE "sin(pi/2)=" $S
+0B22: $LINE $LINE " cos(0)="
+0B22: $LINE $LINE $C
+0B22: $LINE $LINE " sqrt(81)="
+0B22: $LINE $LINE $R
+03E5: $LINE
+0B3D: $BAR "=" 32
+03E5: $BAR
+0001:

@@ -195,6 +195,7 @@ static const char *arg_to_cstr(const ScmlValue *v, char *buf, size_t n) {
     return buf;
 }
 
+
 static int rt_file_read_txt(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)user_data;
     if (arg_count < 1) return 0;
@@ -646,6 +647,22 @@ static int rt_console_flush(ScmlVM *vm, const ScmlValue *args, size_t arg_count,
     return 1;
 }
 
+static int rt_console_clear(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+    fputs("\033[2J\033[H", stdout);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
+static int rt_console_home(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+    fputs("\033[H", stdout);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
 static int rt_capability_info(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)args; (void)arg_count; (void)user_data;
     char buf[512];
@@ -741,7 +758,8 @@ static const ScmlRuntimeFunctionEntry k_window[] = {
     {"backend_info", rt_capability_info}
 };
 static const ScmlRuntimeFunctionEntry k_console[] = {
-    {"write", rt_console_write}, {"flush", rt_console_flush}
+    {"write", rt_console_write}, {"flush", rt_console_flush}, {"clear", rt_console_clear},
+    {"home", rt_console_home}
 };
 static const ScmlRuntimeFunctionEntry k_runtime[] = {
     {"wait", rt_runtime_sleep_ms}, {"get_time_ms", rt_runtime_get_time_ms}, {"get_time_us", rt_runtime_get_time_us}, {"get_ticks", rt_runtime_get_ticks}

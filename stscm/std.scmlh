@@ -1424,3 +1424,64 @@ endmacro
 macro MODULE_UNLOAD_SAFE(ref):
     HEAP_FREE(ref)
 endmacro
+
+; ===== Terminal rendering + complex string/math helpers =====
+macro PRINT_RAW(v):
+    0B32: v
+endmacro
+
+macro CONSOLE_CLEAR():
+    0B33:
+endmacro
+
+macro CONSOLE_WRITE(v):
+    0B31: "console.write" v
+endmacro
+
+macro CONSOLE_FLUSH():
+    0B31: "console.flush"
+endmacro
+
+macro CONSOLE_HOME():
+    0B31: "console.home"
+endmacro
+
+macro SIN(outvar, radians):
+    0B34: outvar radians
+endmacro
+
+macro COS(outvar, radians):
+    0B35: outvar radians
+endmacro
+
+macro TAN(outvar, radians):
+    0B36: outvar radians
+endmacro
+
+macro SQRT(outvar, value):
+    0B37: outvar value
+endmacro
+
+macro ATAN2(outvar, y, x):
+    0B38: outvar y x
+endmacro
+
+macro FLOOR(outvar, value):
+    0B39: outvar value
+endmacro
+
+macro CEIL(outvar, value):
+    0B3A: outvar value
+endmacro
+
+macro ROUND(outvar, value):
+    0B3B: outvar value
+endmacro
+
+macro ABS(outvar, value):
+    0B3C: outvar value
+endmacro
+
+macro STR_REPEAT(outvar, text, count):
+    0B3D: outvar text count
+endmacro
