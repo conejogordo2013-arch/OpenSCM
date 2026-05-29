@@ -1,5 +1,5 @@
-#include "../std.scmlh"
-#include "../scmlspec/fixtures/scml_iso_advanced_preprocessed.scmlh"
+use "../std.scmlh";
+use "../scmlspec/fixtures/scml_iso_advanced_preprocessed.scmlh";
 
 :MAIN
 scml_emit_ultra_iso("ULTRA")

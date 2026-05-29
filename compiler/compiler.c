@@ -39,9 +39,23 @@ static const char *operand_static_type(const ScmlOperand *o, TypeBinding *types,
     return "any";
 }
 
+static const char *canonical_type(const char *type) {
+    if (!type || !*type) return "any";
+    if (strcmp(type, "int") == 0 || strcmp(type, "integer") == 0 || strcmp(type, "bool") == 0 ||
+        strcmp(type, "i8") == 0 || strcmp(type, "i16") == 0 || strcmp(type, "i32") == 0 || strcmp(type, "i64") == 0 ||
+        strcmp(type, "u8") == 0 || strcmp(type, "u16") == 0 || strcmp(type, "u32") == 0 || strcmp(type, "u64") == 0 ||
+        strcmp(type, "ref") == 0 || strcmp(type, "usize") == 0 || strcmp(type, "isize") == 0) return "i32";
+    if (strcmp(type, "float") == 0 || strcmp(type, "f32") == 0 || strcmp(type, "f64") == 0 || strcmp(type, "number") == 0) return "f32";
+    if (strcmp(type, "str") == 0 || strcmp(type, "string") == 0 || strcmp(type, "text") == 0) return "str";
+    if (strncmp(type, "array<", 6) == 0 || strncmp(type, "vec<", 4) == 0 || strncmp(type, "option<", 7) == 0 || strncmp(type, "result<", 7) == 0) return "i32";
+    return type;
+}
+
 static int type_compatible(const char *expected, const char *actual) {
+    expected = canonical_type(expected);
+    actual = canonical_type(actual);
     if (!expected || !actual) return 1;
-    if (strcmp(expected, "any") == 0 || strcmp(actual, "any") == 0) return 1;
+    if (strcmp(expected, "any") == 0 || strcmp(actual, "any") == 0 || strcmp(expected, "unknown") == 0 || strcmp(actual, "unknown") == 0) return 1;
     if (strcmp(expected, actual) == 0) return 1;
     if (strcmp(expected, "f32") == 0 && strcmp(actual, "i32") == 0) return 1;
     return 0;
@@ -94,9 +108,13 @@ static int validate_static_types(const ProgramSet *set, char *err, size_t err_si
                 const char *dst = operand_static_type(&stmt->operands[0], types, type_count);
                 const char *a = operand_static_type(&stmt->operands[1], types, type_count);
                 const char *b = operand_static_type(&stmt->operands[2], types, type_count);
-                const char *result = (strcmp(a, "f32") == 0 || strcmp(b, "f32") == 0) && stmt->opcode != SCML_OP_MOD ? "f32" : "i32";
-                if ((!type_compatible("f32", a) && !type_compatible("i32", a)) || (!type_compatible("f32", b) && !type_compatible("i32", b)) || !type_compatible(dst, result)) {
-                    snprintf(err, err_size, "line %d: static numeric type mismatch", stmt->line); ok = 0;
+                int arithmetic = (stmt->operands[1].type != SCML_OPERAND_STRING && stmt->operands[2].type != SCML_OPERAND_STRING) ||
+                    !type_compatible(dst, "unknown") || !type_compatible(a, "unknown") || !type_compatible(b, "unknown");
+                if (arithmetic) {
+                    const char *result = (strcmp(a, "f32") == 0 || strcmp(b, "f32") == 0) && stmt->opcode != SCML_OP_MOD ? "f32" : "i32";
+                    if ((!type_compatible("f32", a) && !type_compatible("i32", a)) || (!type_compatible("f32", b) && !type_compatible("i32", b)) || !type_compatible(dst, result)) {
+                        snprintf(err, err_size, "line %d: static numeric type mismatch", stmt->line); ok = 0;
+                    }
                 }
             }
         }

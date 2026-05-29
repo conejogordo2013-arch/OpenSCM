@@ -1,8 +1,8 @@
 ; std.scmlh - modern SCML standard helpers compatible with current VM opcodes.
 ; Keep this file constrained to opcodes registered in opcode/opcode.c.
 
-#include "stscm.scml"
-#include "scm_flow.scmlh"
+use "stscm.scml";
+use "scm_flow.scmlh";
 
 #define TRUE 1
 #define FALSE 0
@@ -19,205 +19,238 @@
 #define SCML_ERR_UNSUPPORTED 8
 #define SCML_ERR_ABORTED 9
 
-macro NOP():
+macro NOP() {
     0000:
-endmacro
+}
 
-macro HALT():
+macro HALT() {
     0001:
-endmacro
+}
 
-macro SET(var, value):
+macro SET(var, value) {
     0004: var value
-endmacro
+}
 
-macro STORE(var, value):
+macro STORE(var, value) {
     0004: var value
-endmacro
+}
 
-macro LOAD(value):
+macro LOAD(value) {
     0005: value
-endmacro
+}
 
-macro ADD(outvar, a, b):
+macro PUSH_INT(value) {
+    0002: value
+}
+
+macro PUSH_STR(value) {
+    0003: value
+}
+
+macro ADD(outvar, a, b) {
     0006: outvar a b
-endmacro
+}
 
-macro SUB(outvar, a, b):
+macro SUB(outvar, a, b) {
     0007: outvar a b
-endmacro
+}
 
-macro MUL(outvar, a, b):
+macro MUL(outvar, a, b) {
     0008: outvar a b
-endmacro
+}
 
-macro DIV(outvar, a, b):
+macro DIV(outvar, a, b) {
     0009: outvar a b
-endmacro
+}
 
-macro JUMP(label):
+macro JUMP(label) {
     000A: label
-endmacro
+}
 
-macro WAIT(ms):
+macro WAIT(ms) {
     000B: ms
-endmacro
+}
 
-macro IF_EQ(a, b, label):
+macro IF_EQ(a, b, label) {
     00D6: a b label
-endmacro
+}
 
-macro IF_NE(a, b, label):
+macro IF_NE(a, b, label) {
     00D7: a b label
-endmacro
+}
 
-macro IF_GT(a, b, label):
+macro IF_GT(a, b, label) {
     00D8: a b label
-endmacro
+}
 
-macro IF_LT(a, b, label):
+macro IF_LT(a, b, label) {
     00D9: a b label
-endmacro
+}
 
-macro CALL(label):
+macro CALL(label) {
     0D00: label
-endmacro
+}
 
-macro RETURN():
+macro RETURN() {
     0D01:
-endmacro
+}
 
-macro END_THREAD():
+macro END_THREAD() {
     0D02:
-endmacro
+}
 
-macro PRINT(v):
+macro PRINT(v) {
     03E5: v
-endmacro
+}
 
-macro LOG(v):
+macro LOG(v) {
     03E6: v
-endmacro
+}
 
-macro FILE_READ(path, outvar):
+macro FILE_READ(path, outvar) {
     0A10: path outvar
-endmacro
+}
 
-macro FILE_WRITE(path, data):
+macro FILE_WRITE(path, data) {
     0A20: path data
-endmacro
+}
 
-macro BIND_EVENT(name, label):
+macro BIND_EVENT(name, label) {
     0A30: name label
-endmacro
+}
 
-macro TRIGGER_EVENT(name):
+macro TRIGGER_EVENT(name) {
     0A31: name
-endmacro
+}
 
-macro ENTITY_SPAWN(model, x, y, z, outvar):
+macro ENTITY_SPAWN(model, x, y, z, outvar) {
     0B00: model x y z outvar
-endmacro
+}
 
-macro ENTITY_SET(entity, field, value):
+macro ENTITY_SET(entity, field, value) {
     0B01: entity field value
-endmacro
+}
 
-macro HEAP_ALLOC(size, outvar):
+macro HEAP_ALLOC(size, outvar) {
     0B10: size outvar
-endmacro
+}
 
-macro HEAP_FREE(ref):
+macro HEAP_FREE(ref) {
     0B11: ref
-endmacro
+}
 
-macro HEAP_READ(outvar, ref, index):
+macro HEAP_READ(outvar, ref, index) {
     0B12: outvar ref index
-endmacro
+}
 
-macro HEAP_WRITE(ref, index, value):
+macro HEAP_WRITE(ref, index, value) {
     0B13: ref index value
-endmacro
+}
 
-macro ARRAY_NEW(size, outvar):
+macro ARRAY_NEW(size, outvar) {
     0B14: size outvar
-endmacro
+}
 
-macro ARRAY_GET(outvar, ref, index):
+macro ARRAY_GET(outvar, ref, index) {
     0B12: outvar ref index
-endmacro
+}
 
-macro ARRAY_SET(ref, index, value):
+macro ARRAY_SET(ref, index, value) {
     0B13: ref index value
-endmacro
+}
 
 
 ; Compatibility shims for legacy std APIs removed from core VM.
 ; They compile on current SCML and provide deterministic placeholder behavior.
-macro TYPE_OF(outvar, value):
+macro TYPE_OF(outvar, value) {
     0004: outvar "unknown"
-endmacro
+}
 
-macro BOOL(outvar, value):
+macro BOOL(outvar, value) {
     0004: outvar value
-endmacro
+}
 
-macro NULL_REF(outvar):
+macro NULL_REF(outvar) {
     0004: outvar 0
-endmacro
+}
 
-macro FLOAT32(outvar, value):
+macro FLOAT32(outvar, value) {
     0004: outvar value
-endmacro
-macro FLOAT(outvar, value):
+}
+macro FLOAT(outvar, value) {
     0004: outvar value
-endmacro
-macro FLOAT2(outvar, value):
+}
+macro FLOAT2(outvar, value) {
     0004: outvar value
-endmacro
-macro FLOAT4(outvar, value):
+}
+macro FLOAT4(outvar, value) {
     0004: outvar value
-endmacro
-macro FLOAT8(outvar, value):
+}
+macro FLOAT8(outvar, value) {
     0004: outvar value
-endmacro
-macro FLOAT16(outvar, value):
+}
+macro FLOAT16(outvar, value) {
     0004: outvar value
-endmacro
-macro FLOAT64(outvar, value):
+}
+macro FLOAT64(outvar, value) {
     0004: outvar value
-endmacro
+}
 
-macro STRING(outvar, value):
+macro INT(outvar, value) {
     0004: outvar value
-endmacro
+}
+macro INT2(outvar, value) {
+    0004: outvar value
+}
+macro INT4(outvar, value) {
+    0004: outvar value
+}
+macro INT8(outvar, value) {
+    0004: outvar value
+}
+macro INT16(outvar, value) {
+    0004: outvar value
+}
+macro INT32(outvar, value) {
+    0004: outvar value
+}
+macro INT64(outvar, value) {
+    0004: outvar value
+}
+macro int(outvar, value) {
+    0004: outvar value
+}
 
-macro IS_TYPE(outvar, value, type_name):
-    0004: outvar 0
-endmacro
+macro STRING(outvar, value) {
+    0004: outvar value
+}
 
-macro CLASS_DEFINE(name, outvar):
+macro IS_TYPE(outvar, value, type_name) {
+    0B4C: value type_name outvar
+}
+
+macro CLASS_DEFINE(name, outvar) {
     0004: outvar name
-endmacro
+}
 
-macro CLASS_EXTENDS(child, parent):
+macro CLASS_EXTENDS(child, parent) {
     0004: child parent
-endmacro
+}
 
-macro OBJECT_NEW(class_ref, outvar):
+macro OBJECT_NEW(class_ref, outvar) {
     0B14: 4 outvar
     0B13: outvar 0 class_ref
-endmacro
+}
 
-macro FIELD_SET(object_ref, field_name, value):
+macro FIELD_SET(object_ref, field_name, value) {
     0B13: object_ref 1 value
-endmacro
+}
 
-macro FIELD_GET(outvar, object_ref, field_name):
+macro FIELD_GET(outvar, object_ref, field_name) {
     0B12: outvar object_ref 1
-endmacro
+}
 
-macro INSTANCE_OF(outvar, object_ref, class_ref):
+macro INSTANCE_OF(outvar, object_ref, class_ref) {
     0B12: 96@ object_ref 0
     00D6: 96@ class_ref @__INSTANCE_TRUE
     0004: outvar 0
@@ -225,88 +258,88 @@ macro INSTANCE_OF(outvar, object_ref, class_ref):
     :__INSTANCE_TRUE
     0004: outvar 1
     :__INSTANCE_END
-endmacro
+}
 
 
-macro IF_ELSE_EQ(a, b, true_label, false_label):
+macro IF_ELSE_EQ(a, b, true_label, false_label) {
     00D6: a b true_label
     000A: false_label
-endmacro
-macro IF_ELSE_NE(a, b, true_label, false_label):
+}
+macro IF_ELSE_NE(a, b, true_label, false_label) {
     00D7: a b true_label
     000A: false_label
-endmacro
-macro IF_ELSE_GT(a, b, true_label, false_label):
+}
+macro IF_ELSE_GT(a, b, true_label, false_label) {
     00D8: a b true_label
     000A: false_label
-endmacro
-macro IF_ELSE_LT(a, b, true_label, false_label):
+}
+macro IF_ELSE_LT(a, b, true_label, false_label) {
     00D9: a b true_label
     000A: false_label
-endmacro
+}
 
-macro BIT_AND(outvar, a, b):
+macro BIT_AND(outvar, a, b) {
     0B27: outvar a b
-endmacro
-macro BIT_OR(outvar, a, b):
+}
+macro BIT_OR(outvar, a, b) {
     0B28: outvar a b
-endmacro
-macro BIT_XOR(outvar, a, b):
+}
+macro BIT_XOR(outvar, a, b) {
     0B29: outvar a b
-endmacro
-macro BIT_NOT(outvar, v):
+}
+macro BIT_NOT(outvar, v) {
     0B2A: outvar v
-endmacro
-macro SHL(outvar, a, bits):
+}
+macro SHL(outvar, a, bits) {
     0B2B: outvar a bits
-endmacro
-macro SHR(outvar, a, bits):
+}
+macro SHR(outvar, a, bits) {
     0B2C: outvar a bits
-endmacro
-macro POW(outvar, a, b):
+}
+macro POW(outvar, a, b) {
     0B2D: outvar a b
-endmacro
-macro STRLEN(outvar, s):
+}
+macro STRLEN(outvar, s) {
     0B2E: outvar s
-endmacro
-macro SUBSTR(outvar, s, idx, len):
+}
+macro SUBSTR(outvar, s, idx, len) {
     0B2F: outvar s idx len
-endmacro
-macro ARRAY_LEN(outvar, ref):
+}
+macro ARRAY_LEN(outvar, ref) {
     0B30: outvar ref
-endmacro
+}
 
-macro CLASS_METHOD(class_ref, method_name, label):
+macro CLASS_METHOD(class_ref, method_name, label) {
     0004: $LAST_CLASS_METHOD label
-endmacro
-macro METHOD_CALL(object_ref, method_name):
+}
+macro METHOD_CALL(object_ref, method_name) {
     0D00: $LAST_CLASS_METHOD
-endmacro
-macro METHOD_CALL1(object_ref, method_name, arg0):
+}
+macro METHOD_CALL1(object_ref, method_name, arg0) {
     0004: $ARG0 arg0
     0D00: $LAST_CLASS_METHOD
-endmacro
-macro METHOD_CALL2(object_ref, method_name, arg0, arg1):
+}
+macro METHOD_CALL2(object_ref, method_name, arg0, arg1) {
     0004: $ARG0 arg0
     0004: $ARG1 arg1
     0D00: $LAST_CLASS_METHOD
-endmacro
+}
 
-macro PACKAGE_BEGIN(name_id, version_major, version_minor, version_patch):
+macro PACKAGE_BEGIN(name_id, version_major, version_minor, version_patch) {
     0004: $SCMR_NAME_ID name_id
     0004: $SCMR_VER_MAJOR version_major
     0004: $SCMR_VER_MINOR version_minor
     0004: $SCMR_VER_PATCH version_patch
-endmacro
-macro TARGET_EXE():
+}
+macro TARGET_EXE() {
     0004: $SCMR_ARTIFACT_KIND 1
-endmacro
-macro PACKAGE_ENTRY(label_id):
+}
+macro PACKAGE_ENTRY(label_id) {
     0004: $SCMR_ENTRY label_id
-endmacro
-macro PACKAGE_RESOURCE_COUNT(count):
+}
+macro PACKAGE_RESOURCE_COUNT(count) {
     0004: $SCMR_RESOURCE_COUNT count
-endmacro
+}
 
 ; ===== MEGA STD EXPANSION: structured control-flow, RTTI and class helpers =====
 #define SCML_RTTI_KIND_UNKNOWN 0
@@ -317,29 +350,29 @@ endmacro
 #define SCML_RTTI_KIND_ARRAY 5
 #define SCML_RTTI_KIND_OBJECT 6
 
-macro TRY_SET(result_var, expr_value, err_var):
+macro TRY_SET(result_var, expr_value, err_var) {
     0004: result_var expr_value
     0004: err_var SCML_OK
-endmacro
+}
 
-macro REQUIRE(cond_a, cond_b, err_code, fail_label):
+macro REQUIRE(cond_a, cond_b, err_code, fail_label) {
     00D6: cond_a cond_b @__REQUIRE_OK
     0004: $LAST_ERROR err_code
     000A: fail_label
     :__REQUIRE_OK
-endmacro
+}
 
-macro WHILE_LT_BEGIN(a, b, body_label, end_label):
+macro WHILE_LT_BEGIN(a, b, body_label, end_label) {
     00D9: a b body_label
     000A: end_label
-endmacro
+}
 
-macro WHILE_GT_BEGIN(a, b, body_label, end_label):
+macro WHILE_GT_BEGIN(a, b, body_label, end_label) {
     00D8: a b body_label
     000A: end_label
-endmacro
+}
 
-macro FOR_RANGE_I32(index_var, begin_value, end_value, step_value, body_label, end_label):
+macro FOR_RANGE_I32(index_var, begin_value, end_value, step_value, body_label, end_label) {
     0004: index_var begin_value
     :__FOR_RANGE_CHECK
     00D9: index_var end_value body_label
@@ -347,81 +380,81 @@ macro FOR_RANGE_I32(index_var, begin_value, end_value, step_value, body_label, e
     :__FOR_RANGE_NEXT
     0006: index_var index_var step_value
     000A: @__FOR_RANGE_CHECK
-endmacro
+}
 
-macro SWITCH2(value, case_a, label_a, case_b, label_b, default_label):
+macro SWITCH2(value, case_a, label_a, case_b, label_b, default_label) {
     00D6: value case_a label_a
     00D6: value case_b label_b
     000A: default_label
-endmacro
+}
 
-macro RTTI_TAG_SET(entity_ref, kind):
+macro RTTI_TAG_SET(entity_ref, kind) {
     0B13: entity_ref 0 kind
-endmacro
+}
 
-macro RTTI_TAG_GET(out_kind, entity_ref):
+macro RTTI_TAG_GET(out_kind, entity_ref) {
     0B12: out_kind entity_ref 0
-endmacro
+}
 
-macro RTTI_ASSERT_KIND(entity_ref, expected_kind, fail_label):
+macro RTTI_ASSERT_KIND(entity_ref, expected_kind, fail_label) {
     0B12: 95@ entity_ref 0
     00D6: 95@ expected_kind @__RTTI_ASSERT_OK
     000A: fail_label
     :__RTTI_ASSERT_OK
-endmacro
+}
 
-macro CLASS_NEW_TYPED(class_name, kind, outvar):
+macro CLASS_NEW_TYPED(class_name, kind, outvar) {
     CLASS_DEFINE(class_name, 97@)
     OBJECT_NEW(97@, outvar)
     RTTI_TAG_SET(outvar, kind)
-endmacro
+}
 
-macro CLASS_FIELD_SET_I32(object_ref, slot, value):
+macro CLASS_FIELD_SET_I32(object_ref, slot, value) {
     0B13: object_ref slot value
-endmacro
+}
 
-macro CLASS_FIELD_GET_I32(outvar, object_ref, slot):
+macro CLASS_FIELD_GET_I32(outvar, object_ref, slot) {
     0B12: outvar object_ref slot
-endmacro
+}
 
-macro VECTOR_NEW_CAP(capacity, outvec):
+macro VECTOR_NEW_CAP(capacity, outvec) {
     0B14: capacity outvec
     0B13: outvec 0 0
     0B13: outvec 1 capacity
-endmacro
+}
 
-macro VECTOR_PUSH_I32(vec_ref, value):
+macro VECTOR_PUSH_I32(vec_ref, value) {
     0B12: 90@ vec_ref 0
     0006: 91@ 90@ 2
     0B13: vec_ref 91@ value
     0006: 90@ 90@ 1
     0B13: vec_ref 0 90@
-endmacro
+}
 
-macro VECTOR_GET_I32(out_value, vec_ref, logical_index):
+macro VECTOR_GET_I32(out_value, vec_ref, logical_index) {
     0006: 92@ logical_index 2
     0B12: out_value vec_ref 92@
-endmacro
+}
 
-macro RESULT_OK(out_code):
+macro RESULT_OK(out_code) {
     0004: out_code SCML_OK
-endmacro
+}
 
-macro RESULT_ERR(out_code, code):
+macro RESULT_ERR(out_code, code) {
     0004: out_code code
-endmacro
-macro PACKAGE_RESOURCE_SLOT(slot, id, type, size):
+}
+macro PACKAGE_RESOURCE_SLOT(slot, id, type, size) {
     0004: $SCMR_RES_SLOT slot
     0004: $SCMR_RES_ID id
     0004: $SCMR_RES_TYPE type
     0004: $SCMR_RES_SIZE size
-endmacro
-macro REQUIRE_TRUE(cond_var, status_var, err_code, fail_label):
+}
+macro REQUIRE_TRUE(cond_var, status_var, err_code, fail_label) {
     00D7: cond_var FALSE @REQ_TRUE_OK
     0004: status_var err_code
     000A: fail_label
     :REQ_TRUE_OK
-endmacro
+}
 
 ; ===== Advanced STL-like generic layer (template-style macros) =====
 #define T_I32 1
@@ -430,52 +463,48 @@ endmacro
 #define T_STR 4
 #define T_OBJ 5
 
-macro TEMPLATE_DECLARE(type_tag, type_name):
+macro TEMPLATE_DECLARE(type_tag, type_name) {
     0004: $TPL_TYPE_TAG type_tag
     0004: $TPL_TYPE_NAME type_name
-endmacro
+}
 
-macro VAR_DECL(type_tag, var_ref, init_value):
+macro VAR_DECL(type_tag, var_ref, init_value) {
     0004: var_ref init_value
     0004: $LAST_DECL_TYPE type_tag
-endmacro
+}
 
-macro VECTOR_T_NEW(type_tag, capacity, outvec):
+macro VECTOR_T_NEW(type_tag, capacity, outvec) {
     VECTOR_NEW_CAP(capacity, outvec)
     0B13: outvec 3 type_tag
-endmacro
+}
 
-macro VECTOR_T_PUSH(type_tag, vec_ref, value, fail_label):
+macro VECTOR_T_PUSH(type_tag, vec_ref, value, fail_label) {
     0B12: 89@ vec_ref 3
-    00D6: 89@ type_tag @VEC_T_OK
-    000A: fail_label
-    :VEC_T_OK
+    00D7: 89@ type_tag fail_label
     VECTOR_PUSH_I32(vec_ref, value)
-endmacro
+}
 
-macro VECTOR_T_GET(type_tag, out_value, vec_ref, logical_index, fail_label):
+macro VECTOR_T_GET(type_tag, out_value, vec_ref, logical_index, fail_label) {
     0B12: 88@ vec_ref 3
-    00D6: 88@ type_tag @VEC_T_GET_OK
-    000A: fail_label
-    :VEC_T_GET_OK
+    00D7: 88@ type_tag fail_label
     VECTOR_GET_I32(out_value, vec_ref, logical_index)
-endmacro
+}
 
-macro OPTIONAL_T_SOME(type_tag, value, outopt):
+macro OPTIONAL_T_SOME(type_tag, value, outopt) {
     ARRAY_NEW(3, outopt)
     ARRAY_SET(outopt, 0, 1)
     ARRAY_SET(outopt, 1, type_tag)
     ARRAY_SET(outopt, 2, value)
-endmacro
+}
 
-macro OPTIONAL_T_NONE(type_tag, outopt):
+macro OPTIONAL_T_NONE(type_tag, outopt) {
     ARRAY_NEW(3, outopt)
     ARRAY_SET(outopt, 0, 0)
     ARRAY_SET(outopt, 1, type_tag)
     ARRAY_SET(outopt, 2, 0)
-endmacro
+}
 
-macro OPTIONAL_T_UNWRAP(type_tag, out_value, opt_ref, fail_label):
+macro OPTIONAL_T_UNWRAP(type_tag, out_value, opt_ref, fail_label) {
     ARRAY_GET(87@, opt_ref, 0)
     00D6: 87@ 1 @OPT_HAS_VALUE
     000A: fail_label
@@ -485,16 +514,16 @@ macro OPTIONAL_T_UNWRAP(type_tag, out_value, opt_ref, fail_label):
     000A: fail_label
     :OPT_TYPE_OK
     ARRAY_GET(out_value, opt_ref, 2)
-endmacro
+}
 
-macro MAP_T_NEW(key_type_tag, value_type_tag, capacity, outmap):
+macro MAP_T_NEW(key_type_tag, value_type_tag, capacity, outmap) {
     ARRAY_NEW(capacity, outmap)
     ARRAY_SET(outmap, 0, 0)
     ARRAY_SET(outmap, 1, key_type_tag)
     ARRAY_SET(outmap, 2, value_type_tag)
-endmacro
+}
 
-macro MAP_T_PUT_I32(map_ref, key, value):
+macro MAP_T_PUT_I32(map_ref, key, value) {
     ARRAY_GET(85@, map_ref, 0)
     ADD(84@, 85@, 3)
     ARRAY_SET(map_ref, 84@, key)
@@ -502,47 +531,45 @@ macro MAP_T_PUT_I32(map_ref, key, value):
     ARRAY_SET(map_ref, 84@, value)
     ADD(85@, 85@, 2)
     ARRAY_SET(map_ref, 0, 85@)
-endmacro
+}
 
 ; ===== Complex pointer + math toolkit =====
-macro PTR_NEW_STRUCT(field_count, out_ptr):
+macro PTR_NEW_STRUCT(field_count, out_ptr) {
     0B10: field_count out_ptr
-endmacro
+}
 
-macro PTR_FREE_SAFE(ptr_ref):
-    00D6: ptr_ref 0 @PTR_FREE_END
+macro PTR_FREE_SAFE(ptr_ref) {
     0B11: ptr_ref
     0004: ptr_ref 0
-    :PTR_FREE_END
-endmacro
+}
 
-macro PTR_SET(ptr_ref, slot, value):
+macro PTR_SET(ptr_ref, slot, value) {
     0B13: ptr_ref slot value
-endmacro
+}
 
-macro PTR_GET(out_value, ptr_ref, slot):
+macro PTR_GET(out_value, ptr_ref, slot) {
     0B12: out_value ptr_ref slot
-endmacro
+}
 
-macro PTR_COPY3(dst_ptr, src_ptr):
+macro PTR_COPY3(dst_ptr, src_ptr) {
     0B12: 83@ src_ptr 0
     0B12: 82@ src_ptr 1
     0B12: 81@ src_ptr 2
     0B13: dst_ptr 0 83@
     0B13: dst_ptr 1 82@
     0B13: dst_ptr 2 81@
-endmacro
+}
 
-macro MATH_POW2(out_value, x):
+macro MATH_POW2(out_value, x) {
     0008: out_value x x
-endmacro
+}
 
-macro MATH_POW3(out_value, x):
+macro MATH_POW3(out_value, x) {
     0008: 79@ x x
     0008: out_value 79@ x
-endmacro
+}
 
-macro MATH_CLAMP(out_value, x, min_v, max_v):
+macro MATH_CLAMP(out_value, x, min_v, max_v) {
     00D9: x min_v @MCLAMP_MIN
     00D8: x max_v @MCLAMP_MAX
     0004: out_value x
@@ -553,22 +580,22 @@ macro MATH_CLAMP(out_value, x, min_v, max_v):
     :MCLAMP_MAX
     0004: out_value max_v
     :MCLAMP_DONE
-endmacro
+}
 
-macro MATH_LERP_I32(out_value, a, b, t_num, t_den):
+macro MATH_LERP_I32(out_value, a, b, t_num, t_den) {
     0007: 78@ b a
     0008: 77@ 78@ t_num
     0009: 76@ 77@ t_den
     0006: out_value a 76@
-endmacro
+}
 
-macro COMPLEX_NEW(out_ptr, real, imag):
+macro COMPLEX_NEW(out_ptr, real, imag) {
     0B10: 2 out_ptr
     0B13: out_ptr 0 real
     0B13: out_ptr 1 imag
-endmacro
+}
 
-macro COMPLEX_ADD(out_ptr, a_ptr, b_ptr):
+macro COMPLEX_ADD(out_ptr, a_ptr, b_ptr) {
     0B12: 75@ a_ptr 0
     0B12: 74@ a_ptr 1
     0B12: 73@ b_ptr 0
@@ -577,9 +604,9 @@ macro COMPLEX_ADD(out_ptr, a_ptr, b_ptr):
     0006: 70@ 74@ 72@
     0B13: out_ptr 0 71@
     0B13: out_ptr 1 70@
-endmacro
+}
 
-macro COMPLEX_MUL(out_ptr, a_ptr, b_ptr):
+macro COMPLEX_MUL(out_ptr, a_ptr, b_ptr) {
     0B12: 69@ a_ptr 0
     0B12: 68@ a_ptr 1
     0B12: 67@ b_ptr 0
@@ -592,46 +619,46 @@ macro COMPLEX_MUL(out_ptr, a_ptr, b_ptr):
     0006: 60@ 62@ 61@
     0B13: out_ptr 0 63@
     0B13: out_ptr 1 60@
-endmacro
+}
 
 ; ===== SCML advanced systems layer: arena, iterators, scheduler =====
-macro ARENA_NEW(block_count, out_arena):
+macro ARENA_NEW(block_count, out_arena) {
     0B14: block_count out_arena
-endmacro
+}
 
-macro ARENA_SET(arena_ref, slot, value):
+macro ARENA_SET(arena_ref, slot, value) {
     0B13: arena_ref slot value
-endmacro
+}
 
-macro ARENA_GET(out_value, arena_ref, slot):
+macro ARENA_GET(out_value, arena_ref, slot) {
     0B12: out_value arena_ref slot
-endmacro
+}
 
-macro ITER_RANGE_BEGIN(iter_var, begin_value):
+macro ITER_RANGE_BEGIN(iter_var, begin_value) {
     0004: iter_var begin_value
-endmacro
+}
 
-macro ITER_RANGE_NEXT(iter_var, step):
+macro ITER_RANGE_NEXT(iter_var, step) {
     0006: iter_var iter_var step
-endmacro
+}
 
-macro ITER_RANGE_CONTINUE_LT(iter_var, end_value, loop_label, end_label):
+macro ITER_RANGE_CONTINUE_LT(iter_var, end_value, loop_label, end_label) {
     00D9: iter_var end_value loop_label
     000A: end_label
-endmacro
+}
 
-macro TASK_NEW(task_id, label, out_task_ref):
+macro TASK_NEW(task_id, label, out_task_ref) {
     0B14: 3 out_task_ref
     0B13: out_task_ref 0 task_id
     0B13: out_task_ref 1 label
     0B13: out_task_ref 2 1
-endmacro
+}
 
-macro TASK_DISABLE(task_ref):
+macro TASK_DISABLE(task_ref) {
     0B13: task_ref 2 0
-endmacro
+}
 
-macro TASK_RUN_IF_ENABLED(task_ref):
+macro TASK_RUN_IF_ENABLED(task_ref) {
     0B12: 59@ task_ref 2
     00D6: 59@ 1 @TASK_DO_RUN
     000A: @TASK_DONE
@@ -639,137 +666,137 @@ macro TASK_RUN_IF_ENABLED(task_ref):
     0B12: 58@ task_ref 1
     0D00: 58@
     :TASK_DONE
-endmacro
+}
 
-macro MATH_DOT2(out_value, ax, ay, bx, by):
+macro MATH_DOT2(out_value, ax, ay, bx, by) {
     0008: 57@ ax bx
     0008: 56@ ay by
     0006: out_value 57@ 56@
-endmacro
+}
 
-macro MATH_DOT3(out_value, ax, ay, az, bx, by, bz):
+macro MATH_DOT3(out_value, ax, ay, az, bx, by, bz) {
     0008: 55@ ax bx
     0008: 54@ ay by
     0008: 53@ az bz
     0006: 52@ 55@ 54@
     0006: out_value 52@ 53@
-endmacro
+}
 
 ; ===== Namespace / Nested Namespace system (100% structured access) =====
 #define NS_SEP "::"
 
-macro NS_BEGIN(ns_name):
+macro NS_BEGIN(ns_name) {
     0004: $NS_CURRENT ns_name
-endmacro
+}
 
-macro NS_END():
+macro NS_END() {
     0004: $NS_CURRENT ""
-endmacro
+}
 
-macro NS_NEST2(parent_ns, child_ns):
+macro NS_NEST2(parent_ns, child_ns) {
     0004: $NS_CURRENT parent_ns
     0004: $NS_PARENT parent_ns
     0004: $NS_CHILD child_ns
-endmacro
+}
 
-macro NS_NEST3(root_ns, parent_ns, child_ns):
+macro NS_NEST3(root_ns, parent_ns, child_ns) {
     0004: $NS_ROOT root_ns
     0004: $NS_PARENT parent_ns
     0004: $NS_CHILD child_ns
-endmacro
+}
 
-macro NS_MEMBER_SET(ns_ref, member_slot, value):
+macro NS_MEMBER_SET(ns_ref, member_slot, value) {
     0B13: ns_ref member_slot value
-endmacro
+}
 
-macro NS_MEMBER_GET(out_value, ns_ref, member_slot):
+macro NS_MEMBER_GET(out_value, ns_ref, member_slot) {
     0B12: out_value ns_ref member_slot
-endmacro
+}
 
-macro NS_OBJECT_NEW(slot_count, out_ns_obj):
+macro NS_OBJECT_NEW(slot_count, out_ns_obj) {
     0B14: slot_count out_ns_obj
-endmacro
+}
 
-macro NS_LINK_CHILD(parent_ns_obj, child_slot, child_ns_obj):
+macro NS_LINK_CHILD(parent_ns_obj, child_slot, child_ns_obj) {
     0B13: parent_ns_obj child_slot child_ns_obj
-endmacro
+}
 
-macro NS_GET_CHILD(out_child, parent_ns_obj, child_slot):
+macro NS_GET_CHILD(out_child, parent_ns_obj, child_slot) {
     0B12: out_child parent_ns_obj child_slot
-endmacro
+}
 
-macro NS_RESOLVE2(out_value, root_ns_obj, child_slot, member_slot):
+macro NS_RESOLVE2(out_value, root_ns_obj, child_slot, member_slot) {
     0B12: 51@ root_ns_obj child_slot
     0B12: out_value 51@ member_slot
-endmacro
+}
 
-macro NS_RESOLVE3(out_value, root_ns_obj, child_slot_a, child_slot_b, member_slot):
+macro NS_RESOLVE3(out_value, root_ns_obj, child_slot_a, child_slot_b, member_slot) {
     0B12: 50@ root_ns_obj child_slot_a
     0B12: 49@ 50@ child_slot_b
     0B12: out_value 49@ member_slot
-endmacro
+}
 
-macro NS_ALIAS(alias_slot, ns_obj_ref, alias_table):
+macro NS_ALIAS(alias_slot, ns_obj_ref, alias_table) {
     0B13: alias_table alias_slot ns_obj_ref
-endmacro
+}
 
-macro NS_ALIAS_GET(out_ns_obj, alias_slot, alias_table):
+macro NS_ALIAS_GET(out_ns_obj, alias_slot, alias_table) {
     0B12: out_ns_obj alias_table alias_slot
-endmacro
+}
 
-macro NS_MEMBER_SET_PATH2(root_ns_obj, child_slot, member_slot, value):
+macro NS_MEMBER_SET_PATH2(root_ns_obj, child_slot, member_slot, value) {
     0B12: 48@ root_ns_obj child_slot
     0B13: 48@ member_slot value
-endmacro
+}
 
-macro NS_MEMBER_GET_PATH2(out_value, root_ns_obj, child_slot, member_slot):
+macro NS_MEMBER_GET_PATH2(out_value, root_ns_obj, child_slot, member_slot) {
     0B12: 47@ root_ns_obj child_slot
     0B12: out_value 47@ member_slot
-endmacro
+}
 
-macro NS_MEMBER_SET_PATH3(root_ns_obj, slot_a, slot_b, member_slot, value):
+macro NS_MEMBER_SET_PATH3(root_ns_obj, slot_a, slot_b, member_slot, value) {
     0B12: 46@ root_ns_obj slot_a
     0B12: 45@ 46@ slot_b
     0B13: 45@ member_slot value
-endmacro
+}
 
-macro NS_MEMBER_GET_PATH3(out_value, root_ns_obj, slot_a, slot_b, member_slot):
+macro NS_MEMBER_GET_PATH3(out_value, root_ns_obj, slot_a, slot_b, member_slot) {
     0B12: 44@ root_ns_obj slot_a
     0B12: 43@ 44@ slot_b
     0B12: out_value 43@ member_slot
-endmacro
+}
 
-macro NS_MEMBER_SET_PATH4(root_ns_obj, slot_a, slot_b, slot_c, member_slot, value):
+macro NS_MEMBER_SET_PATH4(root_ns_obj, slot_a, slot_b, slot_c, member_slot, value) {
     0B12: 42@ root_ns_obj slot_a
     0B12: 41@ 42@ slot_b
     0B12: 40@ 41@ slot_c
     0B13: 40@ member_slot value
-endmacro
+}
 
-macro NS_MEMBER_GET_PATH4(out_value, root_ns_obj, slot_a, slot_b, slot_c, member_slot):
+macro NS_MEMBER_GET_PATH4(out_value, root_ns_obj, slot_a, slot_b, slot_c, member_slot) {
     0B12: 39@ root_ns_obj slot_a
     0B12: 38@ 39@ slot_b
     0B12: 37@ 38@ slot_c
     0B12: out_value 37@ member_slot
-endmacro
+}
 
 ; ===== Ultra std: namespace+RTTI integration and STL-style algorithms =====
-macro NS_RTTI_SET(ns_obj, rtti_kind):
+macro NS_RTTI_SET(ns_obj, rtti_kind) {
     0B13: ns_obj 15 rtti_kind
-endmacro
+}
 
-macro NS_RTTI_GET(out_kind, ns_obj):
+macro NS_RTTI_GET(out_kind, ns_obj) {
     0B12: out_kind ns_obj 15
-endmacro
+}
 
-macro NS_RTTI_ASSERT(ns_obj, expected_kind, fail_label):
+macro NS_RTTI_ASSERT(ns_obj, expected_kind, fail_label) {
     0B12: 36@ ns_obj 15
     00D6: 36@ expected_kind @NS_RTTI_OK
     000A: fail_label
     :NS_RTTI_OK
-endmacro
+}
 
-macro VECTOR_SUM_I32(out_value, vec_ref, logical_size):
+macro VECTOR_SUM_I32(out_value, vec_ref, logical_size) {
     0004: out_value 0
     0004: 35@ 0
     :VEC_SUM_LOOP
@@ -782,9 +809,9 @@ macro VECTOR_SUM_I32(out_value, vec_ref, logical_size):
     0006: 35@ 35@ 1
     000A: @VEC_SUM_LOOP
     :VEC_SUM_DONE
-endmacro
+}
 
-macro VECTOR_FIND_I32(out_index, vec_ref, logical_size, needle):
+macro VECTOR_FIND_I32(out_index, vec_ref, logical_size, needle) {
     0004: out_index -1
     0004: 32@ 0
     :VEC_FIND_LOOP
@@ -799,9 +826,9 @@ macro VECTOR_FIND_I32(out_index, vec_ref, logical_size, needle):
     :VEC_FIND_HIT
     0004: out_index 32@
     :VEC_FIND_DONE
-endmacro
+}
 
-macro VECTOR_MAX_I32(out_max, vec_ref, logical_size, fail_label):
+macro VECTOR_MAX_I32(out_max, vec_ref, logical_size, fail_label) {
     00D8: logical_size 0 @VEC_MAX_START
     000A: fail_label
     :VEC_MAX_START
@@ -821,7 +848,7 @@ macro VECTOR_MAX_I32(out_max, vec_ref, logical_size, fail_label):
     0006: 29@ 29@ 1
     000A: @VEC_MAX_LOOP
     :VEC_MAX_DONE
-endmacro
+}
 
 
 ; --- Advanced surface ---
@@ -833,148 +860,148 @@ endmacro
 #define FLOAT32 float32
 #define FLOAT64 float64
 
-macro MOD(outvar, a, b):
+macro MOD(outvar, a, b) {
     0B20: outvar a b
-endmacro
+}
 
-macro INPUT(prompt, outvar):
+macro INPUT(prompt, outvar) {
     0B21: prompt outvar
-endmacro
-macro CALL_NATIVE(name, a):
+}
+macro CALL_NATIVE(name, a) {
     0B31: name a
-endmacro
-macro CALL_NATIVE3(name, a, b, c):
+}
+macro CALL_NATIVE3(name, a, b, c) {
     0B31: name a b c
-endmacro
-macro CALL_NATIVE4(name, a, b, c, d):
+}
+macro CALL_NATIVE4(name, a, b, c, d) {
     0B31: name a b c d
-endmacro
-macro CALL_NATIVE6(name, a, b, c, d, e, f):
+}
+macro CALL_NATIVE6(name, a, b, c, d, e, f) {
     0B31: name a b c d e f
-endmacro
+}
 
 ; --- High-level stdlib wrappers over native modules ---
-macro drawTriangle(x1, y1, x2, y2, x3, y3):
+macro drawTriangle(x1, y1, x2, y2, x3, y3) {
     CALL_NATIVE6("gpu.drawTriangle", x1, y1, x2, y2, x3, y3)
-endmacro
-macro draw_triangle(x1, y1, x2, y2, x3, y3):
+}
+macro draw_triangle(x1, y1, x2, y2, x3, y3) {
     CALL_NATIVE6("gpu.draw_triangle", x1, y1, x2, y2, x3, y3)
-endmacro
-macro createWindow(width, height, title):
+}
+macro createWindow(width, height, title) {
     CALL_NATIVE3("gpu.createWindow", width, height, title)
-endmacro
-macro create_window(width, height, title):
+}
+macro create_window(width, height, title) {
     CALL_NATIVE3("gpu.create_window", width, height, title)
-endmacro
-macro playSound(path):
+}
+macro playSound(path) {
     CALL_NATIVE("audio.play", path)
-endmacro
-macro play_sound(path):
+}
+macro play_sound(path) {
     CALL_NATIVE("audio.play_sound", path)
-endmacro
-macro loadTexture(path):
+}
+macro loadTexture(path) {
     CALL_NATIVE("gpu.load_texture", path)
-endmacro
-macro openFile(path):
+}
+macro openFile(path) {
     CALL_NATIVE("file.open", path)
-endmacro
-macro open_file(path):
+}
+macro open_file(path) {
     CALL_NATIVE("file.open_file", path)
-endmacro
-macro readFile(path):
+}
+macro readFile(path) {
     CALL_NATIVE("file.read", path)
-endmacro
-macro read_file(path):
+}
+macro read_file(path) {
     CALL_NATIVE("file.read_file", path)
-endmacro
-macro writeFile(path, data):
+}
+macro writeFile(path, data) {
     CALL_NATIVE3("file.write", path, data, 0)
-endmacro
-macro write_file(path, data):
+}
+macro write_file(path, data) {
     CALL_NATIVE3("file.write_file", path, data, 0)
-endmacro
-macro netRequest(url):
+}
+macro netRequest(url) {
     CALL_NATIVE("net.request", url)
-endmacro
-macro connectSocket(addr):
+}
+macro connectSocket(addr) {
     CALL_NATIVE("net.open_socket", addr)
-endmacro
+}
 
 ; SCML-style uppercase native wrappers (style-preserving surface)
-macro DRAW_TRIANGLE(x1, y1, x2, y2, x3, y3):
+macro DRAW_TRIANGLE(x1, y1, x2, y2, x3, y3) {
     CALL_NATIVE6("gpu.draw_triangle", x1, y1, x2, y2, x3, y3)
-endmacro
-macro PLAY_SOUND(path):
+}
+macro PLAY_SOUND(path) {
     CALL_NATIVE("audio.play_sound", path)
-endmacro
-macro OPEN_FILE(path):
+}
+macro OPEN_FILE(path) {
     CALL_NATIVE("file.open_file", path)
-endmacro
-macro READ_FILE(path):
+}
+macro READ_FILE(path) {
     CALL_NATIVE("file.read_file", path)
-endmacro
-macro CONNECT_SOCKET(addr):
+}
+macro CONNECT_SOCKET(addr) {
     CALL_NATIVE("net.open_socket", addr)
-endmacro
-macro LOAD_IMAGE(path):
+}
+macro LOAD_IMAGE(path) {
     CALL_NATIVE("image.load_image", path)
-endmacro
-macro SAVE_IMAGE(path):
+}
+macro SAVE_IMAGE(path) {
     CALL_NATIVE("image.save_image", path)
-endmacro
-macro READ_TXT(path):
+}
+macro READ_TXT(path) {
     CALL_NATIVE("file.read_txt", path)
-endmacro
-macro WRITE_TXT(path, data):
+}
+macro WRITE_TXT(path, data) {
     CALL_NATIVE3("file.write_txt", path, data, 0)
-endmacro
-macro GPU_BACKEND_INFO():
+}
+macro GPU_BACKEND_INFO() {
     CALL_NATIVE("gpu.backend_info", 0)
-endmacro
-macro AUDIO_BACKEND_INFO():
+}
+macro AUDIO_BACKEND_INFO() {
     CALL_NATIVE("audio.backend_info", 0)
-endmacro
-macro SLEEP_MS(ms):
+}
+macro SLEEP_MS(ms) {
     CALL_NATIVE("runtime.wait", ms)
-endmacro
-macro CONSOLE_WRITE(text):
+}
+macro CONSOLE_WRITE(text) {
     CALL_NATIVE("console.write", text)
-endmacro
-macro CONSOLE_FLUSH():
+}
+macro CONSOLE_FLUSH() {
     CALL_NATIVE("console.flush", 0)
-endmacro
-macro NET_OPEN_SOCKET(addr):
+}
+macro NET_OPEN_SOCKET(addr) {
     CALL_NATIVE("net.open_socket", addr)
-endmacro
-macro NET_SEND_DATA(sock, payload):
+}
+macro NET_SEND_DATA(sock, payload) {
     CALL_NATIVE3("net.send_data", sock, payload, 0)
-endmacro
+}
 
-macro STRCAT(outvar, a, b):
+macro STRCAT(outvar, a, b) {
     0B22: outvar a b
-endmacro
+}
 
-macro TO_INT(outvar, value):
+macro TO_INT(outvar, value) {
     0B23: outvar value
-endmacro
+}
 
-macro TO_FLOAT(outvar, value):
+macro TO_FLOAT(outvar, value) {
     0B24: outvar value
-endmacro
+}
 
-macro IF_GE(a, b, label):
+macro IF_GE(a, b, label) {
     0B25: a b label
-endmacro
+}
 
-macro IF_LE(a, b, label):
+macro IF_LE(a, b, label) {
     0B26: a b label
-endmacro
+}
 
-macro SWITCH_I32(value, c1, l1, c2, l2, default_label):
+macro SWITCH_I32(value, c1, l1, c2, l2, default_label) {
     IF_EQ(value, c1, l1)
     IF_EQ(value, c2, l2)
     JUMP(default_label)
-endmacro
+}
 
 ; ==========================================================
 ; SCML BLOCK 1 — Systems Core (SCML-style, no C++ syntax)
@@ -987,69 +1014,69 @@ endmacro
 #define SCML_T_BOOL 4
 #define SCML_T_PTR 5
 
-macro TYPE_INT(outvar, value):
+macro TYPE_INT(outvar, value) {
     0004: outvar value
-endmacro
+}
 
-macro TYPE_FLOAT(outvar, value):
+macro TYPE_FLOAT(outvar, value) {
     0B24: outvar value
-endmacro
+}
 
-macro TYPE_CHAR(outvar, value):
+macro TYPE_CHAR(outvar, value) {
     0004: outvar value
-endmacro
+}
 
-macro TYPE_BOOL(outvar, value):
+macro TYPE_BOOL(outvar, value) {
     0004: outvar value
-endmacro
+}
 
 ; Heap object layout:
 ; slot0 = type_tag
 ; slot1 = payload_0
 ; slot2 = payload_1 (optional / alignment-friendly extra slot)
-macro NEW_TYPED(type_tag, payload0, outref):
+macro NEW_TYPED(type_tag, payload0, outref) {
     ARRAY_CREATE(3, outref)
     HEAP_WRITE(outref, 0, type_tag)
     HEAP_WRITE(outref, 1, payload0)
     HEAP_WRITE(outref, 2, 0)
-endmacro
+}
 
-macro DELETE_TYPED(ref):
+macro DELETE_TYPED(ref) {
     HEAP_FREE(ref)
-endmacro
+}
 
-macro PTR_NEW_INT(value, outref):
+macro PTR_NEW_INT(value, outref) {
     NEW_TYPED(SCML_T_INT, value, outref)
-endmacro
+}
 
-macro PTR_NEW_FLOAT(value, outref):
+macro PTR_NEW_FLOAT(value, outref) {
     NEW_TYPED(SCML_T_FLOAT, value, outref)
-endmacro
+}
 
-macro PTR_LOAD(outvar, ref):
+macro PTR_LOAD(outvar, ref) {
     HEAP_READ(outvar, ref, 1)
-endmacro
+}
 
-macro PTR_STORE(ref, value):
+macro PTR_STORE(ref, value) {
     HEAP_WRITE(ref, 1, value)
-endmacro
+}
 
-macro PTR_TYPEOF(out_type, ref):
+macro PTR_TYPEOF(out_type, ref) {
     HEAP_READ(out_type, ref, 0)
-endmacro
+}
 
 ; Stack/local aliasing helpers (SCML frame-local variables)
-macro REF_BIND(local_ref, target_ref):
+macro REF_BIND(local_ref, target_ref) {
     0004: local_ref target_ref
-endmacro
+}
 
-macro CAST_INT(outvar, value):
+macro CAST_INT(outvar, value) {
     0B23: outvar value
-endmacro
+}
 
-macro CAST_FLOAT(outvar, value):
+macro CAST_FLOAT(outvar, value) {
     0B24: outvar value
-endmacro
+}
 
 ; ==========================================================
 ; SCML BLOCK 2 — Data Model (STRUCT / UNION / CLASS)
@@ -1064,67 +1091,67 @@ endmacro
 ; slot0 = kind tag
 ; slot1 = field count
 ; slot2..N = payload fields
-macro STRUCT_NEW(field_count, out_obj):
+macro STRUCT_NEW(field_count, out_obj) {
     0006: 90@ field_count 2
     ARRAY_CREATE(90@, out_obj)
     HEAP_WRITE(out_obj, 0, SCML_KIND_STRUCT)
     HEAP_WRITE(out_obj, 1, field_count)
-endmacro
+}
 
-macro UNION_NEW(field_count, out_obj):
+macro UNION_NEW(field_count, out_obj) {
     0006: 90@ field_count 2
     ARRAY_CREATE(90@, out_obj)
     HEAP_WRITE(out_obj, 0, SCML_KIND_UNION)
     HEAP_WRITE(out_obj, 1, field_count)
     HEAP_WRITE(out_obj, 2, 0)
-endmacro
+}
 
-macro CLASS_NEW(field_count, out_obj):
+macro CLASS_NEW(field_count, out_obj) {
     0006: 90@ field_count 2
     ARRAY_CREATE(90@, out_obj)
     HEAP_WRITE(out_obj, 0, SCML_KIND_CLASS)
     HEAP_WRITE(out_obj, 1, field_count)
-endmacro
+}
 
-macro OBJ_DELETE(obj_ref):
+macro OBJ_DELETE(obj_ref) {
     HEAP_FREE(obj_ref)
-endmacro
+}
 
 ; Field access is zero-based logical index, mapped to heap slot +2
-macro FIELD_SET(obj_ref, logical_index, value):
+macro FIELD_SET(obj_ref, logical_index, value) {
     0006: 91@ logical_index 2
     HEAP_WRITE(obj_ref, 91@, value)
-endmacro
+}
 
-macro FIELD_GET(outvar, obj_ref, logical_index):
+macro FIELD_GET(outvar, obj_ref, logical_index) {
     0006: 92@ logical_index 2
     HEAP_READ(outvar, obj_ref, 92@)
-endmacro
+}
 
-macro OBJ_KIND(out_kind, obj_ref):
+macro OBJ_KIND(out_kind, obj_ref) {
     HEAP_READ(out_kind, obj_ref, 0)
-endmacro
+}
 
-macro OBJ_FIELD_COUNT(out_count, obj_ref):
+macro OBJ_FIELD_COUNT(out_count, obj_ref) {
     HEAP_READ(out_count, obj_ref, 1)
-endmacro
+}
 
 ; UNION semantics: active tag lives in slot2, payload starts at slot3
-macro UNION_SET_ACTIVE(union_ref, active_index):
+macro UNION_SET_ACTIVE(union_ref, active_index) {
     HEAP_WRITE(union_ref, 2, active_index)
-endmacro
+}
 
-macro UNION_GET_ACTIVE(out_index, union_ref):
+macro UNION_GET_ACTIVE(out_index, union_ref) {
     HEAP_READ(out_index, union_ref, 2)
-endmacro
+}
 
-macro UNION_SET_VALUE(union_ref, value):
+macro UNION_SET_VALUE(union_ref, value) {
     HEAP_WRITE(union_ref, 3, value)
-endmacro
+}
 
-macro UNION_GET_VALUE(outvar, union_ref):
+macro UNION_GET_VALUE(outvar, union_ref) {
     HEAP_READ(outvar, union_ref, 3)
-endmacro
+}
 
 ; ==========================================================
 ; SCML BLOCK 3 — Generic + Compile-Time-style helpers
@@ -1136,54 +1163,54 @@ endmacro
 ; Generic box layout:
 ; slot0 = type_tag
 ; slot1 = value
-macro GEN_BOX_NEW(type_tag, value, out_box):
+macro GEN_BOX_NEW(type_tag, value, out_box) {
     ARRAY_CREATE(2, out_box)
     HEAP_WRITE(out_box, 0, type_tag)
     HEAP_WRITE(out_box, 1, value)
-endmacro
+}
 
-macro GEN_BOX_GET(out_value, box_ref):
+macro GEN_BOX_GET(out_value, box_ref) {
     HEAP_READ(out_value, box_ref, 1)
-endmacro
+}
 
-macro GEN_BOX_TYPE(out_type, box_ref):
+macro GEN_BOX_TYPE(out_type, box_ref) {
     HEAP_READ(out_type, box_ref, 0)
-endmacro
+}
 
 ; AUTO-style bind with explicit runtime tag
-macro AUTO_BIND(type_tag, value, out_box):
+macro AUTO_BIND(type_tag, value, out_box) {
     GEN_BOX_NEW(type_tag, value, out_box)
-endmacro
+}
 
 ; DECLTYPE-style read of boxed type metadata
-macro DECLTYPE_BOX(out_type, box_ref):
+macro DECLTYPE_BOX(out_type, box_ref) {
     GEN_BOX_TYPE(out_type, box_ref)
-endmacro
+}
 
 ; constexpr-like compile/eval helpers (SCML macro-evaluated constants)
-macro CONSTEXPR_I32(outvar, value):
+macro CONSTEXPR_I32(outvar, value) {
     0004: outvar value
-endmacro
+}
 
-macro CONSTEXPR_ADD(outvar, a, b):
+macro CONSTEXPR_ADD(outvar, a, b) {
     0006: outvar a b
-endmacro
+}
 
-macro CONSTEXPR_SUB(outvar, a, b):
+macro CONSTEXPR_SUB(outvar, a, b) {
     0007: outvar a b
-endmacro
+}
 
-macro CONSTEXPR_MUL(outvar, a, b):
+macro CONSTEXPR_MUL(outvar, a, b) {
     0008: outvar a b
-endmacro
+}
 
-macro CONSTEXPR_DIV(outvar, a, b):
+macro CONSTEXPR_DIV(outvar, a, b) {
     0009: outvar a b
-endmacro
+}
 
 ; Generic transform over VECTOR-like heap array:
 ; out[i] = in[i] + addend
-macro GEN_TRANSFORM_ADD(vec_ref, len, addend):
+macro GEN_TRANSFORM_ADD(vec_ref, len, addend) {
     0004: 90@ 0
     :GEN_TRANSFORM_LOOP
     00D8: 90@ len @GEN_TRANSFORM_END
@@ -1193,7 +1220,7 @@ macro GEN_TRANSFORM_ADD(vec_ref, len, addend):
     0006: 90@ 90@ 1
     000A: @GEN_TRANSFORM_LOOP
     :GEN_TRANSFORM_END
-endmacro
+}
 
 ; ==========================================================
 ; SCML BLOCK 4 — Exceptions + RTTI (SCML-style surface)
@@ -1205,29 +1232,29 @@ endmacro
 #define SCML_ERR_TYPE 2
 
 ; TRY_BEGIN initializes status and jump labels are explicit in SCML style.
-macro TRY_BEGIN(err_var):
+macro TRY_BEGIN(err_var) {
     0004: err_var SCML_OK
-endmacro
+}
 
-macro THROW(err_var, err_code):
+macro THROW(err_var, err_code) {
     0004: err_var err_code
-endmacro
+}
 
-macro CATCH_IF(err_var, err_code, label):
+macro CATCH_IF(err_var, err_code, label) {
     IF_EQ(err_var, err_code, label)
-endmacro
+}
 
-macro FINALLY_GOTO(label):
+macro FINALLY_GOTO(label) {
     JUMP(label)
-endmacro
+}
 
 ; RTTI helpers over objects created in Block 2:
 ; slot0 = kind tag (STRUCT/UNION/CLASS)
-macro TYPE_INFO(out_kind, obj_ref):
+macro TYPE_INFO(out_kind, obj_ref) {
     HEAP_READ(out_kind, obj_ref, 0)
-endmacro
+}
 
-macro IS_A(obj_ref, expected_kind, out_bool):
+macro IS_A(obj_ref, expected_kind, out_bool) {
     TYPE_INFO(93@, obj_ref)
     0004: out_bool 0
     IF_EQ(93@, expected_kind, @IS_A_TRUE)
@@ -1235,9 +1262,9 @@ macro IS_A(obj_ref, expected_kind, out_bool):
     :IS_A_TRUE
     0004: out_bool 1
     :IS_A_END
-endmacro
+}
 
-macro CAST_SAFE(obj_ref, expected_kind, out_ref, err_var):
+macro CAST_SAFE(obj_ref, expected_kind, out_ref, err_var) {
     IS_A(obj_ref, expected_kind, 94@)
     IF_EQ(94@, 1, @CAST_SAFE_OK)
     THROW(err_var, SCML_ERR_TYPE)
@@ -1246,7 +1273,7 @@ macro CAST_SAFE(obj_ref, expected_kind, out_ref, err_var):
     :CAST_SAFE_OK
     0004: out_ref obj_ref
     :CAST_SAFE_END
-endmacro
+}
 
 ; ==========================================================
 ; SCML BLOCK 5 — Stdlib Core (STRING / VECTOR / MAP + algos)
@@ -1255,57 +1282,57 @@ endmacro
 ; STRING: lightweight heap object
 ; slot0=type, slot1=length(meta), slot2=data(ref/value)
 #define SCML_STD_STRING 21
-macro STRING_NEW(value, out_str):
+macro STRING_NEW(value, out_str) {
     ARRAY_CREATE(3, out_str)
     HEAP_WRITE(out_str, 0, SCML_STD_STRING)
     HEAP_WRITE(out_str, 1, 0)
     HEAP_WRITE(out_str, 2, value)
-endmacro
+}
 
-macro STRING_SET(str_ref, value):
+macro STRING_SET(str_ref, value) {
     HEAP_WRITE(str_ref, 2, value)
-endmacro
+}
 
-macro STRING_GET(out_value, str_ref):
+macro STRING_GET(out_value, str_ref) {
     HEAP_READ(out_value, str_ref, 2)
-endmacro
+}
 
 ; VECTOR: slot0=size, slot1=capacity, slot2..data
-macro VECTOR_NEW(capacity, out_vec):
+macro VECTOR_NEW(capacity, out_vec) {
     0006: 95@ capacity 2
     ARRAY_CREATE(95@, out_vec)
     HEAP_WRITE(out_vec, 0, 0)
     HEAP_WRITE(out_vec, 1, capacity)
-endmacro
+}
 
-macro VECTOR_SIZE(out_size, vec_ref):
+macro VECTOR_SIZE(out_size, vec_ref) {
     HEAP_READ(out_size, vec_ref, 0)
-endmacro
+}
 
-macro VECTOR_PUSH(vec_ref, value):
+macro VECTOR_PUSH(vec_ref, value) {
     HEAP_READ(96@, vec_ref, 0)
     0006: 97@ 96@ 2
     HEAP_WRITE(vec_ref, 97@, value)
     0006: 96@ 96@ 1
     HEAP_WRITE(vec_ref, 0, 96@)
-endmacro
+}
 
-macro VECTOR_GET(out_value, vec_ref, index):
+macro VECTOR_GET(out_value, vec_ref, index) {
     0006: 98@ index 2
     HEAP_READ(out_value, vec_ref, 98@)
-endmacro
+}
 
 ; MAP: key/value flat pairs in heap array
 ; slot0=count pairs, slot1=capacity pairs, then [k0,v0,k1,v1...]
-macro MAP_NEW(capacity_pairs, out_map):
+macro MAP_NEW(capacity_pairs, out_map) {
     0008: 80@ capacity_pairs 2
     0006: 80@ 80@ 2
     ARRAY_CREATE(80@, out_map)
     HEAP_WRITE(out_map, 0, 0)
     HEAP_WRITE(out_map, 1, capacity_pairs)
-endmacro
+}
 
-macro MAP_PUT(map_ref, key, value):
+macro MAP_PUT(map_ref, key, value) {
     HEAP_READ(81@, map_ref, 0)
     0008: 82@ 81@ 2
     0006: 82@ 82@ 2
@@ -1314,9 +1341,9 @@ macro MAP_PUT(map_ref, key, value):
     HEAP_WRITE(map_ref, 83@, value)
     0006: 81@ 81@ 1
     HEAP_WRITE(map_ref, 0, 81@)
-endmacro
+}
 
-macro MAP_GET_OR(out_value, map_ref, key, default_value):
+macro MAP_GET_OR(out_value, map_ref, key, default_value) {
     0004: out_value default_value
     HEAP_READ(84@, map_ref, 0)
     0004: 85@ 0
@@ -1332,10 +1359,10 @@ macro MAP_GET_OR(out_value, map_ref, key, default_value):
     0006: 88@ 86@ 1
     HEAP_READ(out_value, map_ref, 88@)
     :MAP_GET_END
-endmacro
+}
 
 ; Algorithms
-macro ALG_FIND_EQ(out_index, vec_ref, len, needle):
+macro ALG_FIND_EQ(out_index, vec_ref, len, needle) {
     0004: out_index -1
     0004: 70@ 0
     :ALG_FIND_LOOP
@@ -1347,9 +1374,9 @@ macro ALG_FIND_EQ(out_index, vec_ref, len, needle):
     :ALG_FIND_HIT
     0004: out_index 70@
     :ALG_FIND_END
-endmacro
+}
 
-macro ALG_SORT2_ASC(a_ref, b_ref):
+macro ALG_SORT2_ASC(a_ref, b_ref) {
     IF_GT(a_ref, b_ref, @ALG_SWAP2)
     JUMP(@ALG_SWAP2_END)
     :ALG_SWAP2
@@ -1357,7 +1384,7 @@ macro ALG_SORT2_ASC(a_ref, b_ref):
     0004: a_ref b_ref
     0004: b_ref 72@
     :ALG_SWAP2_END
-endmacro
+}
 
 ; ==========================================================
 ; SCML BLOCK 6 — Modules / Link Surface / ABI-like contracts
@@ -1370,205 +1397,347 @@ endmacro
 ; slot2 = version_minor
 ; slot3 = version_patch
 ; slot4 = export_count
-macro MODULE_MANIFEST_NEW(module_id, vmaj, vmin, vpatch, out_manifest):
+macro MODULE_MANIFEST_NEW(module_id, vmaj, vmin, vpatch, out_manifest) {
     ARRAY_CREATE(5, out_manifest)
     HEAP_WRITE(out_manifest, 0, module_id)
     HEAP_WRITE(out_manifest, 1, vmaj)
     HEAP_WRITE(out_manifest, 2, vmin)
     HEAP_WRITE(out_manifest, 3, vpatch)
     HEAP_WRITE(out_manifest, 4, 0)
-endmacro
+}
 
-macro MODULE_EXPORT_COUNT_SET(manifest_ref, count):
+macro MODULE_EXPORT_COUNT_SET(manifest_ref, count) {
     HEAP_WRITE(manifest_ref, 4, count)
-endmacro
+}
 
-macro MODULE_EXPORT_COUNT_GET(out_count, manifest_ref):
+macro MODULE_EXPORT_COUNT_GET(out_count, manifest_ref) {
     HEAP_READ(out_count, manifest_ref, 4)
-endmacro
+}
 
 ; Flat symbol table (key/value pairs): key=symbol_id, value=addr_or_ref
-macro SYMBOL_TABLE_NEW(capacity_pairs, out_table):
+macro SYMBOL_TABLE_NEW(capacity_pairs, out_table) {
     MAP_NEW(capacity_pairs, out_table)
-endmacro
+}
 
-macro SYMBOL_EXPORT(table_ref, symbol_id, symbol_ref):
+macro SYMBOL_EXPORT(table_ref, symbol_id, symbol_ref) {
     MAP_PUT(table_ref, symbol_id, symbol_ref)
-endmacro
+}
 
-macro SYMBOL_RESOLVE(out_ref, table_ref, symbol_id, default_ref):
+macro SYMBOL_RESOLVE(out_ref, table_ref, symbol_id, default_ref) {
     MAP_GET_OR(out_ref, table_ref, symbol_id, default_ref)
-endmacro
+}
 
 ; ABI contract box:
 ; slot0 = abi_id
 ; slot1 = call_conv
 ; slot2 = arg_count
 ; slot3 = ret_type_tag
-macro ABI_CONTRACT_NEW(abi_id, call_conv, arg_count, ret_type_tag, out_contract):
+macro ABI_CONTRACT_NEW(abi_id, call_conv, arg_count, ret_type_tag, out_contract) {
     ARRAY_CREATE(4, out_contract)
     HEAP_WRITE(out_contract, 0, abi_id)
     HEAP_WRITE(out_contract, 1, call_conv)
     HEAP_WRITE(out_contract, 2, arg_count)
     HEAP_WRITE(out_contract, 3, ret_type_tag)
-endmacro
+}
 
-macro ABI_ARGC_GET(out_argc, contract_ref):
+macro ABI_ARGC_GET(out_argc, contract_ref) {
     HEAP_READ(out_argc, contract_ref, 2)
-endmacro
+}
 
-macro ABI_RET_GET(out_ret_type, contract_ref):
+macro ABI_RET_GET(out_ret_type, contract_ref) {
     HEAP_READ(out_ret_type, contract_ref, 3)
-endmacro
+}
 
-macro MODULE_UNLOAD_SAFE(ref):
+macro MODULE_UNLOAD_SAFE(ref) {
     HEAP_FREE(ref)
-endmacro
+}
 
 ; ===== Terminal rendering + complex string/math helpers =====
-macro PRINT_RAW(v):
+macro PRINT_RAW(v) {
     0B32: v
-endmacro
+}
 
-macro CONSOLE_CLEAR():
+macro CONSOLE_CLEAR() {
     0B33:
-endmacro
+}
 
-macro CONSOLE_WRITE(v):
+macro CONSOLE_WRITE(v) {
     0B31: "console.write" v
-endmacro
+}
 
-macro CONSOLE_FLUSH():
+macro CONSOLE_FLUSH() {
     0B31: "console.flush"
-endmacro
+}
 
-macro CONSOLE_HOME():
+macro CONSOLE_HOME() {
     0B31: "console.home"
-endmacro
+}
 
-macro CONSOLE_COLOR(fg):
+macro CONSOLE_COLOR(fg) {
     0B3E: fg
-endmacro
+}
 
-macro CONSOLE_COLOR_BG(fg, bg):
+macro CONSOLE_COLOR_BG(fg, bg) {
     0B3E: fg bg
-endmacro
+}
 
-macro CONSOLE_RESET():
+macro CONSOLE_RESET() {
     0B3F:
-endmacro
+}
 
-macro CONSOLE_MOVE(row, col):
+macro CONSOLE_MOVE(row, col) {
     0B40: row col
-endmacro
+}
 
-macro CONSOLE_ERASE_LINE():
+macro CONSOLE_ERASE_LINE() {
     0B41:
-endmacro
+}
 
-macro CONSOLE_STYLE(style):
+macro CONSOLE_STYLE(style) {
     0B42: style
-endmacro
+}
 
-macro SIN(outvar, radians):
+macro SIN(outvar, radians) {
     0B34: outvar radians
-endmacro
+}
 
-macro COS(outvar, radians):
+macro COS(outvar, radians) {
     0B35: outvar radians
-endmacro
+}
 
-macro TAN(outvar, radians):
+macro TAN(outvar, radians) {
     0B36: outvar radians
-endmacro
+}
 
-macro SQRT(outvar, value):
+macro SQRT(outvar, value) {
     0B37: outvar value
-endmacro
+}
 
-macro ATAN2(outvar, y, x):
+macro ATAN2(outvar, y, x) {
     0B38: outvar y x
-endmacro
+}
 
-macro FLOOR(outvar, value):
+macro FLOOR(outvar, value) {
     0B39: outvar value
-endmacro
+}
 
-macro CEIL(outvar, value):
+macro CEIL(outvar, value) {
     0B3A: outvar value
-endmacro
+}
 
-macro ROUND(outvar, value):
+macro ROUND(outvar, value) {
     0B3B: outvar value
-endmacro
+}
 
-macro ABS(outvar, value):
+macro ABS(outvar, value) {
     0B3C: outvar value
-endmacro
+}
 
-macro STR_REPEAT(outvar, text, count):
+macro STR_REPEAT(outvar, text, count) {
     0B3D: outvar text count
-endmacro
+}
 
 ; ===== Hostless + async + static typing tier =====
 ; Built-in module wrappers make larger standalone scripts usable without a custom host.
-macro APP_SLEEP_MS(ms):
+macro APP_SLEEP_MS(ms) {
     CALL_NATIVE("runtime.wait", ms)
-endmacro
-macro APP_TIME_MS():
+}
+macro APP_TIME_MS() {
     CALL_NATIVE("runtime.get_time_ms", 0)
-endmacro
-macro APP_READ_TEXT(path):
+}
+macro APP_READ_TEXT(path) {
     CALL_NATIVE("file.read_txt", path)
-endmacro
-macro APP_WRITE_TEXT(path, data):
+}
+macro APP_WRITE_TEXT(path, data) {
     CALL_NATIVE3("file.write_txt", path, data, 0)
-endmacro
-macro APP_CONSOLE_WRITE(text):
+}
+macro APP_CONSOLE_WRITE(text) {
     CALL_NATIVE("console.write", text)
-endmacro
-macro APP_CONSOLE_FLUSH():
+}
+macro APP_CONSOLE_FLUSH() {
     CALL_NATIVE("console.flush", 0)
-endmacro
+}
 
 ; Cooperative async tasks run on the VM event queue. Labels spawned this way should
 ; finish with the thread-ending opcode so the task status flips to done.
-macro ASYNC_SPAWN(label, out_task):
+macro ASYNC_SPAWN(label, out_task) {
     0B49: label out_task
-endmacro
-macro ASYNC_DONE(task_ref, out_done):
+}
+macro ASYNC_DONE(task_ref, out_done) {
     0B4A: task_ref out_done
-endmacro
-macro ASYNC_AWAIT_POLL(task_ref, done_label, pending_label):
+}
+macro ASYNC_AWAIT_POLL(task_ref, done_label, pending_label) {
     0B4A: task_ref 26@
     00D6: 26@ 1 done_label
     000A: pending_label
-endmacro
-macro ASYNC_YIELD_MS(ms):
+}
+macro ASYNC_YIELD_MS(ms) {
     000B: ms
-endmacro
+}
 
 ; Compile-time checked declarations. The compiler validates assignments and numeric
-; operations for i32/f32/str/any and the VM also exposes runtime assertions.
-macro TYPE_DECL(var_ref, type_name):
+; operations for i32/f32/str/any plus aliases such as bool, u32, i64, f64, ref,
+; array<T>, vec<T>, option<T>, and result<T>. The VM also exposes runtime assertions.
+macro TYPE_DECL(var_ref, type_name) {
     0B4B: var_ref type_name
-endmacro
-macro LET_I32(var_ref, value):
+}
+macro LET_I32(var_ref, value) {
     0B4B: var_ref "i32"
     0004: var_ref value
-endmacro
-macro LET_F32(var_ref, value):
+}
+macro LET_F32(var_ref, value) {
     0B4B: var_ref "f32"
     0004: var_ref value
-endmacro
-macro LET_STR(var_ref, value):
+}
+macro LET_STR(var_ref, value) {
     0B4B: var_ref "str"
     0004: var_ref value
-endmacro
-macro LET_ANY(var_ref, value):
+}
+macro LET_ANY(var_ref, value) {
     0B4B: var_ref "any"
     0004: var_ref value
-endmacro
-macro TYPE_ASSERT(value, type_name, out_ok):
+}
+macro TYPE_ASSERT(value, type_name, out_ok) {
     0B4C: value type_name out_ok
-endmacro
+}
+
+; Rich type aliases for large codebases. The compiler canonicalizes these to the
+; current VM runtime families while preserving readable source contracts.
+macro LET_BOOL(var_ref, value) {
+    0B4B: var_ref "bool"
+    0004: var_ref value
+}
+macro LET_I64(var_ref, value) {
+    0B4B: var_ref "i64"
+    0004: var_ref value
+}
+macro LET_U32(var_ref, value) {
+    0B4B: var_ref "u32"
+    0004: var_ref value
+}
+macro LET_F64(var_ref, value) {
+    0B4B: var_ref "f64"
+    0004: var_ref value
+}
+macro LET_REF(var_ref, value) {
+    0B4B: var_ref "ref"
+    0004: var_ref value
+}
+macro LET_ARRAY(var_ref, value) {
+    0B4B: var_ref "array<any>"
+    0004: var_ref value
+}
+
+; Host-backed OS thread helpers. THREAD_CREATE_SLEEP starts a real native worker
+; that completes after the given delay; THREAD_DONE polls it and THREAD_JOIN waits.
+macro THREAD_CREATE_SLEEP(ms, out_thread) {
+    0B31: "thread.create" ms
+    0004: out_thread $RETVAL
+}
+macro THREAD_DONE(thread_ref, out_done) {
+    0B31: "thread.done" thread_ref
+    0004: out_done $RETVAL
+}
+macro THREAD_JOIN(thread_ref) {
+    0B31: "thread.join" thread_ref
+}
+macro THREAD_YIELD() {
+    0B31: "thread.yield" 0
+}
+
+; Modern std aliases: readable lower-case helpers intended for C/C#/SCML surface code.
+; They expand to the same legacy opcodes/macros, so legacy and modern code can mix freely.
+macro set(var_ref, value) {
+    0004: var_ref value
+}
+macro add(outvar, a, b) {
+    0006: outvar a b
+}
+macro sub(outvar, a, b) {
+    0007: outvar a b
+}
+macro mul(outvar, a, b) {
+    0008: outvar a b
+}
+macro div(outvar, a, b) {
+    0009: outvar a b
+}
+macro array_new(outvar, size) {
+    0B14: size outvar
+}
+macro array_get(outvar, ref, index) {
+    0B12: outvar ref index
+}
+macro array_set(ref, index, value) {
+    0B13: ref index value
+}
+macro array_len(outvar, ref) {
+    0B30: outvar ref
+}
+macro type_decl(var_ref, type_name) {
+    0B4B: var_ref type_name
+}
+macro type_assert(value, type_name, out_ok) {
+    0B4C: value type_name out_ok
+}
+macro async_spawn(label, out_task) {
+    0B49: label out_task
+}
+macro async_done(task_ref, out_done) {
+    0B4A: task_ref out_done
+}
+macro thread_create_sleep(ms, out_thread) {
+    0B31: "thread.create" ms
+    0004: out_thread $RETVAL
+}
+macro thread_done(thread_ref, out_done) {
+    0B31: "thread.done" thread_ref
+    0004: out_done $RETVAL
+}
+macro thread_join(thread_ref) {
+    0B31: "thread.join" thread_ref
+}
+macro heap_free(ref) {
+    0B11: ref
+}
+macro vector_new(out_vec, capacity) {
+    0006: 95@ capacity 2
+    0B14: 95@ out_vec
+    0B13: out_vec 0 0
+    0B13: out_vec 1 capacity
+}
+macro vector_push(vec_ref, value) {
+    0B12: 96@ vec_ref 0
+    0006: 97@ 96@ 2
+    0B13: vec_ref 97@ value
+    0006: 96@ 96@ 1
+    0B13: vec_ref 0 96@
+}
+macro vector_get(out_value, vec_ref, index) {
+    0006: 98@ index 2
+    0B12: out_value vec_ref 98@
+}
+macro vector_size(out_size, vec_ref) {
+    0B12: out_size vec_ref 0
+}
+macro VECTOR_POP(out_value, vec_ref) {
+    0B12: 96@ vec_ref 0
+    0007: 96@ 96@ 1
+    0B13: vec_ref 0 96@
+    0006: 97@ 96@ 2
+    0B12: out_value vec_ref 97@
+}
+
+macro ARRAY_PUSH(vec_ref, value) {
+    vector_push(vec_ref, value)
+}
+macro ARRAY_POP(out_value, vec_ref) {
+    VECTOR_POP(out_value, vec_ref)
+}
+macro vector_pop(out_value, vec_ref) {
+    0B12: 96@ vec_ref 0
+    0007: 96@ 96@ 1
+    0B13: vec_ref 0 96@
+    0006: 97@ 96@ 2
+    0B12: out_value vec_ref 97@
+}

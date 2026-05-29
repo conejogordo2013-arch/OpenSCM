@@ -1,18 +1,18 @@
 ; GTA model and streaming wrappers.
 
-macro REQUEST_MODEL(model):
+macro REQUEST_MODEL(model) {
     CALL "GTA_RequestModel" model
-endmacro
+}
 
-macro HAS_MODEL_LOADED(model):
+macro HAS_MODEL_LOADED(model) {
     CALL "GTA_HasModelLoaded" model
     0004: $GTA_LAST_CONDITION $RETVAL
-endmacro
+}
 
-macro MARK_MODEL_AS_NO_LONGER_NEEDED(model):
+macro MARK_MODEL_AS_NO_LONGER_NEEDED(model) {
     CALL "GTA_MarkModelAsNoLongerNeeded" model
-endmacro
+}
 
-macro LOAD_SCENE(x, y, z):
+macro LOAD_SCENE(x, y, z) {
     CALL "GTA_LoadScene" x y z
-endmacro
+}

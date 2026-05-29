@@ -1,4 +1,4 @@
-#include "../scmlh/gtasa.scmlh"
+use "../scmlh/gtasa.scmlh";
 
 :MAIN
 PRINT_NOW("OpenSCM GTA host online", 2000)

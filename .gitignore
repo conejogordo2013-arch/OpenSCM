@@ -5,3 +5,5 @@ log.txt
 bin/scml_gameplay_example
 bin/scml_editor
 examples/editor_tmp.scmlbin
+
+.scml/

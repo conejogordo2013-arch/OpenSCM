@@ -1,4 +1,4 @@
-#include "iso_bootstrap.scmlh"
+use "iso_bootstrap.scmlh";
 
 :MAIN
 03E5: "__scml"

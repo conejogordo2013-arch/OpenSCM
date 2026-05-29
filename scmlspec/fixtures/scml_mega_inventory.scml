@@ -1,4 +1,4 @@
-#include "scml_feature_matrix.scmlh"
+use "scml_feature_matrix.scmlh";
 :MEGA_BOOTSTRAP_MAIN
 03E5: "SCML MEGA BOOTSTRAP INVENTORY START"
 03E5: "SECTION PREPROC"

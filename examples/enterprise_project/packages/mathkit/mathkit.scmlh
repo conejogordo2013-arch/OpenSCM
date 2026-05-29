@@ -1,0 +1,4 @@
+#pragma once
+macro MATHKIT_ADD_TEN(outvar, value) {
+    0006: outvar value 10
+}

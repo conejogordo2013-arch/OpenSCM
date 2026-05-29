@@ -1,20 +1,21 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
-:MAIN
-ARRAY_NEW(0, numbers)
-ARRAY_PUSH(numbers, 10)
-ARRAY_PUSH(numbers, 20)
-ARRAY_PUSH(numbers, 30)
-ARRAY_LEN(count, numbers)
-03E5: count
-ARRAY_GET(second, numbers, 1)
-03E5: second
-ARRAY_POP(last, numbers)
-03E5: last
-ARRAY_LEN(count_after_pop, numbers)
-03E5: count_after_pop
-ARRAY_SET(numbers, 1, 99)
-ARRAY_GET(updated, numbers, 1)
-03E5: updated
-HEAP_FREE(numbers)
-0001:
+script MAIN {
+    vector_new(numbers, 4);
+    vector_push(numbers, 10);
+    vector_push(numbers, 20);
+    vector_push(numbers, 30);
+
+    vector_size(count, numbers);
+    print(count);
+    vector_get(second, numbers, 1);
+    print(second);
+    vector_pop(last, numbers);
+    print(last);
+    vector_size(count_after_pop, numbers);
+    print(count_after_pop);
+    array_set(numbers, 3, 99);
+    vector_get(updated, numbers, 1);
+    print(updated);
+    heap_free(numbers);
+}

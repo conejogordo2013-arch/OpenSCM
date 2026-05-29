@@ -1,4 +1,4 @@
-#include "rtti_functional_complex.scmlh"
+use "rtti_functional_complex.scmlh";
 
 :MAIN
 03E5: "=== BOOT ==="

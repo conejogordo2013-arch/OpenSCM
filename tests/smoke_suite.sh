@@ -14,6 +14,10 @@ SAMPLES=(
   "examples/rotating_ascii_cube_60fps.scml"
   "examples/rotating_ascii_cubes.scml"
   "examples/hostless_async_static.scml"
+  "examples/modern_surface.scml"
+  "examples/functions.scml"
+  "examples/std_usage.scml"
+  "examples/dynamic_arrays.scml"
 )
 
 for src in "${SAMPLES[@]}"; do
@@ -24,6 +28,34 @@ for src in "${SAMPLES[@]}"; do
   fi
 done
 
+
+
+modern_bin=".scml/modern_surface.scmlbin"
+echo "[smoke] run modern C/C#/SCML surface syntax regression"
+bin/scml compile "examples/modern_surface.scml" "$modern_bin"
+modern_output="$(bin/scml run "$modern_bin")"
+expected_modern_output=$'modern syntax ok
+13'
+if [[ "$modern_output" != "$expected_modern_output" ]]; then
+  echo "[smoke] unexpected modern syntax output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_modern_output" "$modern_output" >&2
+  exit 1
+fi
+
+modern_bad_src=".scml/modern_unclosed_block.scml"
+cat >"$modern_bad_src" <<'SCML'
+script MAIN {
+    print("missing close")
+SCML
+
+echo "[smoke] verify modern syntax rejects unclosed blocks"
+if bin/scml compile "$modern_bad_src" ".scml/modern_unclosed_block.scmlbin" >/tmp/scml_modern_bad.out 2>&1; then
+  echo "[smoke] compiler accepted an unclosed modern block" >&2
+  cat /tmp/scml_modern_bad.out >&2
+  exit 1
+fi
 
 hostless_bin=".scml/hostless_async_static.scmlbin"
 echo "[smoke] run hostless async/static typing regression"
@@ -265,5 +297,75 @@ if bin/scml run "$bad_argc_src" >/tmp/scml_bad_argc.out 2>&1; then
   cat /tmp/scml_bad_argc.out >&2
   exit 1
 fi
+
+
+
+thread_src=".scml/thread_runtime.scml"
+thread_bin=".scml/thread_runtime.scmlbin"
+cat >"$thread_src" <<'SCML'
+#include "../std.scmlh"
+:MAIN
+THREAD_CREATE_SLEEP(1, $THREAD)
+THREAD_JOIN($THREAD)
+THREAD_DONE($THREAD, $DONE)
+03E5: "thread runtime ok"
+0001:
+SCML
+
+echo "[smoke] run host-backed thread runtime regression"
+bin/scml compile "$thread_src" "$thread_bin"
+thread_output="$(bin/scml run "$thread_bin")"
+if [[ "$thread_output" != "thread runtime ok" ]]; then
+  echo "[smoke] unexpected thread runtime output: $thread_output" >&2
+  exit 1
+fi
+
+project_dir=".scml/project_tooling"
+rm -rf "$project_dir"
+mkdir -p "$project_dir/src" "$project_dir/packages/mathkit"
+cat >"$project_dir/scml.pkg" <<'SCML'
+name = "project-tooling"
+source = "src/main.scml"
+package = "packages/mathkit"
+output = "build/project-tooling.scmlbin"
+jobs = 4
+SCML
+cat >"$project_dir/packages/mathkit/mathkit.scmlh" <<'SCML'
+#pragma once
+macro PLUS_TEN(outvar, value):
+    0006: outvar value 10
+endmacro
+SCML
+cat >"$project_dir/src/main.scml" <<'SCML'
+#include "../../std.scmlh"
+#include <mathkit.scmlh>
+:MAIN
+LET_U32($COUNT, 32)
+LET_ARRAY($ITEMS, 0)
+PLUS_TEN($TOTAL, $COUNT)
+TYPE_ASSERT($TOTAL, "u32", $TYPE_OK)
+03E5: "project tooling ok"
+03E5: $TOTAL
+03E5: $TYPE_OK
+0001:
+SCML
+
+echo "[smoke] build manifest project with package include and rich type aliases"
+bin/scml build "$project_dir/scml.pkg"
+bin/scml check "$project_dir/scml.pkg"
+project_output="$(bin/scml run "$project_dir/build/project-tooling.scmlbin")"
+expected_project_output=$'project tooling ok
+42
+1'
+if [[ "$project_output" != "$expected_project_output" ]]; then
+  echo "[smoke] unexpected project tooling output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_project_output" "$project_output" >&2
+  exit 1
+fi
+
+echo "[smoke] run migration audit"
+bash tools/scml_migration_audit.sh
 
 echo "[smoke] all selected samples compiled and runtime regressions passed"

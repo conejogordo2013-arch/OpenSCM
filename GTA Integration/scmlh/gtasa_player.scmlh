@@ -1,19 +1,19 @@
 ; GTA player wrappers.
 
-macro IS_PLAYER_PLAYING(player):
+macro IS_PLAYER_PLAYING(player) {
     CALL "GTA_IsPlayerPlaying" player
     0004: $GTA_LAST_CONDITION $RETVAL
-endmacro
+}
 
-macro SET_PLAYER_CONTROL(player, enabled):
+macro SET_PLAYER_CONTROL(player, enabled) {
     CALL "GTA_SetPlayerControl" player enabled
-endmacro
+}
 
-macro GET_PLAYER_CHAR(player, outvar):
+macro GET_PLAYER_CHAR(player, outvar) {
     CALL "GTA_GetPlayerChar" player
     0004: outvar $RETVAL
-endmacro
+}
 
-macro ADD_SCORE(player, amount):
+macro ADD_SCORE(player, amount) {
     CALL "GTA_AddScore" player amount
-endmacro
+}

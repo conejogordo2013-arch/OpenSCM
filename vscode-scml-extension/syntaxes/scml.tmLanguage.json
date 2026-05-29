@@ -36,7 +36,7 @@
     },
     "keywords": {
       "patterns": [
-        { "name": "keyword.control.scml", "match": "\\b(CALL|JUMP|return|end_thread|macro|endmacro|EVENT_TRIGGER)\\b" }
+        { "name": "keyword.control.scml", "match": "\\b(CALL|JUMP|return|end_thread|macro|endmacro|EVENT_TRIGGER|use|script|module|namespace|class|fn|function|task|let|var|const|if|else|while|goto|call|spawn|halt|yield|print|log|wait)\\b" }
       ]
     },
     "numbers": {

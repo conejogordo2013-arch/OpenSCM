@@ -1,4 +1,4 @@
-#include "../stscm/stscm.scml"
+use "../stscm/stscm.scml";
 :MAIN
 ARRAY_CREATE(3, inv)
 WRITE(inv, 0, 101)

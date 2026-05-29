@@ -1,4 +1,4 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
 
 :MAIN
@@ -39,11 +39,11 @@ INT8($typed_int8, 255)
 INT16($typed_int16, 32767)
 INT32($typed_int32, 2147483647)
 INT64($typed_int64, 9223372036854775807)
-0B1E: $typed_int64_raw 9223372036854775807
+INT64($typed_int64_raw, 9223372036854775807)
 PRINT($typed_int8)
 PRINT($typed_int64_raw)
 BOOL($typed_bool, 1)
-NULL($typed_null)
+NULL_REF($typed_null)
 FLOAT32($typed_float, 12)
 STRING($typed_float_text, $typed_float)
 TYPE_OF($typed_float_type, $typed_float)
@@ -96,14 +96,14 @@ ARRAY_NEW(2, $array_b)
 ARRAY_SET($array_b, 0, $math_div)
 ARRAY_SET($array_b, 1, $heap_b_value)
 ARRAY_PUSH($array_b, 1234)
-0B15: $array_b 5678
+ARRAY_PUSH($array_b, 5678)
 ARRAY_LEN($array_b_len, $array_b)
 PRINT($array_b_len)
 ARRAY_POP($array_b_popped, $array_b)
 PRINT($array_b_popped)
-0B16: $array_b_popped_raw $array_b
+ARRAY_POP($array_b_popped_raw, $array_b)
 PRINT($array_b_popped_raw)
-0B17: $array_b_len_raw $array_b
+ARRAY_LEN($array_b_len_raw, $array_b)
 PRINT($array_b_len_raw)
 ARRAY_GET($array_b_first, $array_b, 0)
 PRINT($array_b_first)

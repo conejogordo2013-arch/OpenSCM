@@ -1,4 +1,4 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
 :MAIN
 03E5: "03A4: name_thread 'MAIN'"

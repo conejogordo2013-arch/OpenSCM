@@ -1,0 +1,29 @@
+use "std.scmlh";
+
+script MAIN {
+    let $COUNT: u32 = 0;
+    let $STEP: i32 = 1;
+
+    while ($COUNT < 3) {
+        $COUNT += $STEP;
+    }
+
+    call ADD_TEN;
+
+    if ($COUNT == 13) {
+        print("modern syntax ok");
+        print($COUNT);
+    } else {
+        print("modern syntax failed");
+    }
+
+    runtime.get_ticks() -> $TICKS;
+}
+
+fn ADD_TEN() {
+    0006: $COUNT $COUNT 10
+}
+
+task BACKGROUND {
+    print("background task");
+}

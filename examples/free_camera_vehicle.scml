@@ -1,5 +1,5 @@
-#include "../stscm/stscm.scml"
-#include "gta_camera_compat.scmlh"
+use "../stscm/stscm.scml";
+use "gta_camera_compat.scmlh";
 
 :MAIN
 CALL @CAM_OFF

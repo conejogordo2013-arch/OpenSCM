@@ -1,4 +1,4 @@
-#include "macros.scmlh"
+use "macros.scmlh";
 :MAIN
 screen("Macro print through SCM-like opcode")
 log("Macro wrote this line")

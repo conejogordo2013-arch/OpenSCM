@@ -1,4 +1,4 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
 :MAIN
 TEMPLATE_DECLARE(T_I32, "int32")

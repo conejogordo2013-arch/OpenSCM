@@ -1,4 +1,4 @@
-#include "../stscm/stscm.scml"
+use "../stscm/stscm.scml";
 :MAIN
 EVENT_BIND("ON_START", @ON_START)
 EVENT_BIND("ON_TICK", @ON_TICK)

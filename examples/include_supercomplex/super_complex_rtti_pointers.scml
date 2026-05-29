@@ -1,4 +1,4 @@
-#include "./headers/rtti/classes.scmlh"
+use "./headers/rtti/classes.scmlh";
 
 #define ENABLE_LOG 1
 #if ENABLE_LOG

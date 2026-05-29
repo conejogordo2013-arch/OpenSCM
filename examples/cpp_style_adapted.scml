@@ -1,4 +1,4 @@
-#include "cpp_to_scml_compat.scmlh"
+use "cpp_to_scml_compat.scmlh";
 
 :MAIN
 LOG_MSG("cpp->scml adaptation start")

@@ -1,4 +1,4 @@
-#include "../std.scmlh"
+use "../std.scmlh";
 
 :MAIN
 PTR_NEW_STRUCT(3, 0@)
