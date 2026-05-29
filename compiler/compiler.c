@@ -23,6 +23,89 @@ typedef struct ProgramSet {
     size_t count;
 } ProgramSet;
 
+typedef struct TypeBinding {
+    char *name;
+    char type[16];
+} TypeBinding;
+
+static const char *operand_static_type(const ScmlOperand *o, TypeBinding *types, size_t type_count) {
+    if (!o) return "any";
+    if (o->type == SCML_OPERAND_INT || o->type == SCML_OPERAND_ADDRESS) return "i32";
+    if (o->type == SCML_OPERAND_FLOAT) return "f32";
+    if (o->type == SCML_OPERAND_STRING) return "str";
+    if (o->type == SCML_OPERAND_VAR) {
+        for (size_t i = 0; i < type_count; i++) if (strcmp(types[i].name, o->text) == 0) return types[i].type;
+    }
+    return "any";
+}
+
+static int type_compatible(const char *expected, const char *actual) {
+    if (!expected || !actual) return 1;
+    if (strcmp(expected, "any") == 0 || strcmp(actual, "any") == 0) return 1;
+    if (strcmp(expected, actual) == 0) return 1;
+    if (strcmp(expected, "f32") == 0 && strcmp(actual, "i32") == 0) return 1;
+    return 0;
+}
+
+static int set_type_binding(TypeBinding **types, size_t *type_count, const char *name, const char *type, char *err, size_t err_size) {
+    if (!name || !type) return 0;
+    for (size_t i = 0; i < *type_count; i++) {
+        if (strcmp((*types)[i].name, name) == 0) {
+            snprintf((*types)[i].type, sizeof((*types)[i].type), "%s", type);
+            return 1;
+        }
+    }
+    TypeBinding *next = (TypeBinding *)realloc(*types, (*type_count + 1) * sizeof(*next));
+    if (!next) { snprintf(err, err_size, "out of memory"); return 0; }
+    *types = next;
+    size_t name_len = strlen(name);
+    (*types)[*type_count].name = (char *)malloc(name_len + 1);
+    if (!(*types)[*type_count].name) { snprintf(err, err_size, "out of memory"); return 0; }
+    memcpy((*types)[*type_count].name, name, name_len + 1);
+    snprintf((*types)[*type_count].type, sizeof((*types)[*type_count].type), "%s", type);
+    (*type_count)++;
+    return 1;
+}
+
+static void free_type_bindings(TypeBinding *types, size_t type_count) {
+    for (size_t i = 0; i < type_count; i++) free(types[i].name);
+    free(types);
+}
+
+static int validate_static_types(const ProgramSet *set, char *err, size_t err_size) {
+    TypeBinding *types = NULL;
+    size_t type_count = 0;
+    int ok = 1;
+    for (size_t p = 0; p < set->count && ok; p++) {
+        for (size_t i = 0; i < set->programs[p].count && ok; i++) {
+            ScmlStatement *stmt = &set->programs[p].items[i];
+            if (stmt->label) continue;
+            if (stmt->opcode == SCML_OP_TYPE_DECL) {
+                const char *type = stmt->operands[1].text;
+                if (stmt->operands[0].type != SCML_OPERAND_VAR || stmt->operands[1].type != SCML_OPERAND_STRING) {
+                    snprintf(err, err_size, "line %d: TYPE_DECL expects variable and string type", stmt->line); ok = 0; break;
+                }
+                ok = set_type_binding(&types, &type_count, stmt->operands[0].text, type, err, err_size);
+            } else if (stmt->opcode == SCML_OP_STORE && stmt->operand_count >= 2) {
+                const char *expected = operand_static_type(&stmt->operands[0], types, type_count);
+                const char *actual = operand_static_type(&stmt->operands[1], types, type_count);
+                if (!type_compatible(expected, actual)) { snprintf(err, err_size, "line %d: static type mismatch assigning %s to %s", stmt->line, actual, expected); ok = 0; }
+            } else if ((stmt->opcode == SCML_OP_ADD || stmt->opcode == SCML_OP_SUB || stmt->opcode == SCML_OP_MUL || stmt->opcode == SCML_OP_DIV || stmt->opcode == SCML_OP_MOD) && stmt->operand_count >= 3) {
+                const char *dst = operand_static_type(&stmt->operands[0], types, type_count);
+                const char *a = operand_static_type(&stmt->operands[1], types, type_count);
+                const char *b = operand_static_type(&stmt->operands[2], types, type_count);
+                const char *result = (strcmp(a, "f32") == 0 || strcmp(b, "f32") == 0) && stmt->opcode != SCML_OP_MOD ? "f32" : "i32";
+                if ((!type_compatible("f32", a) && !type_compatible("i32", a)) || (!type_compatible("f32", b) && !type_compatible("i32", b)) || !type_compatible(dst, result)) {
+                    snprintf(err, err_size, "line %d: static numeric type mismatch", stmt->line); ok = 0;
+                }
+            }
+        }
+    }
+    free_type_bindings(types, type_count);
+    return ok;
+}
+
+
 static void w8(FILE *f, uint8_t v) { fputc(v, f); }
 static void w16(FILE *f, uint16_t v) { fputc(v & 255, f); fputc(v >> 8, f); }
 static void w32(FILE *f, uint32_t v) { for (int i = 0; i < 4; i++) fputc((v >> (i * 8)) & 255, f); }
@@ -91,6 +174,11 @@ int scml_compile_files(size_t source_count, const char **source_paths, const cha
             free_program_set(&set);
             return 0;
         }
+    }
+
+    if (!validate_static_types(&set, err, err_size)) {
+        free_program_set(&set);
+        return 0;
     }
 
     for (size_t p = 0; p < set.count; p++) {

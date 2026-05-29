@@ -20,6 +20,7 @@ extern "C" {
 #define SCML_ENTITIES_MAX 128
 #define SCML_NATIVE_FUNCS_MAX 128
 #define SCML_NATIVE_MODULES_MAX 32
+#define SCML_ASYNC_TASKS_MAX 128
 
 typedef enum ScmlValueType { SCML_VAL_INT, SCML_VAL_STRING, SCML_VAL_FLOAT } ScmlValueType;
 

@@ -1509,3 +1509,66 @@ endmacro
 macro STR_REPEAT(outvar, text, count):
     0B3D: outvar text count
 endmacro
+
+; ===== Hostless + async + static typing tier =====
+; Built-in module wrappers make larger standalone scripts usable without a custom host.
+macro APP_SLEEP_MS(ms):
+    CALL_NATIVE("runtime.wait", ms)
+endmacro
+macro APP_TIME_MS():
+    CALL_NATIVE("runtime.get_time_ms", 0)
+endmacro
+macro APP_READ_TEXT(path):
+    CALL_NATIVE("file.read_txt", path)
+endmacro
+macro APP_WRITE_TEXT(path, data):
+    CALL_NATIVE3("file.write_txt", path, data, 0)
+endmacro
+macro APP_CONSOLE_WRITE(text):
+    CALL_NATIVE("console.write", text)
+endmacro
+macro APP_CONSOLE_FLUSH():
+    CALL_NATIVE("console.flush", 0)
+endmacro
+
+; Cooperative async tasks run on the VM event queue. Labels spawned this way should
+; finish with the thread-ending opcode so the task status flips to done.
+macro ASYNC_SPAWN(label, out_task):
+    0B49: label out_task
+endmacro
+macro ASYNC_DONE(task_ref, out_done):
+    0B4A: task_ref out_done
+endmacro
+macro ASYNC_AWAIT_POLL(task_ref, done_label, pending_label):
+    0B4A: task_ref 26@
+    00D6: 26@ 1 done_label
+    000A: pending_label
+endmacro
+macro ASYNC_YIELD_MS(ms):
+    000B: ms
+endmacro
+
+; Compile-time checked declarations. The compiler validates assignments and numeric
+; operations for i32/f32/str/any and the VM also exposes runtime assertions.
+macro TYPE_DECL(var_ref, type_name):
+    0B4B: var_ref type_name
+endmacro
+macro LET_I32(var_ref, value):
+    0B4B: var_ref "i32"
+    0004: var_ref value
+endmacro
+macro LET_F32(var_ref, value):
+    0B4B: var_ref "f32"
+    0004: var_ref value
+endmacro
+macro LET_STR(var_ref, value):
+    0B4B: var_ref "str"
+    0004: var_ref value
+endmacro
+macro LET_ANY(var_ref, value):
+    0B4B: var_ref "any"
+    0004: var_ref value
+endmacro
+macro TYPE_ASSERT(value, type_name, out_ok):
+    0B4C: value type_name out_ok
+endmacro

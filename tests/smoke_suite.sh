@@ -13,6 +13,7 @@ SAMPLES=(
   "examples/complexlogic.scml"
   "examples/rotating_ascii_cube_60fps.scml"
   "examples/rotating_ascii_cubes.scml"
+  "examples/hostless_async_static.scml"
 )
 
 for src in "${SAMPLES[@]}"; do
@@ -23,6 +24,33 @@ for src in "${SAMPLES[@]}"; do
   fi
 done
 
+
+hostless_bin=".scml/hostless_async_static.scmlbin"
+echo "[smoke] run hostless async/static typing regression"
+bin/scml compile "examples/hostless_async_static.scml" "$hostless_bin"
+hostless_output="$(bin/scml run "$hostless_bin")"
+expected_hostless_output=$'SCML hostless async/static demo\nTOTAL\n42\nTYPE_OK\n1'
+if [[ "$hostless_output" != "$expected_hostless_output" ]]; then
+  echo "[smoke] unexpected hostless async/static output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_hostless_output" "$hostless_output" >&2
+  exit 1
+fi
+
+static_bad_src=".scml/static_type_mismatch.scml"
+cat >"$static_bad_src" <<'SCML'
+#include "../std.scmlh"
+:MAIN
+LET_I32($COUNT, 1)
+0004: $COUNT "bad"
+0001:
+SCML
+
+echo "[smoke] verify compiler rejects static type mismatches"
+if bin/scml compile "$static_bad_src" ".scml/static_type_mismatch.scmlbin" >/tmp/scml_static_type.out 2>&1; then
+  echo "[smoke] compiler accepted a static type mismatch" >&2
+  cat /tmp/scml_static_type.out >&2
+  exit 1
+fi
 
 float_cmp_src=".scml/float_conditions.scml"
 float_cmp_bin=".scml/float_conditions.scmlbin"
@@ -214,7 +242,7 @@ truncated_src=".scml/truncated_header.scmlbin"
 python3 - <<'PYBIN'
 import struct
 with open(".scml/truncated_header.scmlbin", "wb") as f:
-    f.write(struct.pack("<4sHIII", b"SCML", 5, 1, 0, 0))
+    f.write(struct.pack("<4sHIII", b"SCML", 6, 1, 0, 0))
     f.write(b"\x00")
 PYBIN
 echo "[smoke] verify runtime rejects truncated instruction headers"
@@ -228,7 +256,7 @@ bad_argc_src=".scml/bad_opcode_argc.scmlbin"
 python3 - <<'PYBIN'
 import struct
 with open(".scml/bad_opcode_argc.scmlbin", "wb") as f:
-    f.write(struct.pack("<4sHIII", b"SCML", 5, 2, 0, 0))
+    f.write(struct.pack("<4sHIII", b"SCML", 6, 2, 0, 0))
     f.write(bytes([0x3E, 0x00]))
 PYBIN
 echo "[smoke] verify runtime rejects opcode operand count mismatches"

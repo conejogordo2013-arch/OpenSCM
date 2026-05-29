@@ -1,25 +1,37 @@
 {
   "name": "scml-advanced-tools",
   "displayName": "SCML Advanced Tools",
-  "description": "Advanced SCML support: syntax highlighting, snippets, compile/run/bin commands with SCML executable detection.",
+  "description": "Mature SCML IDE support: syntax highlighting, snippets, diagnostics, completions, hovers, definitions, symbols, formatting, rename, quick fixes, and compile/run commands.",
   "version": "0.1.0",
   "publisher": "openscm",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Programming Languages", "Other"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
   "activationEvents": [
     "onLanguage:scml",
     "onLanguage:scmlh",
     "onCommand:scml.compile",
     "onCommand:scml.run",
-    "onCommand:scml.compileAndRun"
+    "onCommand:scml.compileAndRun",
+    "onCommand:scml.restartLanguageServices"
   ],
   "main": "./extension.js",
   "contributes": {
     "languages": [
       {
         "id": "scml",
-        "aliases": ["SCML", "scml"],
-        "extensions": [".scml", ".scmlh"],
+        "aliases": [
+          "SCML",
+          "scml"
+        ],
+        "extensions": [
+          ".scml",
+          ".scmlh"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -31,12 +43,28 @@
       }
     ],
     "snippets": [
-      { "language": "scml", "path": "./snippets/scml.json" }
+      {
+        "language": "scml",
+        "path": "./snippets/scml.json"
+      }
     ],
     "commands": [
-      { "command": "scml.compile", "title": "SCML: Compile Current File" },
-      { "command": "scml.run", "title": "SCML: Run Current Binary" },
-      { "command": "scml.compileAndRun", "title": "SCML: Compile and Run Current File" }
+      {
+        "command": "scml.compile",
+        "title": "SCML: Compile Current File"
+      },
+      {
+        "command": "scml.run",
+        "title": "SCML: Run Current Binary"
+      },
+      {
+        "command": "scml.compileAndRun",
+        "title": "SCML: Compile and Run Current File"
+      },
+      {
+        "command": "scml.restartLanguageServices",
+        "title": "SCML: Restart Language Services"
+      }
     ],
     "configuration": {
       "title": "SCML",
@@ -55,6 +83,16 @@
           "type": "boolean",
           "default": false,
           "description": "Include --trace when running SCML binaries."
+        },
+        "scml.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable SCML language-service diagnostics for labels, includes, opcodes, macros, and compiler errors."
+        },
+        "scml.diagnostics.compileOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the SCML compiler on saved .scml files and surface compiler errors in Problems."
         }
       }
     }
