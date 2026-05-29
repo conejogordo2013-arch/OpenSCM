@@ -1,10 +1,11 @@
-; Pure SCML port of the rotating ASCII cube renderer.
+; Pure SCML port of the exact three-cube C renderer from the prompt.
 ; No #include, no std macros, no console.cube_frame/native C renderer.
 ; SCML owns A/B/C, z-buffer, char buffer, projection math, surface loops,
 ; frame printing and animation speed.
 
 :MAIN
-0B33:
+; printf("\x1b[2J");
+0B32: "\033[2J"
 0004: $A 0.0
 0004: $B 0.0
 0004: $C 0.0
@@ -15,7 +16,7 @@
 0004: $HALF_HEIGHT 22.0
 0004: $DISTANCE_FROM_CAM 100.0
 0004: $K1 40.0
-0004: $INCREMENT 2.0
+0004: $INCREMENT 0.6
 0004: $OOZ_SCALE 100000.0
 0B14: 7040 $BUFFER
 0B14: 7040 $ZBUF
