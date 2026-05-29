@@ -628,6 +628,24 @@ static int rt_runtime_sleep_ms(ScmlVM *vm, const ScmlValue *args, size_t arg_cou
 #endif
 }
 
+
+static int rt_console_write(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    char buf[128];
+    fputs(arg_to_cstr(&args[0], buf, sizeof(buf)), stdout);
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
+static int rt_console_flush(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+    fflush(stdout);
+    *ret = scml_value_int(0);
+    return 1;
+}
+
 static int rt_capability_info(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)args; (void)arg_count; (void)user_data;
     char buf[512];
@@ -722,6 +740,9 @@ static const ScmlRuntimeFunctionEntry k_window[] = {
     {"set_title", rt_window_set_title}, {"poll_events", rt_window_poll_events}, {"close_requested", rt_window_close_requested}, {"should_close", rt_window_close_requested},
     {"backend_info", rt_capability_info}
 };
+static const ScmlRuntimeFunctionEntry k_console[] = {
+    {"write", rt_console_write}, {"flush", rt_console_flush}
+};
 static const ScmlRuntimeFunctionEntry k_runtime[] = {
     {"wait", rt_runtime_sleep_ms}, {"get_time_ms", rt_runtime_get_time_ms}, {"get_time_us", rt_runtime_get_time_us}, {"get_ticks", rt_runtime_get_ticks}
 };
@@ -752,6 +773,7 @@ int scml_runtime_install_builtin_module_registry(ScmlVM *vm) {
     ScmlRuntimeBackendVTable image_stb = {"stb_image", k_image, sizeof(k_image) / sizeof(k_image[0]), NULL};
     ScmlRuntimeBackendVTable net_default = {"default", k_net, sizeof(k_net) / sizeof(k_net[0]), NULL};
     ScmlRuntimeBackendVTable input_default = {"default", k_input, sizeof(k_input) / sizeof(k_input[0]), NULL};
+    ScmlRuntimeBackendVTable console_default = {"default", k_console, sizeof(k_console) / sizeof(k_console[0]), NULL};
     ScmlRuntimeBackendVTable runtime_default = {"default", k_runtime, sizeof(k_runtime) / sizeof(k_runtime[0]), NULL};
     ScmlRuntimeBackendVTable system_default = {"default", k_system, sizeof(k_system) / sizeof(k_system[0]), NULL};
     ScmlRuntimeBackendVTable thread_default = {"default", k_thread, sizeof(k_thread) / sizeof(k_thread[0]), NULL};
@@ -775,6 +797,7 @@ int scml_runtime_install_builtin_module_registry(ScmlVM *vm) {
     ok = ok && scml_runtime_register_backend(vm, "image", &image_stb);
     ok = ok && scml_runtime_register_backend(vm, "net", &net_default);
     ok = ok && scml_runtime_register_backend(vm, "input", &input_default);
+    ok = ok && scml_runtime_register_backend(vm, "console", &console_default);
     ok = ok && scml_runtime_register_backend(vm, "runtime", &runtime_default);
     ok = ok && scml_runtime_register_backend(vm, "system", &system_default);
     ok = ok && scml_runtime_register_backend(vm, "thread", &thread_default);
@@ -788,6 +811,7 @@ int scml_runtime_install_builtin_module_registry(ScmlVM *vm) {
     ok = ok && scml_runtime_select_backend(vm, "image", "default");
     ok = ok && scml_runtime_select_backend(vm, "net", "default");
     ok = ok && scml_runtime_select_backend(vm, "input", "default");
+    ok = ok && scml_runtime_select_backend(vm, "console", "default");
     ok = ok && scml_runtime_select_backend(vm, "runtime", "default");
     ok = ok && scml_runtime_select_backend(vm, "system", "default");
     ok = ok && scml_runtime_select_backend(vm, "thread", "default");
