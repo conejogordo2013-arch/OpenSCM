@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 199309L
 #include "scml_runtime_modules.h"
 
 #include <errno.h>
@@ -193,6 +194,18 @@ static const char *arg_to_cstr(const ScmlValue *v, char *buf, size_t n) {
     if (v->type == SCML_VAL_FLOAT) { snprintf(buf, n, "%g", v->real); return buf; }
     snprintf(buf, n, "%d", v->integer);
     return buf;
+}
+
+static void scml_runtime_sleep_us(unsigned int usec) {
+#if defined(_WIN32)
+    DWORD ms = (DWORD)((usec + 999u) / 1000u);
+    Sleep(ms);
+#else
+    struct timespec ts;
+    ts.tv_sec = (time_t)(usec / 1000000u);
+    ts.tv_nsec = (long)(usec % 1000000u) * 1000L;
+    nanosleep(&ts, NULL);
+#endif
 }
 
 
@@ -429,6 +442,9 @@ static int rt_gpu_update_texture2d(ScmlVM *vm, const ScmlValue *args, size_t arg
     int w = args[1].integer;
     int h = args[2].integer;
     if (w <= 0 || h <= 0) return 0;
+#if !(defined(SCML_USE_OPENGL) || defined(SCML_USE_OPENGLES))
+    (void)tex;
+#endif
 #if defined(SCML_USE_OPENGL) || defined(SCML_USE_OPENGLES)
     if (tex <= 0) return 0;
     glBindTexture(GL_TEXTURE_2D, (GLuint)tex);
@@ -445,6 +461,9 @@ static int rt_gpu_update_texture2d(ScmlVM *vm, const ScmlValue *args, size_t arg
 static int rt_gpu_destroy_texture(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)user_data;
     if (arg_count < 1) return 0;
+#if !(defined(SCML_USE_OPENGL) || defined(SCML_USE_OPENGLES))
+    (void)args;
+#endif
 #if defined(SCML_USE_OPENGL) || defined(SCML_USE_OPENGLES)
     if (args[0].integer > 0) {
         GLuint tex = (GLuint)args[0].integer;
@@ -517,6 +536,9 @@ static int rt_window_set_title(ScmlVM *vm, const ScmlValue *args, size_t arg_cou
     if (arg_count < 1) return 0;
     char t[256];
     const char *title = arg_to_cstr(&args[0], t, sizeof(t));
+#if !defined(SCML_USE_SDL2)
+    (void)title;
+#endif
 #if defined(SCML_USE_SDL2)
     if (g_builtin.window) SDL_SetWindowTitle(g_builtin.window, title);
 #endif
@@ -544,6 +566,9 @@ static int rt_gpu_create_buffer(ScmlVM *vm, const ScmlValue *args, size_t arg_co
 static int rt_gpu_update_buffer(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)user_data;
     if (!g_builtin.gpu_context_alive || arg_count < 2) return 0;
+#if !defined(SCML_USE_OPENGL)
+    (void)args;
+#endif
 #if defined(SCML_USE_OPENGL)
     GLuint vbo = (GLuint)args[0].integer;
     if (!vbo) return 0;
@@ -570,6 +595,9 @@ static int rt_gpu_draw_indexed(ScmlVM *vm, const ScmlValue *args, size_t arg_cou
     (void)vm; (void)user_data;
     if (!g_builtin.gpu_context_alive) return 0;
     int count = arg_count > 0 ? args[0].integer : 0;
+#if !defined(SCML_USE_OPENGL)
+    (void)count;
+#endif
 #if defined(SCML_USE_OPENGL)
     if (count > 0) glDrawArrays(GL_TRIANGLES, 0, count);
 #endif
@@ -586,6 +614,9 @@ static int rt_gpu_clear_color(ScmlVM *vm, const ScmlValue *args, size_t arg_coun
     float g = arg_count > 1 ? (args[1].type == SCML_VAL_FLOAT ? args[1].real : (float)args[1].integer) : 0.0f;
     float b = arg_count > 2 ? (args[2].type == SCML_VAL_FLOAT ? args[2].real : (float)args[2].integer) : 0.0f;
     float a = arg_count > 3 ? (args[3].type == SCML_VAL_FLOAT ? args[3].real : (float)args[3].integer) : 1.0f;
+#if !(defined(SCML_USE_OPENGL) || defined(SCML_USE_OPENGLES))
+    (void)r; (void)g; (void)b; (void)a;
+#endif
 #if defined(SCML_USE_OPENGL) || defined(SCML_USE_OPENGLES)
     glClearColor(r, g, b, a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -594,7 +625,40 @@ static int rt_gpu_clear_color(ScmlVM *vm, const ScmlValue *args, size_t arg_coun
     return 1;
 }
 static int rt_file_copy_file(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)user_data; if (arg_count < 2) return 0; char s[512], d[512]; const char *src=arg_to_cstr(&args[0], s, sizeof(s)); const char *dst=arg_to_cstr(&args[1], d, sizeof(d)); FILE *fs=fopen(src,"rb"); if(!fs) return 0; FILE *fd=fopen(dst,"wb"); if(!fd){fclose(fs); return 0;} char buf[4096]; size_t n; while((n=fread(buf,1,sizeof(buf),fs))>0) fwrite(buf,1,n,fd); fclose(fs); fclose(fd); *ret=scml_value_int(0); return 1; }
-static int rt_file_list_directory(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)user_data; if (arg_count < 1) return 0; char p[512]; const char *path = arg_to_cstr(&args[0], p, sizeof(p)); DIR *d = opendir(path); if (!d) return 0; char out[1024] = {0}; struct dirent *e; while ((e = readdir(d)) != NULL) { if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) { if (out[0]) strncat(out, ",", sizeof(out)-strlen(out)-1); strncat(out, e->d_name, sizeof(out)-strlen(out)-1); } } closedir(d); *ret = scml_value_string(out); return 1; }
+static int rt_file_list_directory(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    char p[512];
+    const char *path = arg_to_cstr(&args[0], p, sizeof(p));
+    char out[1024] = {0};
+#if defined(_WIN32)
+    char pattern[768];
+    snprintf(pattern, sizeof(pattern), "%s%s*", path, (path[0] && path[strlen(path) - 1] != '\\' && path[strlen(path) - 1] != '/') ? "\\" : "");
+    WIN32_FIND_DATAA data;
+    HANDLE h = FindFirstFileA(pattern, &data);
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    do {
+        if (strcmp(data.cFileName, ".") && strcmp(data.cFileName, "..")) {
+            if (out[0]) strncat(out, ",", sizeof(out) - strlen(out) - 1);
+            strncat(out, data.cFileName, sizeof(out) - strlen(out) - 1);
+        }
+    } while (FindNextFileA(h, &data));
+    FindClose(h);
+#else
+    DIR *d = opendir(path);
+    if (!d) return 0;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        if (strcmp(e->d_name, ".") && strcmp(e->d_name, "..")) {
+            if (out[0]) strncat(out, ",", sizeof(out) - strlen(out) - 1);
+            strncat(out, e->d_name, sizeof(out) - strlen(out) - 1);
+        }
+    }
+    closedir(d);
+#endif
+    *ret = scml_value_string(out);
+    return 1;
+}
 static int rt_system_get_platform(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data;
 #if defined(_WIN32)
     *ret = scml_value_string("windows");
@@ -606,12 +670,52 @@ static int rt_system_get_platform(ScmlVM *vm, const ScmlValue *args, size_t arg_
     *ret = scml_value_string("unknown");
 #endif
     return 1; }
-static int rt_system_get_cpu_count(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; *ret = scml_value_int((int32_t)sysconf(_SC_NPROCESSORS_ONLN)); return 1; }
-static int rt_system_get_memory_info(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; long p = sysconf(_SC_PHYS_PAGES); long sz = sysconf(_SC_PAGE_SIZE); long long bytes = (long long)p * (long long)sz; *ret = scml_value_int((int32_t)(bytes / (1024*1024))); return 1; }
-static int rt_system_get_working_directory(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; char buf[512]; if (!getcwd(buf, sizeof(buf))) return 0; *ret = scml_value_string(buf); return 1; }
+static int rt_system_get_cpu_count(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+#if defined(_WIN32)
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    *ret = scml_value_int((int32_t)info.dwNumberOfProcessors);
+#else
+    long count = sysconf(_SC_NPROCESSORS_ONLN);
+    *ret = scml_value_int((int32_t)(count > 0 ? count : 1));
+#endif
+    return 1;
+}
+
+static int rt_system_get_memory_info(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+#if defined(_WIN32)
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    if (!GlobalMemoryStatusEx(&status)) return 0;
+    *ret = scml_value_int((int32_t)(status.ullTotalPhys / (1024ULL * 1024ULL)));
+#else
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long page_size = sysconf(_SC_PAGE_SIZE);
+    if (pages <= 0 || page_size <= 0) return 0;
+    long long bytes = (long long)pages * (long long)page_size;
+    *ret = scml_value_int((int32_t)(bytes / (1024 * 1024)));
+#endif
+    return 1;
+}
+
+static int rt_system_get_working_directory(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)args; (void)arg_count; (void)user_data;
+    char buf[512];
+#if defined(_WIN32)
+    DWORD n = GetCurrentDirectoryA((DWORD)sizeof(buf), buf);
+    if (n == 0 || n >= sizeof(buf)) return 0;
+#else
+    if (!getcwd(buf, sizeof(buf))) return 0;
+#endif
+    *ret = scml_value_string(buf);
+    return 1;
+}
+
 static int rt_thread_create(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; *ret = scml_value_int(++g_builtin.next_handle); return 1; }
 static int rt_thread_join(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; *ret = scml_value_int(0); return 1; }
-static int rt_thread_yield(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; usleep(0); *ret = scml_value_int(0); return 1; }
+static int rt_thread_yield(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; scml_runtime_sleep_us(0); *ret = scml_value_int(0); return 1; }
 
 static int rt_runtime_sleep_ms(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)user_data;
@@ -623,7 +727,7 @@ static int rt_runtime_sleep_ms(ScmlVM *vm, const ScmlValue *args, size_t arg_cou
     return 1;
 #else
     if (ms < 0) ms = 0;
-    usleep((unsigned int)ms * 1000u);
+    scml_runtime_sleep_us((unsigned int)ms * 1000u);
     *ret = scml_value_int(0);
     return 1;
 #endif
