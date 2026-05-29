@@ -614,8 +614,10 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         ScmlValue v = eval(vm, &ops[0]);
         char b[256];
         fputs(value_to_cstr(&v, b, sizeof(b)), stdout);
-        if (op != SCML_OP_PRINT_RAW) fputc('\n', stdout);
-        fflush(stdout);
+        if (op != SCML_OP_PRINT_RAW) {
+            fputc('\n', stdout);
+            fflush(stdout);
+        }
         value_free(&v);
         break;
     }
@@ -663,6 +665,7 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         break;
     }
     case SCML_OP_WAIT: {
+        fflush(stdout);
         ScmlValue v = eval(vm, &ops[0]);
         ScmlValue ret = value_int(0);
         int ok = scml_vm_call_native(vm, "runtime.wait", &v, 1, &ret);
