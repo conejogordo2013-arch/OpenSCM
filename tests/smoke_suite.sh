@@ -135,6 +135,65 @@ if [[ "$terminal_output" != "$expected_terminal_output" ]]; then
   exit 1
 fi
 
+
+span_src=".scml/span_render.scml"
+span_bin=".scml/span_render.scmlbin"
+cat >"$span_src" <<'SCML'
+:MAIN
+0B43: 4 $BUF
+0B44: $BUF
+0B45: $BUF 0 4 46
+0B46: $BUF 1 64
+0B48: $BUF 2 2
+0001:
+SCML
+
+echo "[smoke] run span framebuffer render regression"
+bin/scml compile "$span_src" "$span_bin"
+span_output="$(bin/scml run "$span_bin")"
+expected_span_output=$'\033[H.@\n..'
+if [[ "$span_output" != "$expected_span_output" ]]; then
+  echo "[smoke] unexpected span render output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_span_output" "$span_output" >&2
+  exit 1
+fi
+
+span_bad_src=".scml/span_bad_write.scml"
+span_bad_bin=".scml/span_bad_write.scmlbin"
+cat >"$span_bad_src" <<'SCML'
+:MAIN
+0B43: 1 $BUF
+0B46: $BUF 1 65
+0001:
+SCML
+
+echo "[smoke] verify span write bounds checks"
+bin/scml compile "$span_bad_src" "$span_bad_bin"
+if bin/scml run "$span_bad_bin" >/tmp/scml_span_bad.out 2>&1; then
+  echo "[smoke] runtime accepted out-of-range span write" >&2
+  cat /tmp/scml_span_bad.out >&2
+  exit 1
+fi
+
+
+span_unpinned_src=".scml/span_unpinned_render.scml"
+span_unpinned_bin=".scml/span_unpinned_render.scmlbin"
+cat >"$span_unpinned_src" <<'SCML'
+:MAIN
+0B43: 1 $BUF
+0B45: $BUF 0 1 46
+0B48: $BUF 1 1
+0001:
+SCML
+
+echo "[smoke] verify framebuffer render requires a pinned span"
+bin/scml compile "$span_unpinned_src" "$span_unpinned_bin"
+if bin/scml run "$span_unpinned_bin" >/tmp/scml_span_unpinned.out 2>&1; then
+  echo "[smoke] runtime rendered an unpinned span" >&2
+  cat /tmp/scml_span_unpinned.out >&2
+  exit 1
+fi
+
 bad_color_src=".scml/invalid_terminal_color.scml"
 bad_color_bin=".scml/invalid_terminal_color.scmlbin"
 cat >"$bad_color_src" <<'SCML'
