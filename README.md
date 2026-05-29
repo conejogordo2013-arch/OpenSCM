@@ -59,6 +59,13 @@ bin/scml compile examples/helloworld.scml examples/helloworld.scmlbin
 bin/scml run examples/helloworld.scmlbin --trace
 ```
 
+Compile and run the optimized 60 FPS ASCII cube demo. The script keeps the frame small and batches complete rows, while the VM buffers `PRINT_RAW` until a frame boundary (`WAIT`) so MSYS2/Windows terminals do not stall on per-character output:
+
+```sh
+bin/scml compile examples/rotating_ascii_cube_60fps.scml examples/rotating_ascii_cube_60fps.scmlbin
+bin/scml run examples/rotating_ascii_cube_60fps.scmlbin
+```
+
 Compile several scripts into one global bytecode image:
 
 ```sh
