@@ -967,12 +967,41 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
             value_free(&ref_value); value_free(&width_value); value_free(&height_value);
             error_at(vm, ins_pc, err, err_size, "console render requires pinned byte span in range"); free_decoded(ops, argc); return -1;
         }
-        fputs("\033[H", stdout);
         for (int row = 0; row < height; row++) {
+            fprintf(stdout, "\033[%d;1H", row + 1);
             fwrite(obj->data + (size_t)row * (size_t)width, 1, (size_t)width, stdout);
-            fputc('\n', stdout);
         }
         value_free(&ref_value); value_free(&width_value); value_free(&height_value);
+        break;
+    }
+    case SCML_OP_CONSOLE_RENDER_SPAN_DIRTY: {
+        ScmlValue ref_value = eval(vm, &ops[0]), previous_value = eval(vm, &ops[1]);
+        ScmlValue width_value = eval(vm, &ops[2]), height_value = eval(vm, &ops[3]);
+        HeapObject *current = heap_find(vm, (uint32_t)value_to_int(&ref_value));
+        HeapObject *previous = heap_find(vm, (uint32_t)value_to_int(&previous_value));
+        int width = value_to_int(&width_value), height = value_to_int(&height_value);
+        size_t cells = (width > 0 && height > 0 && (size_t)width <= SIZE_MAX / (size_t)height) ? (size_t)width * (size_t)height : 0;
+        if (width <= 0 || height <= 0 || !current || !previous || current->elem_size != 1 || previous->elem_size != 1 || !current->pinned || !previous->pinned || cells > current->size || cells > previous->size) {
+            value_free(&ref_value); value_free(&previous_value); value_free(&width_value); value_free(&height_value);
+            error_at(vm, ins_pc, err, err_size, "dirty render requires two pinned byte spans in range"); free_decoded(ops, argc); return -1;
+        }
+        for (int row = 0; row < height; row++) {
+            size_t base = (size_t)row * (size_t)width;
+            int col = 0;
+            while (col < width) {
+                while (col < width && current->data[base + (size_t)col] == previous->data[base + (size_t)col]) col++;
+                if (col >= width) break;
+                int start = col;
+                while (col < width && current->data[base + (size_t)col] != previous->data[base + (size_t)col]) col++;
+                size_t run = (size_t)(col - start);
+                unsigned char *src = current->data + base + (size_t)start;
+                unsigned char *dst = previous->data + base + (size_t)start;
+                fprintf(stdout, "\033[%d;%dH", row + 1, start + 1);
+                fwrite(src, 1, run, stdout);
+                memcpy(dst, src, run);
+            }
+        }
+        value_free(&ref_value); value_free(&previous_value); value_free(&width_value); value_free(&height_value);
         break;
     }
     case SCML_OP_INPUT: {

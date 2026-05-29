@@ -1,8 +1,8 @@
 ; Pure SCML port of the exact three-cube C renderer from the prompt.
 ; No #include, no std macros, no console.cube_frame/native C renderer.
 ; SCML owns A/B/C, z-buffer, projection math and surface loops.  The
-; framebuffer is a pinned byte span rendered by a VM intrinsic so ASCII output
-; is a contiguous safe buffer operation instead of thousands of PRINT calls.
+; framebuffer is a pinned byte span rendered by a dirty-rectangle VM intrinsic
+; so ASCII output sends only changed contiguous runs and never stores newlines.
 
 :MAIN
 ; printf("\x1b[2J");
@@ -20,7 +20,9 @@
 0004: $INCREMENT 0.6
 0004: $OOZ_SCALE 100000.0
 0B43: $SIZE $BUFFER
+0B43: $SIZE $PREVIOUS_BUFFER
 0B44: $BUFFER
+0B44: $PREVIOUS_BUFFER
 0B14: 7040 $ZBUF
 
 :FRAME
@@ -188,5 +190,5 @@
 0D01:
 
 :PRINT_BUFFER
-0B48: $BUFFER $WIDTH $HEIGHT
+0B49: $BUFFER $PREVIOUS_BUFFER $WIDTH $HEIGHT
 0D01:

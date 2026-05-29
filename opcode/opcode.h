@@ -84,7 +84,8 @@ typedef enum ScmlOpcode {
     SCML_OP_SPAN_FILL = 0x45,
     SCML_OP_SPAN_WRITE_U8 = 0x46,
     SCML_OP_SPAN_READ_U8 = 0x47,
-    SCML_OP_CONSOLE_RENDER_SPAN = 0x48
+    SCML_OP_CONSOLE_RENDER_SPAN = 0x48,
+    SCML_OP_CONSOLE_RENDER_SPAN_DIRTY = 0x49
 } ScmlOpcode;
 
 typedef enum ScmlOperandType {

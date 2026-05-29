@@ -151,10 +151,36 @@ SCML
 echo "[smoke] run span framebuffer render regression"
 bin/scml compile "$span_src" "$span_bin"
 span_output="$(bin/scml run "$span_bin")"
-expected_span_output=$'\033[H.@\n..'
+expected_span_output=$'\033[1;1H.@\033[2;1H..'
 if [[ "$span_output" != "$expected_span_output" ]]; then
   echo "[smoke] unexpected span render output" >&2
   printf 'expected: %q\nactual:   %q\n' "$expected_span_output" "$span_output" >&2
+  exit 1
+fi
+
+
+span_dirty_src=".scml/span_dirty_render.scml"
+span_dirty_bin=".scml/span_dirty_render.scmlbin"
+cat >"$span_dirty_src" <<'SCML'
+:MAIN
+0B43: 4 $CUR
+0B43: 4 $PREV
+0B44: $CUR
+0B44: $PREV
+0B45: $CUR 0 4 46
+0B45: $PREV 0 4 46
+0B46: $CUR 2 64
+0B49: $CUR $PREV 2 2
+0001:
+SCML
+
+echo "[smoke] run dirty span framebuffer render regression"
+bin/scml compile "$span_dirty_src" "$span_dirty_bin"
+span_dirty_output="$(bin/scml run "$span_dirty_bin")"
+expected_span_dirty_output=$'\033[2;1H@'
+if [[ "$span_dirty_output" != "$expected_span_dirty_output" ]]; then
+  echo "[smoke] unexpected dirty span render output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_span_dirty_output" "$span_dirty_output" >&2
   exit 1
 fi
 
