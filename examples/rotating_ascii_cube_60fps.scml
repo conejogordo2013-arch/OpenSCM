@@ -1,0 +1,230 @@
+; Aplicacion SCML pura: un cubo ASCII rotando a ~60 FPS.
+; Compila con: bin/scml compile examples/rotating_ascii_cube_60fps.scml examples/rotating_ascii_cube_60fps.scmlbin
+; Ejecuta con: bin/scml run examples/rotating_ascii_cube_60fps.scmlbin
+; No usa renderizador nativo: SCML calcula seno/coseno, z-buffer y proyeccion.
+; PRINT_RAW queda en buffer y se vuelca en WAIT para evitar miles de flush por frame en MSYS2.
+
+:MAIN
+0B33:
+0004: $A 0.0
+0004: $B 0.0
+0004: $C 0.0
+0004: $WIDTH 80
+0004: $HEIGHT 40
+0004: $SIZE 3200
+0004: $HALF_WIDTH 40.0
+0004: $HALF_HEIGHT 20.0
+0004: $DISTANCE_FROM_CAM 80.0
+0004: $K1 38.0
+0004: $INCREMENT 1.5
+0004: $OOZ_SCALE 100000.0
+0B14: 3200 $BUFFER
+0B14: 3200 $ZBUF
+
+:FRAME
+; memset(buffer, '.', width * height); memset(zBuffer, 0, width * height)
+0004: $I_CLEAR 0
+:CLEAR_CHECK
+00D9: $I_CLEAR $SIZE @CLEAR_BODY
+000A: @DRAW_ALL
+:CLEAR_BODY
+0B13: $BUFFER $I_CLEAR 46
+0B13: $ZBUF $I_CLEAR 0
+0006: $I_CLEAR $I_CLEAR 1
+000A: @CLEAR_CHECK
+
+:DRAW_ALL
+0004: $CUBE_WIDTH 18.0
+0004: $HORIZONTAL_OFFSET 0.0
+0D00: @DRAW_CUBE
+0D00: @PRINT_BUFFER
+
+; 16 ms por frame ~= 62.5 Hz, la aproximacion entera disponible para 60 FPS.
+0006: $A $A 0.05
+0006: $B $B 0.04
+0006: $C $C 0.02
+000B: 16
+000A: @FRAME
+
+:DRAW_CUBE
+0007: $NEG_CUBE_WIDTH 0.0 $CUBE_WIDTH
+0004: $CUBE_X $NEG_CUBE_WIDTH
+:CUBE_X_CHECK
+00D9: $CUBE_X $CUBE_WIDTH @CUBE_X_BODY
+0D01:
+:CUBE_X_BODY
+0004: $CUBE_Y $NEG_CUBE_WIDTH
+:CUBE_Y_CHECK
+00D9: $CUBE_Y $CUBE_WIDTH @CUBE_Y_BODY
+0006: $CUBE_X $CUBE_X $INCREMENT
+000A: @CUBE_X_CHECK
+:CUBE_Y_BODY
+
+; calculateForSurface(cubeX, cubeY, -cubeWidth, '@')
+0004: $P_I $CUBE_X
+0004: $P_J $CUBE_Y
+0004: $P_K $NEG_CUBE_WIDTH
+0004: $CH_CODE 64
+0D00: @PLOT_SURFACE
+
+; calculateForSurface(cubeWidth, cubeY, cubeX, '$')
+0004: $P_I $CUBE_WIDTH
+0004: $P_J $CUBE_Y
+0004: $P_K $CUBE_X
+0004: $CH_CODE 36
+0D00: @PLOT_SURFACE
+
+; calculateForSurface(-cubeWidth, cubeY, -cubeX, '~')
+0004: $P_I $NEG_CUBE_WIDTH
+0004: $P_J $CUBE_Y
+0007: $P_K 0.0 $CUBE_X
+0004: $CH_CODE 126
+0D00: @PLOT_SURFACE
+
+; calculateForSurface(-cubeX, cubeY, cubeWidth, '#')
+0007: $P_I 0.0 $CUBE_X
+0004: $P_J $CUBE_Y
+0004: $P_K $CUBE_WIDTH
+0004: $CH_CODE 35
+0D00: @PLOT_SURFACE
+
+; calculateForSurface(cubeX, -cubeWidth, -cubeY, ';')
+0004: $P_I $CUBE_X
+0004: $P_J $NEG_CUBE_WIDTH
+0007: $P_K 0.0 $CUBE_Y
+0004: $CH_CODE 59
+0D00: @PLOT_SURFACE
+
+; calculateForSurface(cubeX, cubeWidth, cubeY, '+')
+0004: $P_I $CUBE_X
+0004: $P_J $CUBE_WIDTH
+0004: $P_K $CUBE_Y
+0004: $CH_CODE 43
+0D00: @PLOT_SURFACE
+
+0006: $CUBE_Y $CUBE_Y $INCREMENT
+000A: @CUBE_Y_CHECK
+
+:PLOT_SURFACE
+; sin/cos cache for this point
+0B34: $SIN_A $A
+0B35: $COS_A $A
+0B34: $SIN_B $B
+0B35: $COS_B $B
+0B34: $SIN_C $C
+0B35: $COS_C $C
+
+; X = j*sin(A)*sin(B)*cos(C) - k*cos(A)*sin(B)*cos(C) + j*cos(A)*sin(C) + k*sin(A)*sin(C) + i*cos(B)*cos(C)
+0008: $T1 $P_J $SIN_A
+0008: $T1 $T1 $SIN_B
+0008: $T1 $T1 $COS_C
+0008: $T2 $P_K $COS_A
+0008: $T2 $T2 $SIN_B
+0008: $T2 $T2 $COS_C
+0007: $X3D $T1 $T2
+0008: $T3 $P_J $COS_A
+0008: $T3 $T3 $SIN_C
+0006: $X3D $X3D $T3
+0008: $T4 $P_K $SIN_A
+0008: $T4 $T4 $SIN_C
+0006: $X3D $X3D $T4
+0008: $T5 $P_I $COS_B
+0008: $T5 $T5 $COS_C
+0006: $X3D $X3D $T5
+
+; Y = j*cos(A)*cos(C) + k*sin(A)*cos(C) - j*sin(A)*sin(B)*sin(C) + k*cos(A)*sin(B)*sin(C) - i*cos(B)*sin(C)
+0008: $T1 $P_J $COS_A
+0008: $T1 $T1 $COS_C
+0008: $T2 $P_K $SIN_A
+0008: $T2 $T2 $COS_C
+0006: $Y3D $T1 $T2
+0008: $T3 $P_J $SIN_A
+0008: $T3 $T3 $SIN_B
+0008: $T3 $T3 $SIN_C
+0007: $Y3D $Y3D $T3
+0008: $T4 $P_K $COS_A
+0008: $T4 $T4 $SIN_B
+0008: $T4 $T4 $SIN_C
+0006: $Y3D $Y3D $T4
+0008: $T5 $P_I $COS_B
+0008: $T5 $T5 $SIN_C
+0007: $Y3D $Y3D $T5
+
+; Z = k*cos(A)*cos(B) - j*sin(A)*cos(B) + i*sin(B) + distanceFromCam
+0008: $T1 $P_K $COS_A
+0008: $T1 $T1 $COS_B
+0008: $T2 $P_J $SIN_A
+0008: $T2 $T2 $COS_B
+0007: $Z3D $T1 $T2
+0008: $T3 $P_I $SIN_B
+0006: $Z3D $Z3D $T3
+0006: $Z3D $Z3D $DISTANCE_FROM_CAM
+
+0009: $OOZ 1.0 $Z3D
+0008: $PXF $K1 $OOZ
+0008: $PXF $PXF $X3D
+0008: $PXF $PXF 2.0
+0006: $PXF $PXF $HALF_WIDTH
+0006: $PXF $PXF $HORIZONTAL_OFFSET
+0B23: $XP $PXF
+0008: $PYF $K1 $OOZ
+0008: $PYF $PYF $Y3D
+0006: $PYF $PYF $HALF_HEIGHT
+0B23: $YP $PYF
+0008: $ROW $YP $WIDTH
+0006: $IDX $XP $ROW
+
+00D9: $IDX 0 @PLOT_END
+00D8: $IDX $SIZE @PLOT_END
+0008: $OOZI_F $OOZ $OOZ_SCALE
+0B23: $OOZI $OOZI_F
+0B12: $OLD_Z $ZBUF $IDX
+00D8: $OOZI $OLD_Z @PLOT_WRITE
+000A: @PLOT_END
+:PLOT_WRITE
+0B13: $ZBUF $IDX $OOZI
+0B13: $BUFFER $IDX $CH_CODE
+:PLOT_END
+0D01:
+
+:PRINT_BUFFER
+0B32: "\033[H"
+0004: $PRINT_I 0
+:PRINT_CHECK
+00D9: $PRINT_I $SIZE @PRINT_BODY
+0D01:
+:PRINT_BODY
+0B20: $COL $PRINT_I $WIDTH
+00D6: $COL 0 @PRINT_NEWLINE
+0B12: $CODE $BUFFER $PRINT_I
+00D6: $CODE 64 @PRINT_AT
+00D6: $CODE 36 @PRINT_DOLLAR
+00D6: $CODE 126 @PRINT_TILDE
+00D6: $CODE 35 @PRINT_HASH
+00D6: $CODE 59 @PRINT_SEMI
+00D6: $CODE 43 @PRINT_PLUS
+0B32: "."
+000A: @PRINT_NEXT
+:PRINT_NEWLINE
+0B32: "\n"
+000A: @PRINT_NEXT
+:PRINT_AT
+0B32: "@"
+000A: @PRINT_NEXT
+:PRINT_DOLLAR
+0B32: "$"
+000A: @PRINT_NEXT
+:PRINT_TILDE
+0B32: "~"
+000A: @PRINT_NEXT
+:PRINT_HASH
+0B32: "#"
+000A: @PRINT_NEXT
+:PRINT_SEMI
+0B32: ";"
+000A: @PRINT_NEXT
+:PRINT_PLUS
+0B32: "+"
+:PRINT_NEXT
+0006: $PRINT_I $PRINT_I 1
+000A: @PRINT_CHECK

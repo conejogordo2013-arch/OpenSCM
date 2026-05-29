@@ -59,6 +59,13 @@ bin/scml compile examples/helloworld.scml examples/helloworld.scmlbin
 bin/scml run examples/helloworld.scmlbin --trace
 ```
 
+Compile and run the 60 FPS ASCII cube demo. The VM buffers raw terminal writes and flushes once per `WAIT`, which avoids very slow per-character flushes on MSYS2/Windows terminals:
+
+```sh
+bin/scml compile examples/rotating_ascii_cube_60fps.scml examples/rotating_ascii_cube_60fps.scmlbin
+bin/scml run examples/rotating_ascii_cube_60fps.scmlbin
+```
+
 Compile several scripts into one global bytecode image:
 
 ```sh

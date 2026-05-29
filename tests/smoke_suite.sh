@@ -11,6 +11,7 @@ SAMPLES=(
   "examples/helloworld.scml"
   "examples/variables.scml"
   "examples/complexlogic.scml"
+  "examples/rotating_ascii_cube_60fps.scml"
 )
 
 for src in "${SAMPLES[@]}"; do
