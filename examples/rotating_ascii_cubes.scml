@@ -1,10 +1,12 @@
-; Pure SCML port of the rotating ASCII cube renderer.
+; Pure SCML port of the exact three-cube C renderer from the prompt.
 ; No #include, no std macros, no console.cube_frame/native C renderer.
-; SCML owns A/B/C, z-buffer, char buffer, projection math, surface loops,
-; frame printing and animation speed.
+; SCML owns A/B/C, z-buffer, projection math and surface loops.  The
+; framebuffer is a pinned byte span rendered by a VM intrinsic so ASCII output
+; is a contiguous safe buffer operation instead of thousands of PRINT calls.
 
 :MAIN
-0B33:
+; printf("\x1b[2J");
+0B32: "\033[2J"
 0004: $A 0.0
 0004: $B 0.0
 0004: $C 0.0
@@ -15,22 +17,16 @@
 0004: $HALF_HEIGHT 22.0
 0004: $DISTANCE_FROM_CAM 100.0
 0004: $K1 40.0
-0004: $INCREMENT 2.0
+0004: $INCREMENT 0.6
 0004: $OOZ_SCALE 100000.0
-0B14: 7040 $BUFFER
+0B43: $SIZE $BUFFER
+0B44: $BUFFER
 0B14: 7040 $ZBUF
 
 :FRAME
 ; memset(buffer, '.', width * height); memset(zBuffer, 0, width * height)
-0004: $I_CLEAR 0
-:CLEAR_CHECK
-00D9: $I_CLEAR $SIZE @CLEAR_BODY
-000A: @DRAW_ALL
-:CLEAR_BODY
-0B13: $BUFFER $I_CLEAR 46
-0B13: $ZBUF $I_CLEAR 0
-0006: $I_CLEAR $I_CLEAR 1
-000A: @CLEAR_CHECK
+0B45: $BUFFER 0 $SIZE 46
+0B45: $ZBUF 0 $SIZE 0
 
 :DRAW_ALL
 0004: $CUBE_WIDTH 20.0
@@ -44,10 +40,10 @@
 0D00: @DRAW_CUBE
 0D00: @PRINT_BUFFER
 
-0006: $A $A 0.05
-0006: $B $B 0.05
-0006: $C $C 0.01
-000B: 16
+0006: $A $A 0.25
+0006: $B $B 0.25
+0006: $C $C 0.05
+000B: 8
 000A: @FRAME
 
 :DRAW_CUBE
@@ -187,48 +183,10 @@
 000A: @PLOT_END
 :PLOT_WRITE
 0B13: $ZBUF $IDX $OOZI
-0B13: $BUFFER $IDX $CH_CODE
+0B46: $BUFFER $IDX $CH_CODE
 :PLOT_END
 0D01:
 
 :PRINT_BUFFER
-0B32: "\033[H"
-0004: $PRINT_I 0
-:PRINT_CHECK
-00D9: $PRINT_I $SIZE @PRINT_BODY
+0B48: $BUFFER $WIDTH $HEIGHT
 0D01:
-:PRINT_BODY
-0B20: $COL $PRINT_I $WIDTH
-00D6: $COL 0 @PRINT_NEWLINE
-0B12: $CODE $BUFFER $PRINT_I
-00D6: $CODE 64 @PRINT_AT
-00D6: $CODE 36 @PRINT_DOLLAR
-00D6: $CODE 126 @PRINT_TILDE
-00D6: $CODE 35 @PRINT_HASH
-00D6: $CODE 59 @PRINT_SEMI
-00D6: $CODE 43 @PRINT_PLUS
-0B32: "."
-000A: @PRINT_NEXT
-:PRINT_NEWLINE
-0B32: "\n"
-000A: @PRINT_NEXT
-:PRINT_AT
-0B32: "@"
-000A: @PRINT_NEXT
-:PRINT_DOLLAR
-0B32: "$"
-000A: @PRINT_NEXT
-:PRINT_TILDE
-0B32: "~"
-000A: @PRINT_NEXT
-:PRINT_HASH
-0B32: "#"
-000A: @PRINT_NEXT
-:PRINT_SEMI
-0B32: ";"
-000A: @PRINT_NEXT
-:PRINT_PLUS
-0B32: "+"
-:PRINT_NEXT
-0006: $PRINT_I $PRINT_I 1
-000A: @PRINT_CHECK

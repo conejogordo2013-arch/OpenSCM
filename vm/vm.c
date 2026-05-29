@@ -8,7 +8,7 @@
 #include <math.h>
 
 typedef struct Var { char *name; ScmlValue value; } Var;
-typedef struct HeapObject { int active; uint32_t id; size_t size; int32_t *data; } HeapObject;
+typedef struct HeapObject { int active; uint32_t id; size_t size; size_t elem_size; int pinned; unsigned char *data; } HeapObject;
 typedef struct CallFrame { size_t return_pc; Var locals[SCML_LOCAL_VARS_MAX]; size_t local_count; } CallFrame;
 typedef struct EventEntry { char *name; uint32_t handlers[SCML_EVENT_HANDLERS_MAX]; size_t handler_count; } EventEntry;
 typedef struct EventQueueItem { char *name; size_t handler_index; } EventQueueItem;
@@ -267,17 +267,66 @@ static HeapObject *heap_find(ScmlVM *vm, uint32_t ref) {
     return NULL;
 }
 
-static int heap_alloc(ScmlVM *vm, size_t size, uint32_t *out_ref) {
+static int heap_alloc_typed(ScmlVM *vm, size_t size, size_t elem_size, int pinned, uint32_t *out_ref) {
+    if (elem_size == 0) return 0;
+    if (size > (SIZE_MAX / elem_size)) return 0;
     for (size_t i = 0; i < SCML_HEAP_OBJECTS_MAX; i++) {
         if (!vm->heap[i].active) {
-            vm->heap[i].data = (int32_t *)calloc(size ? size : 1, sizeof(int32_t));
+            size_t bytes = size * elem_size;
+            vm->heap[i].data = (unsigned char *)calloc(bytes ? bytes : elem_size, 1);
             if (!vm->heap[i].data) return 0;
             vm->heap[i].active = 1;
             vm->heap[i].id = vm->next_ref++;
             vm->heap[i].size = size;
+            vm->heap[i].elem_size = elem_size;
+            vm->heap[i].pinned = pinned;
             *out_ref = vm->heap[i].id;
             return 1;
         }
+    }
+    return 0;
+}
+
+static int heap_alloc(ScmlVM *vm, size_t size, uint32_t *out_ref) {
+    return heap_alloc_typed(vm, size, sizeof(int32_t), 0, out_ref);
+}
+
+static int heap_fill(HeapObject *obj, size_t start, size_t count, int32_t value) {
+    if (!obj || start > obj->size || count > obj->size - start) return 0;
+    if (obj->elem_size == 1) {
+        memset(obj->data + start, (unsigned char)value, count);
+        return 1;
+    }
+    if (obj->elem_size == sizeof(int32_t)) {
+        int32_t *cells = (int32_t *)obj->data;
+        for (size_t i = 0; i < count; i++) cells[start + i] = value;
+        return 1;
+    }
+    return 0;
+}
+
+static int heap_store_i32(HeapObject *obj, size_t index, int32_t value) {
+    if (!obj || index >= obj->size) return 0;
+    if (obj->elem_size == 1) {
+        obj->data[index] = (unsigned char)value;
+        return 1;
+    }
+    if (obj->elem_size == sizeof(int32_t)) {
+        ((int32_t *)obj->data)[index] = value;
+        return 1;
+    }
+    return 0;
+}
+
+static int heap_load_i32(HeapObject *obj, size_t index, int32_t *out) {
+    if (!obj || !out || index >= obj->size) return 0;
+    if (obj->elem_size == 1) {
+        *out = obj->data[index];
+        return 1;
+    }
+    if (obj->elem_size == sizeof(int32_t)) {
+        *out = ((int32_t *)obj->data)[index];
+        return 1;
     }
     return 0;
 }
@@ -556,7 +605,7 @@ void scml_vm_dump_memory(ScmlVM *vm, FILE *out) {
     size_t objects = 0;
     for (size_t i = 0; i < SCML_HEAP_OBJECTS_MAX; i++) if (vm->heap[i].active) objects++;
     fprintf(out, "%zu events=%zu queued=%zu\n", objects, vm->event_count, (vm->event_tail + SCML_EVENT_QUEUE_MAX - vm->event_head) % SCML_EVENT_QUEUE_MAX);
-    for (size_t i = 0; i < SCML_HEAP_OBJECTS_MAX; i++) if (vm->heap[i].active) fprintf(out, "  ref=%u size=%zu\n", vm->heap[i].id, vm->heap[i].size);
+    for (size_t i = 0; i < SCML_HEAP_OBJECTS_MAX; i++) if (vm->heap[i].active) fprintf(out, "  ref=%u size=%zu elem_size=%zu pinned=%d\n", vm->heap[i].id, vm->heap[i].size, vm->heap[i].elem_size, vm->heap[i].pinned);
 }
 
 int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
@@ -845,8 +894,7 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         ScmlValue ref_value = eval(vm, &ops[0]), index = eval(vm, &ops[1]), value = eval(vm, &ops[2]);
         HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&ref_value));
         size_t i = (size_t)value_to_int(&index);
-        if (!obj || i >= obj->size) { value_free(&ref_value); value_free(&index); value_free(&value); error_at(vm, ins_pc, err, err_size, "heap write out of range"); free_decoded(ops, argc); return -1; }
-        obj->data[i] = value_to_int(&value);
+        if (!heap_store_i32(obj, i, value_to_int(&value))) { value_free(&ref_value); value_free(&index); value_free(&value); error_at(vm, ins_pc, err, err_size, "heap write out of range"); free_decoded(ops, argc); return -1; }
         value_free(&ref_value); value_free(&index); value_free(&value);
         break;
     }
@@ -854,9 +902,77 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         ScmlValue ref_value = eval(vm, &ops[1]), index = eval(vm, &ops[2]);
         HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&ref_value));
         size_t i = (size_t)value_to_int(&index);
-        if (!obj || i >= obj->size) { value_free(&ref_value); value_free(&index); error_at(vm, ins_pc, err, err_size, "heap read out of range"); free_decoded(ops, argc); return -1; }
+        int32_t loaded = 0;
+        if (!heap_load_i32(obj, i, &loaded)) { value_free(&ref_value); value_free(&index); error_at(vm, ins_pc, err, err_size, "heap read out of range"); free_decoded(ops, argc); return -1; }
+        set_var(vm, ops[0].s, value_int(loaded));
+        value_free(&ref_value); value_free(&index);
+        break;
+    }
+    case SCML_OP_SPAN_CREATE: {
+        ScmlValue sz = eval(vm, &ops[0]);
+        int count = value_to_int(&sz);
+        uint32_t ref = 0;
+        if (count < 0) { value_free(&sz); error_at(vm, ins_pc, err, err_size, "negative span size"); free_decoded(ops, argc); return -1; }
+        if (!heap_alloc_typed(vm, (size_t)count, 1, 0, &ref)) { value_free(&sz); error_at(vm, ins_pc, err, err_size, "span allocation failed"); free_decoded(ops, argc); return -1; }
+        set_var(vm, ops[1].s, value_int((int32_t)ref));
+        value_free(&sz);
+        break;
+    }
+    case SCML_OP_SPAN_PIN: {
+        ScmlValue ref_value = eval(vm, &ops[0]);
+        HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&ref_value));
+        if (!obj) { value_free(&ref_value); error_at(vm, ins_pc, err, err_size, "span pin invalid reference"); free_decoded(ops, argc); return -1; }
+        obj->pinned = 1;
+        value_free(&ref_value);
+        break;
+    }
+    case SCML_OP_SPAN_FILL: {
+        ScmlValue ref_value = eval(vm, &ops[0]), start_value = eval(vm, &ops[1]), count_value = eval(vm, &ops[2]), fill_value = eval(vm, &ops[3]);
+        HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&ref_value));
+        int start_i = value_to_int(&start_value), count_i = value_to_int(&count_value);
+        if (start_i < 0 || count_i < 0 || !heap_fill(obj, (size_t)start_i, (size_t)count_i, value_to_int(&fill_value))) {
+            value_free(&ref_value); value_free(&start_value); value_free(&count_value); value_free(&fill_value);
+            error_at(vm, ins_pc, err, err_size, "span fill out of range"); free_decoded(ops, argc); return -1;
+        }
+        value_free(&ref_value); value_free(&start_value); value_free(&count_value); value_free(&fill_value);
+        break;
+    }
+    case SCML_OP_SPAN_WRITE_U8: {
+        ScmlValue ref_value = eval(vm, &ops[0]), index = eval(vm, &ops[1]), value = eval(vm, &ops[2]);
+        HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&ref_value));
+        int byte_value = value_to_int(&value);
+        size_t i = (size_t)value_to_int(&index);
+        if (!obj || obj->elem_size != 1 || i >= obj->size || byte_value < 0 || byte_value > 255) {
+            value_free(&ref_value); value_free(&index); value_free(&value);
+            error_at(vm, ins_pc, err, err_size, "span u8 write out of range"); free_decoded(ops, argc); return -1;
+        }
+        obj->data[i] = (unsigned char)byte_value;
+        value_free(&ref_value); value_free(&index); value_free(&value);
+        break;
+    }
+    case SCML_OP_SPAN_READ_U8: {
+        ScmlValue ref_value = eval(vm, &ops[1]), index = eval(vm, &ops[2]);
+        HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&ref_value));
+        size_t i = (size_t)value_to_int(&index);
+        if (!obj || obj->elem_size != 1 || i >= obj->size) { value_free(&ref_value); value_free(&index); error_at(vm, ins_pc, err, err_size, "span u8 read out of range"); free_decoded(ops, argc); return -1; }
         set_var(vm, ops[0].s, value_int(obj->data[i]));
         value_free(&ref_value); value_free(&index);
+        break;
+    }
+    case SCML_OP_CONSOLE_RENDER_SPAN: {
+        ScmlValue ref_value = eval(vm, &ops[0]), width_value = eval(vm, &ops[1]), height_value = eval(vm, &ops[2]);
+        HeapObject *obj = heap_find(vm, (uint32_t)value_to_int(&ref_value));
+        int width = value_to_int(&width_value), height = value_to_int(&height_value);
+        if (width <= 0 || height <= 0 || !obj || obj->elem_size != 1 || !obj->pinned || (size_t)width > SIZE_MAX / (size_t)height || (size_t)width * (size_t)height > obj->size) {
+            value_free(&ref_value); value_free(&width_value); value_free(&height_value);
+            error_at(vm, ins_pc, err, err_size, "console render requires pinned byte span in range"); free_decoded(ops, argc); return -1;
+        }
+        fputs("\033[H", stdout);
+        for (int row = 0; row < height; row++) {
+            fwrite(obj->data + (size_t)row * (size_t)width, 1, (size_t)width, stdout);
+            fputc('\n', stdout);
+        }
+        value_free(&ref_value); value_free(&width_value); value_free(&height_value);
         break;
     }
     case SCML_OP_INPUT: {
