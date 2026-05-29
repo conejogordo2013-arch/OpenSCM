@@ -49,16 +49,18 @@ static LabelAddr *find_label(LabelAddr *labels, size_t count, const char *name) 
     return NULL;
 }
 
-static uint32_t resolve_value(const ScmlOperand *o, LabelAddr *labels, size_t label_count, char *err, size_t err_size) {
+static int resolve_value(const ScmlOperand *o, LabelAddr *labels, size_t label_count, uint32_t *out, char *err, size_t err_size) {
     if (o->type == SCML_OPERAND_ADDRESS) {
         LabelAddr *label = find_label(labels, label_count, o->text);
         if (!label) {
             snprintf(err, err_size, "unresolved label @%s", o->text);
-            return UINT32_MAX;
+            return 0;
         }
-        return label->addr;
+        *out = label->addr;
+        return 1;
     }
-    return (uint32_t)o->integer;
+    *out = (uint32_t)o->integer;
+    return 1;
 }
 
 static void free_program_set(ProgramSet *set) {
@@ -143,8 +145,8 @@ int scml_compile_files(size_t source_count, const char **source_paths, const cha
                 if (o->type == SCML_OPERAND_FLOAT) {
                     wf32(f, o->real);
                 } else if (o->type == SCML_OPERAND_INT || o->type == SCML_OPERAND_ADDRESS) {
-                    uint32_t v = resolve_value(o, labels, label_count, err, err_size);
-                    if (v == UINT32_MAX) {
+                    uint32_t v = 0;
+                    if (!resolve_value(o, labels, label_count, &v, err, err_size)) {
                         fclose(f);
                         remove(output_path);
                         free(labels);
