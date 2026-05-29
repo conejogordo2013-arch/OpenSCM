@@ -209,7 +209,7 @@ SCML can now drive terminal animation directly from scripts with raw printing, A
 000A: @FRAME
 ```
 
-Useful raw opcodes include `PRINT_RAW` (`0B32`), `CONSOLE_CLEAR` (`0B33`), `SIN` (`0B34`), `COS` (`0B35`), `TAN` (`0B36`), `SQRT` (`0B37`), `ATAN2` (`0B38`), `FLOOR` (`0B39`), `CEIL` (`0B3A`), `ROUND` (`0B3B`), `ABS` (`0B3C`), and `STR_REPEAT` (`0B3D`).
+Useful raw opcodes include `PRINT_RAW` (`0B32`), `CONSOLE_CLEAR` (`0B33`), `SIN` (`0B34`), `COS` (`0B35`), `TAN` (`0B36`), `SQRT` (`0B37`), `ATAN2` (`0B38`), `FLOOR` (`0B39`), `CEIL` (`0B3A`), `ROUND` (`0B3B`), `ABS` (`0B3C`), `STR_REPEAT` (`0B3D`), `CONSOLE_COLOR` (`0B3E`), `CONSOLE_RESET` (`0B3F`), `CONSOLE_MOVE` (`0B40`), `CONSOLE_ERASE_LINE` (`0B41`), and `CONSOLE_STYLE` (`0B42`). Terminal control opcodes validate ranges before emitting ANSI sequences (`0..255` colors, `1..9999` cursor coordinates, and `0..9` style codes).
 
 Pure SCML demos:
 

@@ -73,7 +73,12 @@ typedef enum ScmlOpcode {
     SCML_OP_CEIL = 0x3A,
     SCML_OP_ROUND = 0x3B,
     SCML_OP_ABS = 0x3C,
-    SCML_OP_STR_REPEAT = 0x3D
+    SCML_OP_STR_REPEAT = 0x3D,
+    SCML_OP_CONSOLE_COLOR = 0x3E,
+    SCML_OP_CONSOLE_RESET = 0x3F,
+    SCML_OP_CONSOLE_MOVE = 0x40,
+    SCML_OP_CONSOLE_ERASE_LINE = 0x41,
+    SCML_OP_CONSOLE_STYLE = 0x42
 } ScmlOpcode;
 
 typedef enum ScmlOperandType {

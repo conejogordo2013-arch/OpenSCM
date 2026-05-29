@@ -19,6 +19,8 @@ typedef struct NativeModule { char *name; ScmlModuleResolver resolver; void *use
 
 typedef struct DecOp { ScmlOperandType type; int32_t i; float f; char *s; } DecOp;
 
+static void error_at(ScmlVM *vm, size_t pc, char *err, size_t err_size, const char *message);
+
 struct ScmlVM {
     uint8_t *code;
     size_t code_size;
@@ -187,6 +189,18 @@ static ScmlValue eval(ScmlVM *vm, DecOp *o) {
     if (o->type == SCML_OPERAND_STRING) return value_str(o->s);
     Var *v = find_var(vm, o->s, 0);
     return v ? value_clone(&v->value) : value_int(0);
+}
+
+static int checked_int_arg(ScmlVM *vm, DecOp *op, int min_value, int max_value, const char *message, int *out, size_t ins_pc, char *err, size_t err_size) {
+    ScmlValue v = eval(vm, op);
+    int value = value_to_int(&v);
+    value_free(&v);
+    if (value < min_value || value > max_value) {
+        error_at(vm, ins_pc, err, err_size, message);
+        return 0;
+    }
+    *out = value;
+    return 1;
 }
 
 static void free_decoded(DecOp *ops, size_t n) {
@@ -553,8 +567,19 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     }
 
     size_t ins_pc = vm->pc;
+    if (vm->pc + 2 > vm->code_size) {
+        error_at(vm, ins_pc, err, err_size, "truncated instruction header");
+        vm->halted = 1;
+        return -1;
+    }
     ScmlOpcode op = (ScmlOpcode)r8(vm);
     uint8_t argc = r8(vm);
+    const ScmlOpcodeInfo *op_info = scml_opcode_info(op);
+    if (!op_info) { error_at(vm, ins_pc, err, err_size, "unknown opcode"); return -1; }
+    if (argc < op_info->min_args || argc > op_info->max_args) {
+        error_at(vm, ins_pc, err, err_size, "opcode operand count mismatch");
+        return -1;
+    }
     DecOp ops[8] = {0};
     if (argc > 8) { error_at(vm, ins_pc, err, err_size, "too many operands"); return -1; }
     for (uint8_t i = 0; i < argc; i++) {
@@ -669,6 +694,38 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         fputs("\033[2J\033[H", stdout);
         fflush(stdout);
         break;
+    case SCML_OP_CONSOLE_COLOR: {
+        int fg = 0, bg = -1;
+        if (!checked_int_arg(vm, &ops[0], 0, 255, "CONSOLE_COLOR foreground must be 0..255", &fg, ins_pc, err, err_size)) { free_decoded(ops, argc); return -1; }
+        if (argc > 1 && !checked_int_arg(vm, &ops[1], 0, 255, "CONSOLE_COLOR background must be 0..255", &bg, ins_pc, err, err_size)) { free_decoded(ops, argc); return -1; }
+        if (bg >= 0) fprintf(stdout, "\033[38;5;%dm\033[48;5;%dm", fg, bg);
+        else fprintf(stdout, "\033[38;5;%dm", fg);
+        fflush(stdout);
+        break;
+    }
+    case SCML_OP_CONSOLE_RESET:
+        fputs("\033[0m", stdout);
+        fflush(stdout);
+        break;
+    case SCML_OP_CONSOLE_MOVE: {
+        int row = 0, col = 0;
+        if (!checked_int_arg(vm, &ops[0], 1, 9999, "CONSOLE_MOVE row must be 1..9999", &row, ins_pc, err, err_size) ||
+            !checked_int_arg(vm, &ops[1], 1, 9999, "CONSOLE_MOVE column must be 1..9999", &col, ins_pc, err, err_size)) { free_decoded(ops, argc); return -1; }
+        fprintf(stdout, "\033[%d;%dH", row, col);
+        fflush(stdout);
+        break;
+    }
+    case SCML_OP_CONSOLE_ERASE_LINE:
+        fputs("\033[2K", stdout);
+        fflush(stdout);
+        break;
+    case SCML_OP_CONSOLE_STYLE: {
+        int style = 0;
+        if (!checked_int_arg(vm, &ops[0], 0, 9, "CONSOLE_STYLE must be 0..9", &style, ins_pc, err, err_size)) { free_decoded(ops, argc); return -1; }
+        fprintf(stdout, "\033[%dm", style);
+        fflush(stdout);
+        break;
+    }
     case SCML_OP_SIN: case SCML_OP_COS: case SCML_OP_TAN: case SCML_OP_SQRT:
     case SCML_OP_FLOOR: case SCML_OP_CEIL: case SCML_OP_ROUND: case SCML_OP_ABS: {
         ScmlValue v = eval(vm, &ops[1]);
