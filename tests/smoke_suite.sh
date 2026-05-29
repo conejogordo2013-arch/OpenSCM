@@ -12,6 +12,7 @@ SAMPLES=(
   "examples/variables.scml"
   "examples/complexlogic.scml"
   "examples/rotating_ascii_cube_60fps.scml"
+  "examples/rotating_ascii_cubes.scml"
 )
 
 for src in "${SAMPLES[@]}"; do
@@ -131,6 +132,91 @@ expected_terminal_output=$'\033[38;5;196m\033[48;5;16m\033[1m\033[2;3H\033[2K\03
 if [[ "$terminal_output" != "$expected_terminal_output" ]]; then
   echo "[smoke] unexpected terminal control output" >&2
   printf 'expected: %q\nactual:   %q\n' "$expected_terminal_output" "$terminal_output" >&2
+  exit 1
+fi
+
+
+span_src=".scml/span_render.scml"
+span_bin=".scml/span_render.scmlbin"
+cat >"$span_src" <<'SCML'
+:MAIN
+0B43: 4 $BUF
+0B44: $BUF
+0B45: $BUF 0 4 46
+0B46: $BUF 1 64
+0B48: $BUF 2 2
+0001:
+SCML
+
+echo "[smoke] run span framebuffer render regression"
+bin/scml compile "$span_src" "$span_bin"
+span_output="$(bin/scml run "$span_bin")"
+expected_span_output=$'\033[1;1H.@\033[2;1H..'
+if [[ "$span_output" != "$expected_span_output" ]]; then
+  echo "[smoke] unexpected span render output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_span_output" "$span_output" >&2
+  exit 1
+fi
+
+
+span_dirty_src=".scml/span_dirty_render.scml"
+span_dirty_bin=".scml/span_dirty_render.scmlbin"
+cat >"$span_dirty_src" <<'SCML'
+:MAIN
+0B43: 4 $CUR
+0B43: 4 $PREV
+0B44: $CUR
+0B44: $PREV
+0B45: $CUR 0 4 46
+0B45: $PREV 0 4 46
+0B46: $CUR 2 64
+0B49: $CUR $PREV 2 2
+0001:
+SCML
+
+echo "[smoke] run dirty span framebuffer render regression"
+bin/scml compile "$span_dirty_src" "$span_dirty_bin"
+span_dirty_output="$(bin/scml run "$span_dirty_bin")"
+expected_span_dirty_output=$'\033[2;1H@'
+if [[ "$span_dirty_output" != "$expected_span_dirty_output" ]]; then
+  echo "[smoke] unexpected dirty span render output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_span_dirty_output" "$span_dirty_output" >&2
+  exit 1
+fi
+
+span_bad_src=".scml/span_bad_write.scml"
+span_bad_bin=".scml/span_bad_write.scmlbin"
+cat >"$span_bad_src" <<'SCML'
+:MAIN
+0B43: 1 $BUF
+0B46: $BUF 1 65
+0001:
+SCML
+
+echo "[smoke] verify span write bounds checks"
+bin/scml compile "$span_bad_src" "$span_bad_bin"
+if bin/scml run "$span_bad_bin" >/tmp/scml_span_bad.out 2>&1; then
+  echo "[smoke] runtime accepted out-of-range span write" >&2
+  cat /tmp/scml_span_bad.out >&2
+  exit 1
+fi
+
+
+span_unpinned_src=".scml/span_unpinned_render.scml"
+span_unpinned_bin=".scml/span_unpinned_render.scmlbin"
+cat >"$span_unpinned_src" <<'SCML'
+:MAIN
+0B43: 1 $BUF
+0B45: $BUF 0 1 46
+0B48: $BUF 1 1
+0001:
+SCML
+
+echo "[smoke] verify framebuffer render requires a pinned span"
+bin/scml compile "$span_unpinned_src" "$span_unpinned_bin"
+if bin/scml run "$span_unpinned_bin" >/tmp/scml_span_unpinned.out 2>&1; then
+  echo "[smoke] runtime rendered an unpinned span" >&2
+  cat /tmp/scml_span_unpinned.out >&2
   exit 1
 fi
 
