@@ -2,6 +2,13 @@
 
 SCML (Scripting Control Markup Language) is a compact, SCM-looking embedded scripting language and virtual machine implemented in C. It keeps GTA San Andreas SCM-style visual structure while providing a modern embeddable execution core.
 
+
+## Curso completo en español
+
+Se añadió una guía didáctica completa para aprender SCML desde cero hasta uso avanzado, incluyendo sintaxis, opcodes, macros, memoria, eventos, async, terminal rendering, integración nativa y una valoración práctica del lenguaje:
+
+- [`docs/SCML_COMPLETE_COURSE_ES.md`](docs/SCML_COMPLETE_COURSE_ES.md)
+
 ## Language shape
 
 SCML source deliberately avoids Lua/Python-like syntax:
