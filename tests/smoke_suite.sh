@@ -242,8 +242,7 @@ SCML
     exit 1
   fi
 
-  ffi_pointer_src=".scml/ffi_pointer_vtable.scml"
-  ffi_pointer_bin=".scml/ffi_pointer_vtable.scmlbin"
+  ffi_pointer_src=".scml/ffi_pointer_vtable.scmlbin"
   cat >"$ffi_pointer_src" <<'SCML'
 :MAIN
 0B31: "ffi.add_search_path" "examples"
