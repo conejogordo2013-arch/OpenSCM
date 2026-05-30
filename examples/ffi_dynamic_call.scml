@@ -84,4 +84,34 @@
 03E5: $RETVAL
 0B31: "ffi.free" $TEXT
 0B31: "ffi.free" $BUF
+
+; Pointer-call and COM-style vtable helpers.
+0B31: "ffi.declare" "scml_ffi_add_i32_ptr" "pointer" ""
+0B31: "scml_ffi_add_i32_ptr"
+0004: $ADD_PTR $RETVAL
+0B31: "ffi.call_ptr" $ADD_PTR "int" "int,int" 5 6
+03E5: $RETVAL
+
+0B31: "ffi.declare" "scml_ffi_fake_object" "pointer" ""
+0B31: "scml_ffi_fake_object"
+0004: $FAKE_OBJECT $RETVAL
+0B31: "ffi.vtable_call" $FAKE_OBJECT 0 "int" "int" 32
+03E5: $RETVAL
+
+; UTF-16 helpers for native Windows-style APIs.
+0B31: "ffi.utf16" "hello utf16"
+0004: $WIDE $RETVAL
+0B31: "ffi.read_utf16" $WIDE
+03E5: $RETVAL
+0B31: "ffi.free" $WIDE
+
+; Union layout helpers: all fields share offset 0 while size follows the largest field.
+0B31: "ffi.union_begin" "NumberBits"
+0B31: "ffi.struct_field" "NumberBits" "as_i32" "int"
+0B31: "ffi.struct_field" "NumberBits" "as_u64" "uint64"
+0B31: "ffi.struct_finish" "NumberBits"
+0B31: "ffi.struct_offset" "NumberBits" "as_u64"
+03E5: $RETVAL
+0B31: "ffi.struct_size" "NumberBits"
+03E5: $RETVAL
 0001:

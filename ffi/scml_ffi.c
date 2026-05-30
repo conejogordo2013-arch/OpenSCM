@@ -69,6 +69,7 @@ typedef struct ScmlFFIStructDef {
     size_t size;
     size_t alignment;
     int finished;
+    int is_union;
 } ScmlFFIStructDef;
 
 static ScmlFFILibrary *g_libraries = NULL;
@@ -458,6 +459,20 @@ ScmlFFIReturnType scml_ffi_parse_return_type(const char *name, ScmlFFIReturnType
     return scml_ffi_parse_type(name, fallback);
 }
 
+ScmlFFIAbi scml_ffi_parse_abi(const char *name, ScmlFFIAbi fallback) {
+    if (!name) return fallback;
+    while (*name && isspace((unsigned char)*name)) name++;
+    const char *end = name + strlen(name);
+    while (end > name && isspace((unsigned char)end[-1])) end--;
+    size_t n = (size_t)(end - name);
+    if (ffi_token_equals(name, n, "default") || ffi_token_equals(name, n, "system")) return SCML_FFI_ABI_DEFAULT;
+    if (ffi_token_equals(name, n, "cdecl") || ffi_token_equals(name, n, "c")) return SCML_FFI_ABI_CDECL;
+    if (ffi_token_equals(name, n, "stdcall") || ffi_token_equals(name, n, "winapi")) return SCML_FFI_ABI_STDCALL;
+    if (ffi_token_equals(name, n, "fastcall")) return SCML_FFI_ABI_FASTCALL;
+    if (ffi_token_equals(name, n, "thiscall")) return SCML_FFI_ABI_THISCALL;
+    return fallback;
+}
+
 size_t scml_ffi_parse_arg_types(const char *spec, ScmlFFIType *out_types, size_t max_types) {
     if (!spec || !out_types || max_types == 0) return 0;
     size_t count = 0;
@@ -599,6 +614,10 @@ int scml_ffi_call_native(void *function_ptr, const ScmlValue *args, size_t arg_c
 }
 
 int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const ScmlFFISignature *signature, ScmlValue *ret) {
+    return scml_ffi_call_native_abi(function_ptr, args, signature, SCML_FFI_ABI_DEFAULT, ret);
+}
+
+int scml_ffi_call_native_abi(void *function_ptr, const ScmlValue *args, const ScmlFFISignature *signature, ScmlFFIAbi abi, ScmlValue *ret) {
     if (!function_ptr) { ffi_set_error("call_native failed", "null function pointer"); return 0; }
     if (!signature) { ffi_set_error("call_native failed", "missing signature"); return 0; }
     size_t arg_count = signature->arg_count;
@@ -720,7 +739,24 @@ int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const Scm
     else if (signature->return_type == SCML_FFI_TYPE_POINTER || signature->return_type == SCML_FFI_TYPE_STRING) rtype = &ffi_type_pointer;
     else if (signature->return_type == SCML_FFI_TYPE_VOID) rtype = &ffi_type_void;
 
-    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, (unsigned int)arg_count, rtype, arg_types) != FFI_OK) {
+    ffi_abi ffi_abi_value = FFI_DEFAULT_ABI;
+    (void)abi;
+#if defined(_WIN32) && defined(FFI_STDCALL)
+    if (abi == SCML_FFI_ABI_STDCALL) ffi_abi_value = FFI_STDCALL;
+#endif
+#if defined(FFI_SYSV)
+    if (abi == SCML_FFI_ABI_CDECL) ffi_abi_value = FFI_SYSV;
+#endif
+#if defined(FFI_WIN64) && defined(_WIN64)
+    if (abi == SCML_FFI_ABI_CDECL || abi == SCML_FFI_ABI_STDCALL || abi == SCML_FFI_ABI_FASTCALL || abi == SCML_FFI_ABI_THISCALL) ffi_abi_value = FFI_WIN64;
+#endif
+
+    if ((abi == SCML_FFI_ABI_FASTCALL || abi == SCML_FFI_ABI_THISCALL) && ffi_abi_value == FFI_DEFAULT_ABI) {
+        ffi_set_error("call_native failed", "requested ABI is not supported by this libffi build");
+        goto cleanup;
+    }
+
+    if (ffi_prep_cif(&cif, ffi_abi_value, (unsigned int)arg_count, rtype, arg_types) != FFI_OK) {
         ffi_set_error("call_native failed", "ffi_prep_cif failed");
         goto cleanup;
     }
@@ -791,6 +827,7 @@ cleanup:
     free(ptr_args);
     return ok;
 #else
+    if (abi != SCML_FFI_ABI_DEFAULT && abi != SCML_FFI_ABI_CDECL) { ffi_set_error("call_native failed", "non-default ABI requires libffi"); return 0; }
     if (arg_count > SCML_FFI_FALLBACK_MAX_ARGS) { ffi_set_error("call_native failed", "too many arguments without libffi"); return 0; }
     if (signature->arg_types) {
         for (size_t i = 0; i < arg_count; i++) {
@@ -848,6 +885,59 @@ int scml_ffi_call_native_by_name_ex(const char *function_name, const ScmlValue *
     const ScmlFFISignature *declared = scml_ffi_get_declared_signature(function_name);
     if (declared && (!signature || !signature->arg_types)) signature = declared;
     return scml_ffi_call_native_ex(symbol, args, signature, ret);
+}
+
+
+void *scml_ffi_peek_pointer(const void *base, size_t index) {
+    if (!base) { ffi_set_error("peek_pointer failed", "null pointer"); return NULL; }
+    if (index > ((size_t)-1) / sizeof(void *)) { ffi_set_error("peek_pointer failed", "offset overflow"); return NULL; }
+    const void *slot_addr = (const unsigned char *)base + index * sizeof(void *);
+    void *value = NULL;
+    memcpy(&value, slot_addr, sizeof(value));
+    return value;
+}
+
+int scml_ffi_poke_pointer(void *base, size_t index, void *value) {
+    if (!base) { ffi_set_error("poke_pointer failed", "null pointer"); return 0; }
+    if (index > ((size_t)-1) / sizeof(void *)) { ffi_set_error("poke_pointer failed", "offset overflow"); return 0; }
+    void *slot_addr = (unsigned char *)base + index * sizeof(void *);
+    memcpy(slot_addr, &value, sizeof(value));
+    return 1;
+}
+
+int scml_ffi_call_vtable(void *object_ptr, size_t method_index, const ScmlValue *args, const ScmlFFISignature *signature, ScmlFFIAbi abi, int include_this, ScmlValue *ret) {
+    if (!object_ptr) { ffi_set_error("call_vtable failed", "null object pointer"); return 0; }
+    if (!signature) { ffi_set_error("call_vtable failed", "missing signature"); return 0; }
+    void *vtable = scml_ffi_peek_pointer(object_ptr, 0);
+    if (!vtable) { ffi_set_error("call_vtable failed", "null vtable pointer"); return 0; }
+    void *function_ptr = scml_ffi_peek_pointer(vtable, method_index);
+    if (!function_ptr) { ffi_set_error("call_vtable failed", "null method pointer"); return 0; }
+    if (!include_this) return scml_ffi_call_native_abi(function_ptr, args, signature, abi, ret);
+
+    size_t original_count = signature->arg_count;
+    size_t total_count = original_count + 1;
+    if (total_count == 0) { ffi_set_error("call_vtable failed", "argument count overflow"); return 0; }
+    ScmlValue *with_this = (ScmlValue *)calloc(total_count, sizeof(*with_this));
+    ScmlFFIType *with_types = NULL;
+    if (!with_this) { ffi_set_error("call_vtable failed", "out of memory"); return 0; }
+    with_this[0] = scml_value_pointer((uintptr_t)object_ptr);
+    for (size_t i = 0; i < original_count; i++) with_this[i + 1] = args[i];
+
+    ScmlFFISignature with_signature;
+    with_signature.return_type = signature->return_type;
+    with_signature.arg_types = NULL;
+    with_signature.arg_count = total_count;
+    if (signature->arg_types) {
+        with_types = (ScmlFFIType *)malloc(total_count * sizeof(*with_types));
+        if (!with_types) { free(with_this); ffi_set_error("call_vtable failed", "out of memory"); return 0; }
+        with_types[0] = SCML_FFI_TYPE_POINTER;
+        memcpy(with_types + 1, signature->arg_types, original_count * sizeof(*with_types));
+        with_signature.arg_types = with_types;
+    }
+    int ok = scml_ffi_call_native_abi(function_ptr, with_this, &with_signature, abi, ret);
+    free(with_types);
+    free(with_this);
+    return ok;
 }
 
 static ScmlFFIMemoryBlock *ffi_memory_find(void *ptr) {
@@ -961,6 +1051,73 @@ void *scml_ffi_alloc_cstring(const char *text) {
     if (!ptr) return NULL;
     memcpy(ptr, text ? text : "", size);
     return ptr;
+}
+
+static size_t ffi_utf8_to_utf16_units(const char *text) {
+    size_t units = 0;
+    const unsigned char *p = (const unsigned char *)(text ? text : "");
+    while (*p) {
+        uint32_t cp;
+        if (*p < 0x80) { cp = *p++; }
+        else if ((*p & 0xE0) == 0xC0 && p[1]) { cp = ((uint32_t)(p[0] & 0x1F) << 6) | (uint32_t)(p[1] & 0x3F); p += 2; }
+        else if ((*p & 0xF0) == 0xE0 && p[1] && p[2]) { cp = ((uint32_t)(p[0] & 0x0F) << 12) | ((uint32_t)(p[1] & 0x3F) << 6) | (uint32_t)(p[2] & 0x3F); p += 3; }
+        else if ((*p & 0xF8) == 0xF0 && p[1] && p[2] && p[3]) { cp = ((uint32_t)(p[0] & 0x07) << 18) | ((uint32_t)(p[1] & 0x3F) << 12) | ((uint32_t)(p[2] & 0x3F) << 6) | (uint32_t)(p[3] & 0x3F); p += 4; }
+        else { cp = 0xFFFD; p++; }
+        units += cp > 0xFFFF ? 2 : 1;
+    }
+    return units;
+}
+
+void *scml_ffi_alloc_utf16(const char *text) {
+    size_t units = ffi_utf8_to_utf16_units(text);
+    if (units > (((size_t)-1) / sizeof(uint16_t)) - 1) { ffi_set_error("alloc_utf16 failed", "size overflow"); return NULL; }
+    uint16_t *out = (uint16_t *)scml_ffi_alloc((units + 1) * sizeof(uint16_t));
+    if (!out) return NULL;
+    const unsigned char *p = (const unsigned char *)(text ? text : "");
+    size_t i = 0;
+    while (*p) {
+        uint32_t cp;
+        if (*p < 0x80) { cp = *p++; }
+        else if ((*p & 0xE0) == 0xC0 && p[1]) { cp = ((uint32_t)(p[0] & 0x1F) << 6) | (uint32_t)(p[1] & 0x3F); p += 2; }
+        else if ((*p & 0xF0) == 0xE0 && p[1] && p[2]) { cp = ((uint32_t)(p[0] & 0x0F) << 12) | ((uint32_t)(p[1] & 0x3F) << 6) | (uint32_t)(p[2] & 0x3F); p += 3; }
+        else if ((*p & 0xF8) == 0xF0 && p[1] && p[2] && p[3]) { cp = ((uint32_t)(p[0] & 0x07) << 18) | ((uint32_t)(p[1] & 0x3F) << 12) | ((uint32_t)(p[2] & 0x3F) << 6) | (uint32_t)(p[3] & 0x3F); p += 4; }
+        else { cp = 0xFFFD; p++; }
+        if (cp > 0x10FFFF) cp = 0xFFFD;
+        if (cp > 0xFFFF) {
+            cp -= 0x10000;
+            out[i++] = (uint16_t)(0xD800u + (cp >> 10));
+            out[i++] = (uint16_t)(0xDC00u + (cp & 0x3FFu));
+        } else {
+            out[i++] = (uint16_t)cp;
+        }
+    }
+    out[i] = 0;
+    return out;
+}
+
+char *scml_ffi_read_utf16(const void *ptr, size_t max_code_units) {
+    if (!ptr) { ffi_set_error("read_utf16 failed", "null pointer"); return NULL; }
+    const uint16_t *in = (const uint16_t *)ptr;
+    size_t limit = max_code_units ? max_code_units : 4096;
+    size_t units = 0;
+    while (units < limit && in[units] != 0) units++;
+    if (units == limit) { ffi_set_error("read_utf16 failed", "unterminated string before safety limit"); return NULL; }
+    if (units > (((size_t)-1) / 4) - 1) { ffi_set_error("read_utf16 failed", "size overflow"); return NULL; }
+    char *out = (char *)malloc(units * 4 + 1);
+    if (!out) { ffi_set_error("read_utf16 failed", "out of memory"); return NULL; }
+    size_t j = 0;
+    for (size_t i = 0; i < units; i++) {
+        uint32_t cp = in[i];
+        if (cp >= 0xD800 && cp <= 0xDBFF && i + 1 < units && in[i + 1] >= 0xDC00 && in[i + 1] <= 0xDFFF) {
+            cp = 0x10000 + (((cp - 0xD800) << 10) | (in[++i] - 0xDC00));
+        }
+        if (cp < 0x80) out[j++] = (char)cp;
+        else if (cp < 0x800) { out[j++] = (char)(0xC0 | (cp >> 6)); out[j++] = (char)(0x80 | (cp & 0x3F)); }
+        else if (cp < 0x10000) { out[j++] = (char)(0xE0 | (cp >> 12)); out[j++] = (char)(0x80 | ((cp >> 6) & 0x3F)); out[j++] = (char)(0x80 | (cp & 0x3F)); }
+        else { out[j++] = (char)(0xF0 | (cp >> 18)); out[j++] = (char)(0x80 | ((cp >> 12) & 0x3F)); out[j++] = (char)(0x80 | ((cp >> 6) & 0x3F)); out[j++] = (char)(0x80 | (cp & 0x3F)); }
+    }
+    out[j] = '\0';
+    return out;
 }
 
 char *scml_ffi_read_cstring(const void *ptr) {
@@ -1163,6 +1320,7 @@ int scml_ffi_struct_begin(const char *struct_name) {
         existing->size = 0;
         existing->alignment = 1;
         existing->finished = 0;
+        existing->is_union = 0;
         return 1;
     }
     if (!ffi_ensure_struct_capacity(g_struct_count + 1)) return 0;
@@ -1176,6 +1334,15 @@ int scml_ffi_struct_begin(const char *struct_name) {
     def->size = 0;
     def->alignment = 1;
     def->finished = 0;
+    def->is_union = 0;
+    return 1;
+}
+
+int scml_ffi_union_begin(const char *union_name) {
+    if (!scml_ffi_struct_begin(union_name)) return 0;
+    ScmlFFIStructDef *def = ffi_struct_find(union_name);
+    if (!def) { ffi_set_error("union_begin failed", "unknown union"); return 0; }
+    def->is_union = 1;
     return 1;
 }
 
@@ -1194,7 +1361,7 @@ static int ffi_struct_add_field_count(const char *struct_name, const char *field
     if (!ffi_ensure_struct_field_capacity(def, def->field_count + 1)) return 0;
     char *owned_name = ffi_strdup(field_name);
     if (!owned_name) { ffi_set_error("struct_add_field failed", "out of memory"); return 0; }
-    size_t offset = ffi_align_up(def->size, alignment);
+    size_t offset = def->is_union ? 0 : ffi_align_up(def->size, alignment);
     ScmlFFIStructField *field = &def->fields[def->field_count++];
     field->name = owned_name;
     field->type = type;
@@ -1203,7 +1370,11 @@ static int ffi_struct_add_field_count(const char *struct_name, const char *field
     field->alignment = alignment;
     field->element_size = element_size;
     field->element_count = element_count;
-    def->size = offset + size;
+    if (def->is_union) {
+        if (size > def->size) def->size = size;
+    } else {
+        def->size = offset + size;
+    }
     if (alignment > def->alignment) def->alignment = alignment;
     g_struct_field_count++;
     return 1;
