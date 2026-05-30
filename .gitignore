@@ -7,3 +7,6 @@ bin/scml_editor
 examples/editor_tmp.scmlbin
 
 .scml/
+bin/scml.exe
+bin/scml_gameplay_example.exe
+bin/scml_editor.exe

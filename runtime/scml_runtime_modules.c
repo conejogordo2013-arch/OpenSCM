@@ -174,6 +174,81 @@ int scml_runtime_select_backend(ScmlVM *vm, const char *module_name, const char 
     return 0;
 }
 
+static int scml_runtime_register_builtin_backend(ScmlVM *vm,
+                                                const char *module_name,
+                                                const char *backend_name,
+                                                const ScmlRuntimeFunctionEntry *functions,
+                                                size_t function_count) {
+    ScmlRuntimeBackendVTable backend = {backend_name, functions, function_count, (void *)module_name};
+    return scml_runtime_register_backend(vm, module_name, &backend);
+}
+
+static const char *scml_runtime_active_backend_name(const char *module_name) {
+    RuntimeModule *module = runtime_find(module_name);
+    if (!module || module->active_backend >= module->backend_count) return "";
+    return module->backends[module->active_backend].name ? module->backends[module->active_backend].name : "";
+}
+
+static void scml_runtime_append(char *buf, size_t buf_size, const char *text) {
+    size_t used = strlen(buf);
+    if (used < buf_size) snprintf(buf + used, buf_size - used, "%s", text ? text : "");
+}
+
+static void scml_runtime_append_compile_flags(char *buf, size_t buf_size) {
+    char tmp[256];
+    snprintf(tmp, sizeof(tmp), "compiled={SDL2:%d,OpenGL:%d,OpenGLES:%d,Vulkan:%d,D3D11:%d,D3D12:%d,Metal:%d}",
+#if defined(SCML_USE_SDL2)
+             1,
+#else
+             0,
+#endif
+#if defined(SCML_USE_OPENGL)
+             1,
+#else
+             0,
+#endif
+#if defined(SCML_USE_OPENGLES)
+             1,
+#else
+             0,
+#endif
+#if defined(SCML_USE_VULKAN)
+             1,
+#else
+             0,
+#endif
+#if defined(SCML_USE_D3D11)
+             1,
+#else
+             0,
+#endif
+#if defined(SCML_USE_D3D12)
+             1,
+#else
+             0,
+#endif
+#if defined(SCML_USE_METAL)
+             1
+#else
+             0
+#endif
+    );
+    scml_runtime_append(buf, buf_size, tmp);
+}
+
+static int scml_runtime_backend_info(char *buf, size_t buf_size, const char *module_name) {
+    RuntimeModule *module = runtime_find(module_name);
+    if (!module || !buf || buf_size == 0) return 0;
+    snprintf(buf, buf_size, "module=%s active=%s backends=", module_name, scml_runtime_active_backend_name(module_name));
+    for (size_t i = 0; i < module->backend_count; i++) {
+        if (i) scml_runtime_append(buf, buf_size, ",");
+        scml_runtime_append(buf, buf_size, module->backends[i].name);
+    }
+    scml_runtime_append(buf, buf_size, " ");
+    scml_runtime_append_compile_flags(buf, buf_size);
+    return 1;
+}
+
 int scml_runtime_unregister_module(ScmlVM *vm, const char *module_name) {
     if (!vm || !module_name) return 0;
     for (size_t i = 0; i < g_registry.count; i++) {
@@ -556,6 +631,7 @@ static int rt_audio_load_sound(ScmlVM *vm, const ScmlValue *args, size_t arg_cou
 static int rt_audio_stop_sound(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; *ret = scml_value_int(0); return 1; }
 static int rt_audio_set_volume(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)user_data; if (arg_count < 1) return 0; g_builtin.audio_volume = args[0].integer; *ret = scml_value_int(g_builtin.audio_volume); return 1; }
 static int rt_gpu_noop(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; if (!g_builtin.gpu_context_alive) return 0; *ret = scml_value_int(0); return 1; }
+static int rt_entity_set_noop(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) { (void)vm; (void)args; (void)arg_count; (void)user_data; *ret = scml_value_int(0); return 1; }
 static int rt_gpu_create_buffer(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
     (void)vm; (void)args; (void)arg_count; (void)user_data;
     if (!g_builtin.gpu_context_alive) return 0;
@@ -893,47 +969,26 @@ static int rt_console_style(ScmlVM *vm, const ScmlValue *args, size_t arg_count,
     return 1;
 }
 
+static int rt_runtime_select_backend(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)user_data;
+    if (arg_count < 2) return 0;
+    char mbuf[64], bbuf[64];
+    const char *module_name = arg_to_cstr(&args[0], mbuf, sizeof(mbuf));
+    const char *backend_name = arg_to_cstr(&args[1], bbuf, sizeof(bbuf));
+    *ret = scml_value_int(scml_runtime_select_backend(vm, module_name, backend_name) ? 1 : 0);
+    return 1;
+}
+
 static int rt_capability_info(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
-    (void)vm; (void)args; (void)arg_count; (void)user_data;
-    char buf[512];
-    snprintf(buf, sizeof(buf),
-             "SDL2=%d OpenGL=%d OpenGLES=%d Vulkan=%d D3D11=%d D3D12=%d Metal=%d",
-#if defined(SCML_USE_SDL2)
-             1,
-#else
-             0,
-#endif
-#if defined(SCML_USE_OPENGL)
-             1,
-#else
-             0,
-#endif
-#if defined(SCML_USE_OPENGLES)
-             1,
-#else
-             0,
-#endif
-#if defined(SCML_USE_VULKAN)
-             1,
-#else
-             0,
-#endif
-#if defined(SCML_USE_D3D11)
-             1,
-#else
-             0,
-#endif
-#if defined(SCML_USE_D3D12)
-             1,
-#else
-             0,
-#endif
-#if defined(SCML_USE_METAL)
-             1
-#else
-             0
-#endif
-    );
+    (void)vm;
+    char mbuf[64];
+    const char *module_name = (const char *)user_data;
+    if (arg_count > 0) module_name = arg_to_cstr(&args[0], mbuf, sizeof(mbuf));
+    if (!module_name || !*module_name) module_name = "runtime";
+    char buf[1024] = {0};
+    if (!scml_runtime_backend_info(buf, sizeof(buf), module_name)) {
+        scml_runtime_append_compile_flags(buf, sizeof(buf));
+    }
     *ret = scml_value_string(buf);
     return 1;
 }
@@ -951,7 +1006,7 @@ static const ScmlRuntimeFunctionEntry k_gpu[] = {
     {"create_texture2d", rt_gpu_create_texture2d}, {"update_texture2d", rt_gpu_update_texture2d}, {"destroy_texture", rt_gpu_destroy_texture}, {"create_shader", rt_create_handle}, {"set_shader", rt_gpu_noop},
     {"set_uniform", rt_gpu_noop}, {"draw_triangle", rt_gpu_draw_triangle}, {"draw_indexed", rt_gpu_draw_indexed}, {"draw_mesh", rt_gpu_draw_mesh},
     {"create_window", rt_window_create}, {"load_texture", rt_create_handle}, {"load_image", rt_create_handle}, {"upload_image", rt_gpu_noop}, {"create_pipeline", rt_create_handle},
-    {"entity_spawn", rt_create_handle},
+    {"entity_spawn", rt_create_handle}, {"entity_set", rt_entity_set_noop},
     {"backend_info", rt_capability_info}
 };
 static const ScmlRuntimeFunctionEntry k_audio[] = {
@@ -993,7 +1048,8 @@ static const ScmlRuntimeFunctionEntry k_console[] = {
     {"move", rt_console_move}, {"erase_line", rt_console_erase_line}, {"style", rt_console_style}
 };
 static const ScmlRuntimeFunctionEntry k_runtime[] = {
-    {"wait", rt_runtime_sleep_ms}, {"get_time_ms", rt_runtime_get_time_ms}, {"get_time_us", rt_runtime_get_time_us}, {"get_ticks", rt_runtime_get_ticks}
+    {"wait", rt_runtime_sleep_ms}, {"get_time_ms", rt_runtime_get_time_ms}, {"get_time_us", rt_runtime_get_time_us}, {"get_ticks", rt_runtime_get_ticks},
+    {"select_backend", rt_runtime_select_backend}, {"backend_info", rt_capability_info}, {"capability_info", rt_capability_info}
 };
 static const ScmlRuntimeFunctionEntry k_system[] = {
     {"get_platform", rt_system_get_platform}, {"get_cpu_count", rt_system_get_cpu_count}, {"get_memory_info", rt_system_get_memory_info},
@@ -1006,54 +1062,58 @@ static const ScmlRuntimeFunctionEntry k_thread[] = {
 
 int scml_runtime_install_builtin_module_registry(ScmlVM *vm) {
     int ok = 1;
-    ScmlRuntimeBackendVTable gpu_default = {"default", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]), NULL};
-    ScmlRuntimeBackendVTable gpu_gl = {"opengl", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]), NULL};
-    ScmlRuntimeBackendVTable gpu_vk = {"vulkan", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]), NULL};
-    ScmlRuntimeBackendVTable gpu_dx = {"directx12", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]), NULL};
-    ScmlRuntimeBackendVTable gpu_metal = {"metal", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]), NULL};
-    ScmlRuntimeBackendVTable gpu_gles = {"opengles", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]), NULL};
-    ScmlRuntimeBackendVTable audio_default = {"default", k_audio, sizeof(k_audio) / sizeof(k_audio[0]), NULL};
-    ScmlRuntimeBackendVTable audio_sdl = {"sdl_audio", k_audio, sizeof(k_audio) / sizeof(k_audio[0]), NULL};
-    ScmlRuntimeBackendVTable audio_openal = {"openal", k_audio, sizeof(k_audio) / sizeof(k_audio[0]), NULL};
-    ScmlRuntimeBackendVTable audio_wasapi = {"wasapi", k_audio, sizeof(k_audio) / sizeof(k_audio[0]), NULL};
-    ScmlRuntimeBackendVTable audio_alsa = {"alsa", k_audio, sizeof(k_audio) / sizeof(k_audio[0]), NULL};
-    ScmlRuntimeBackendVTable file_default = {"default", k_file, sizeof(k_file) / sizeof(k_file[0]), NULL};
-    ScmlRuntimeBackendVTable image_default = {"default", k_image, sizeof(k_image) / sizeof(k_image[0]), NULL};
-    ScmlRuntimeBackendVTable image_stb = {"stb_image", k_image, sizeof(k_image) / sizeof(k_image[0]), NULL};
-    ScmlRuntimeBackendVTable net_default = {"default", k_net, sizeof(k_net) / sizeof(k_net[0]), NULL};
-    ScmlRuntimeBackendVTable input_default = {"default", k_input, sizeof(k_input) / sizeof(k_input[0]), NULL};
-    ScmlRuntimeBackendVTable console_default = {"default", k_console, sizeof(k_console) / sizeof(k_console[0]), NULL};
-    ScmlRuntimeBackendVTable runtime_default = {"default", k_runtime, sizeof(k_runtime) / sizeof(k_runtime[0]), NULL};
-    ScmlRuntimeBackendVTable system_default = {"default", k_system, sizeof(k_system) / sizeof(k_system[0]), NULL};
-    ScmlRuntimeBackendVTable thread_default = {"default", k_thread, sizeof(k_thread) / sizeof(k_thread[0]), NULL};
-    ScmlRuntimeBackendVTable window_default = {"default", k_window, sizeof(k_window) / sizeof(k_window[0]), NULL};
-    ScmlRuntimeBackendVTable window_sdl = {"sdl2", k_window, sizeof(k_window) / sizeof(k_window[0]), NULL};
-    ScmlRuntimeBackendVTable window_x11 = {"x11", k_window, sizeof(k_window) / sizeof(k_window[0]), NULL};
-    ScmlRuntimeBackendVTable window_win32 = {"win32", k_window, sizeof(k_window) / sizeof(k_window[0]), NULL};
-    ok = ok && scml_runtime_register_backend(vm, "gpu", &gpu_default);
-    ok = ok && scml_runtime_register_backend(vm, "gpu", &gpu_gl);
-    ok = ok && scml_runtime_register_backend(vm, "gpu", &gpu_vk);
-    ok = ok && scml_runtime_register_backend(vm, "gpu", &gpu_dx);
-    ok = ok && scml_runtime_register_backend(vm, "gpu", &gpu_metal);
-    ok = ok && scml_runtime_register_backend(vm, "gpu", &gpu_gles);
-    ok = ok && scml_runtime_register_backend(vm, "audio", &audio_default);
-    ok = ok && scml_runtime_register_backend(vm, "audio", &audio_sdl);
-    ok = ok && scml_runtime_register_backend(vm, "audio", &audio_openal);
-    ok = ok && scml_runtime_register_backend(vm, "audio", &audio_wasapi);
-    ok = ok && scml_runtime_register_backend(vm, "audio", &audio_alsa);
-    ok = ok && scml_runtime_register_backend(vm, "file", &file_default);
-    ok = ok && scml_runtime_register_backend(vm, "image", &image_default);
-    ok = ok && scml_runtime_register_backend(vm, "image", &image_stb);
-    ok = ok && scml_runtime_register_backend(vm, "net", &net_default);
-    ok = ok && scml_runtime_register_backend(vm, "input", &input_default);
-    ok = ok && scml_runtime_register_backend(vm, "console", &console_default);
-    ok = ok && scml_runtime_register_backend(vm, "runtime", &runtime_default);
-    ok = ok && scml_runtime_register_backend(vm, "system", &system_default);
-    ok = ok && scml_runtime_register_backend(vm, "thread", &thread_default);
-    ok = ok && scml_runtime_register_backend(vm, "window", &window_default);
-    ok = ok && scml_runtime_register_backend(vm, "window", &window_sdl);
-    ok = ok && scml_runtime_register_backend(vm, "window", &window_x11);
-    ok = ok && scml_runtime_register_backend(vm, "window", &window_win32);
+    ok = ok && scml_runtime_register_builtin_backend(vm, "gpu", "default", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]));
+#if defined(SCML_USE_OPENGL)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "gpu", "opengl", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]));
+#endif
+#if defined(SCML_USE_OPENGLES)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "gpu", "opengles", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]));
+#endif
+#if defined(SCML_USE_VULKAN)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "gpu", "vulkan", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]));
+#endif
+#if defined(SCML_USE_D3D11)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "gpu", "directx11", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]));
+#endif
+#if defined(SCML_USE_D3D12)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "gpu", "directx12", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]));
+#endif
+#if defined(SCML_USE_METAL)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "gpu", "metal", k_gpu, sizeof(k_gpu) / sizeof(k_gpu[0]));
+#endif
+
+    ok = ok && scml_runtime_register_builtin_backend(vm, "audio", "default", k_audio, sizeof(k_audio) / sizeof(k_audio[0]));
+#if defined(SCML_USE_SDL2)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "audio", "sdl_audio", k_audio, sizeof(k_audio) / sizeof(k_audio[0]));
+#endif
+#if defined(_WIN32)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "audio", "wasapi", k_audio, sizeof(k_audio) / sizeof(k_audio[0]));
+#endif
+#if defined(__linux__)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "audio", "alsa", k_audio, sizeof(k_audio) / sizeof(k_audio[0]));
+#endif
+
+    ok = ok && scml_runtime_register_builtin_backend(vm, "file", "default", k_file, sizeof(k_file) / sizeof(k_file[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "image", "default", k_image, sizeof(k_image) / sizeof(k_image[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "net", "default", k_net, sizeof(k_net) / sizeof(k_net[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "input", "default", k_input, sizeof(k_input) / sizeof(k_input[0]));
+#if defined(SCML_USE_SDL2)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "input", "sdl2", k_input, sizeof(k_input) / sizeof(k_input[0]));
+#endif
+    ok = ok && scml_runtime_register_builtin_backend(vm, "console", "default", k_console, sizeof(k_console) / sizeof(k_console[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "runtime", "default", k_runtime, sizeof(k_runtime) / sizeof(k_runtime[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "system", "default", k_system, sizeof(k_system) / sizeof(k_system[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "thread", "default", k_thread, sizeof(k_thread) / sizeof(k_thread[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "window", "default", k_window, sizeof(k_window) / sizeof(k_window[0]));
+#if defined(SCML_USE_SDL2)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "window", "sdl2", k_window, sizeof(k_window) / sizeof(k_window[0]));
+#endif
+#if defined(__linux__)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "window", "x11", k_window, sizeof(k_window) / sizeof(k_window[0]));
+#endif
+#if defined(_WIN32)
+    ok = ok && scml_runtime_register_builtin_backend(vm, "window", "win32", k_window, sizeof(k_window) / sizeof(k_window[0]));
+#endif
     ok = ok && scml_runtime_select_backend(vm, "gpu", "default");
     ok = ok && scml_runtime_select_backend(vm, "audio", "default");
     ok = ok && scml_runtime_select_backend(vm, "file", "default");
