@@ -109,6 +109,8 @@ const char *scml_ffi_last_error(void) { return g_last_error[0] ? g_last_error : 
 
 static void ffi_clear_error(void) { g_last_error[0] = '\0'; }
 
+void scml_ffi_clear_error(void) { ffi_clear_error(); }
+
 
 static char *ffi_trim(char *s) {
     while (s && *s && isspace((unsigned char)*s)) s++;
@@ -457,6 +459,47 @@ ScmlFFIType scml_ffi_parse_type(const char *name, ScmlFFIType fallback) {
 
 ScmlFFIReturnType scml_ffi_parse_return_type(const char *name, ScmlFFIReturnType fallback) {
     return scml_ffi_parse_type(name, fallback);
+}
+
+int scml_ffi_abi_supported(ScmlFFIAbi abi) {
+    switch (abi) {
+    case SCML_FFI_ABI_DEFAULT:
+    case SCML_FFI_ABI_CDECL:
+        return 1;
+    case SCML_FFI_ABI_STDCALL:
+#if defined(SCML_USE_LIBFFI) && (defined(_WIN64) || (defined(_WIN32) && defined(FFI_STDCALL)))
+        return 1;
+#else
+        return 0;
+#endif
+    case SCML_FFI_ABI_FASTCALL:
+    case SCML_FFI_ABI_THISCALL:
+#if defined(SCML_USE_LIBFFI) && defined(_WIN64)
+        return 1;
+#else
+        return 0;
+#endif
+    default:
+        return 0;
+    }
+}
+
+char *scml_ffi_capabilities(void) {
+    char buf[512];
+    snprintf(buf, sizeof(buf),
+             "libffi=%d fallback_max_args=%d abi={default:%d,cdecl:%d,stdcall:%d,fastcall:%d,thiscall:%d} features={call_ptr:1,vtable:1,peek_poke_ptr:1,utf16:1,union:1,struct_arrays:1}",
+#if defined(SCML_USE_LIBFFI)
+             1,
+#else
+             0,
+#endif
+             SCML_FFI_FALLBACK_MAX_ARGS,
+             scml_ffi_abi_supported(SCML_FFI_ABI_DEFAULT),
+             scml_ffi_abi_supported(SCML_FFI_ABI_CDECL),
+             scml_ffi_abi_supported(SCML_FFI_ABI_STDCALL),
+             scml_ffi_abi_supported(SCML_FFI_ABI_FASTCALL),
+             scml_ffi_abi_supported(SCML_FFI_ABI_THISCALL));
+    return ffi_strdup(buf);
 }
 
 ScmlFFIAbi scml_ffi_parse_abi(const char *name, ScmlFFIAbi fallback) {
@@ -888,10 +931,13 @@ int scml_ffi_call_native_by_name_ex(const char *function_name, const ScmlValue *
 }
 
 
+static int ffi_memory_check_access(const void *ptr, size_t access_size);
+
 void *scml_ffi_peek_pointer(const void *base, size_t index) {
     if (!base) { ffi_set_error("peek_pointer failed", "null pointer"); return NULL; }
     if (index > ((size_t)-1) / sizeof(void *)) { ffi_set_error("peek_pointer failed", "offset overflow"); return NULL; }
     const void *slot_addr = (const unsigned char *)base + index * sizeof(void *);
+    if (!ffi_memory_check_access(slot_addr, sizeof(void *))) return NULL;
     void *value = NULL;
     memcpy(&value, slot_addr, sizeof(value));
     return value;
@@ -901,6 +947,7 @@ int scml_ffi_poke_pointer(void *base, size_t index, void *value) {
     if (!base) { ffi_set_error("poke_pointer failed", "null pointer"); return 0; }
     if (index > ((size_t)-1) / sizeof(void *)) { ffi_set_error("poke_pointer failed", "offset overflow"); return 0; }
     void *slot_addr = (unsigned char *)base + index * sizeof(void *);
+    if (!ffi_memory_check_access(slot_addr, sizeof(void *))) return 0;
     memcpy(slot_addr, &value, sizeof(value));
     return 1;
 }
@@ -1099,6 +1146,14 @@ char *scml_ffi_read_utf16(const void *ptr, size_t max_code_units) {
     if (!ptr) { ffi_set_error("read_utf16 failed", "null pointer"); return NULL; }
     const uint16_t *in = (const uint16_t *)ptr;
     size_t limit = max_code_units ? max_code_units : 4096;
+    if (!max_code_units) {
+        ScmlFFIMemoryBlock *block = ffi_memory_find_containing(ptr, sizeof(uint16_t));
+        if (block) {
+            uintptr_t start = (uintptr_t)block->ptr;
+            uintptr_t target = (uintptr_t)ptr;
+            limit = (block->size - (size_t)(target - start)) / sizeof(uint16_t);
+        }
+    }
     size_t units = 0;
     while (units < limit && in[units] != 0) units++;
     if (units == limit) { ffi_set_error("read_utf16 failed", "unterminated string before safety limit"); return NULL; }

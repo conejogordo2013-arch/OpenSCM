@@ -111,6 +111,9 @@ int scml_ffi_declare_function_text(const char *function_name, const char *return
 int scml_ffi_undeclare_function(const char *function_name);
 const ScmlFFISignature *scml_ffi_get_declared_signature(const char *function_name);
 const char *scml_ffi_last_error(void);
+void scml_ffi_clear_error(void);
+int scml_ffi_abi_supported(ScmlFFIAbi abi);
+char *scml_ffi_capabilities(void);
 ScmlFFIType scml_ffi_parse_type(const char *name, ScmlFFIType fallback);
 ScmlFFIReturnType scml_ffi_parse_return_type(const char *name, ScmlFFIReturnType fallback);
 ScmlFFIAbi scml_ffi_parse_abi(const char *name, ScmlFFIAbi fallback);

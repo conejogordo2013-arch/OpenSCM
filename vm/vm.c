@@ -744,6 +744,32 @@ static int vm_ffi_call_pointer_args(const ScmlValue *fn_value, const ScmlValue *
 }
 
 static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
+    if (strcmp(name, "ffi.last_error") == 0 || strcmp(name, "ffi.error") == 0) {
+        if (arg_count != 0) return 0;
+        if (ret) *ret = value_str(scml_ffi_last_error());
+        return 1;
+    }
+    if (strcmp(name, "ffi.clear_error") == 0) {
+        if (arg_count != 0) return 0;
+        scml_ffi_clear_error();
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "ffi.capabilities") == 0 || strcmp(name, "ffi.info") == 0) {
+        if (arg_count != 0) return 0;
+        char *info = scml_ffi_capabilities();
+        if (!info) return 0;
+        if (ret) *ret = value_str(info);
+        free(info);
+        return 1;
+    }
+    if (strcmp(name, "ffi.abi_supported") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        ScmlFFIAbi abi = scml_ffi_parse_abi(args[0].string, (ScmlFFIAbi)-1);
+        int ok = scml_ffi_abi_supported(abi);
+        if (ret) *ret = value_int(ok);
+        return 1;
+    }
     if (strcmp(name, "load_library") == 0 || strcmp(name, "ffi.load_library") == 0 || strcmp(name, "ffi.load") == 0) {
         if (arg_count < 1 || arg_count > 2 || args[0].type != SCML_VAL_STRING) return 0;
         unsigned int flags = arg_count == 2 ? (unsigned int)value_to_int(&args[1]) : (SCML_FFI_LOAD_NOW | SCML_FFI_LOAD_LOCAL);
@@ -785,7 +811,7 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_pointer((uintptr_t)symbol);
         return 1;
     }
-    if (strcmp(name, "ffi.call_ptr") == 0 || strcmp(name, "ffi.call_pointer") == 0) {
+    if (strcmp(name, "ffi.call") == 0 || strcmp(name, "ffi.call_ptr") == 0 || strcmp(name, "ffi.call_pointer") == 0) {
         if (arg_count < 3 || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
         return vm_ffi_call_pointer_args(&args[0], &args[1], &args[2], args + 3, arg_count - 3, SCML_FFI_ABI_DEFAULT, ret);
     }

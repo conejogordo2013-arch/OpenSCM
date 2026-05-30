@@ -86,6 +86,8 @@
 0B31: "ffi.free" $BUF
 
 ; Pointer-call and COM-style vtable helpers.
+0B31: "ffi.abi_supported" "cdecl"
+03E5: $RETVAL
 0B31: "ffi.declare" "scml_ffi_add_i32_ptr" "pointer" ""
 0B31: "scml_ffi_add_i32_ptr"
 0004: $ADD_PTR $RETVAL

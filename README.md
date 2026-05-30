@@ -455,6 +455,9 @@ to the VM core. `ffi.call_ptr` / `ffi.call_abi_ptr` invoke function pointers
 returned by loaders or native APIs, while `ffi.vtable_call` / `ffi.com_call` read
 COM-style vtables, prepend the object pointer, and dispatch a method by slot.
 `ffi.union_begin` defines overlapped native layouts for APIs that use C unions.
+For diagnostics and visibility, scripts can call `ffi.capabilities` / `ffi.info`,
+`ffi.abi_supported`, `ffi.last_error`, and `ffi.clear_error` to inspect the active
+FFI feature set and the latest controlled native interop error.
 
 Example native library and script files are provided in `examples/ffi_native.c`
 and `examples/ffi_dynamic_call.scml`:

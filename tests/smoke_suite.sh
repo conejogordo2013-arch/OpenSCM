@@ -242,12 +242,13 @@ SCML
     exit 1
   fi
 
-  ffi_pointer_src=".scml/ffi_pointer_vtable.scml"
-  ffi_pointer_bin=".scml/ffi_pointer_vtable.scmlbin"
+  ffi_pointer_src=".scml/ffi_pointer_vtable.scmlbin"
   cat >"$ffi_pointer_src" <<'SCML'
 :MAIN
 0B31: "ffi.add_search_path" "examples"
 0B31: "ffi.load" "libscml_ffi_native"
+0B31: "ffi.abi_supported" "cdecl"
+03E5: $RETVAL
 0B31: "ffi.declare" "scml_ffi_add_i32_ptr" "pointer" ""
 0B31: "scml_ffi_add_i32_ptr"
 0004: $ADD_PTR $RETVAL
@@ -264,7 +265,8 @@ SCML
   bin/scml compile "$ffi_pointer_src" "$ffi_pointer_bin"
   ffi_pointer_output="$(bin/scml run "$ffi_pointer_bin")"
   rm -f "$ffi_native_lib"
-  expected_ffi_pointer_output=$'11
+  expected_ffi_pointer_output=$'1
+11
 42'
   if [[ "$ffi_pointer_output" != "$expected_ffi_pointer_output" ]]; then
     echo "[smoke] unexpected FFI function pointer/vtable output" >&2
@@ -361,6 +363,8 @@ ffi_native_layout_src=".scml/ffi_native_layout.scml"
 ffi_native_layout_bin=".scml/ffi_native_layout.scmlbin"
 cat >"$ffi_native_layout_src" <<'SCML'
 :MAIN
+0B31: "ffi.last_error"
+03E5: $RETVAL
 0B31: "ffi.utf16" "hello utf16"
 0004: $WIDE $RETVAL
 0B31: "ffi.read_utf16" $WIDE
@@ -380,7 +384,8 @@ SCML
 echo "[smoke] run FFI UTF-16/union layout regression"
 bin/scml compile "$ffi_native_layout_src" "$ffi_native_layout_bin"
 ffi_native_layout_output="$(bin/scml run "$ffi_native_layout_bin")"
-expected_ffi_native_layout_output=$'hello utf16
+expected_ffi_native_layout_output=$'no FFI error
+hello utf16
 0
 8'
 if [[ "$ffi_native_layout_output" != "$expected_ffi_native_layout_output" ]]; then
