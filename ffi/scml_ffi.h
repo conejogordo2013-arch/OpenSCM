@@ -44,6 +44,14 @@ typedef enum ScmlFFIType {
 
 typedef ScmlFFIType ScmlFFIReturnType;
 
+typedef enum ScmlFFIAbi {
+    SCML_FFI_ABI_DEFAULT = 0,
+    SCML_FFI_ABI_CDECL = 1,
+    SCML_FFI_ABI_STDCALL = 2,
+    SCML_FFI_ABI_FASTCALL = 3,
+    SCML_FFI_ABI_THISCALL = 4
+} ScmlFFIAbi;
+
 #define SCML_FFI_RET_INT SCML_FFI_TYPE_INT32
 #define SCML_FFI_RET_FLOAT SCML_FFI_TYPE_FLOAT
 #define SCML_FFI_RET_POINTER SCML_FFI_TYPE_POINTER
@@ -92,6 +100,10 @@ void *scml_ffi_get_symbol(void *library_handle, const char *function_name);
 void *scml_ffi_find_symbol(const char *function_name);
 int scml_ffi_call_native(void *function_ptr, const ScmlValue *args, size_t arg_count, ScmlFFIReturnType return_type, ScmlValue *ret);
 int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const ScmlFFISignature *signature, ScmlValue *ret);
+int scml_ffi_call_native_abi(void *function_ptr, const ScmlValue *args, const ScmlFFISignature *signature, ScmlFFIAbi abi, ScmlValue *ret);
+int scml_ffi_call_vtable(void *object_ptr, size_t method_index, const ScmlValue *args, const ScmlFFISignature *signature, ScmlFFIAbi abi, int include_this, ScmlValue *ret);
+void *scml_ffi_peek_pointer(const void *base, size_t index);
+int scml_ffi_poke_pointer(void *base, size_t index, void *value);
 int scml_ffi_call_native_by_name(const char *function_name, const ScmlValue *args, size_t arg_count, ScmlFFIReturnType return_type, ScmlValue *ret);
 int scml_ffi_call_native_by_name_ex(const char *function_name, const ScmlValue *args, const ScmlFFISignature *signature, ScmlValue *ret);
 int scml_ffi_declare_function(const char *function_name, ScmlFFIReturnType return_type, const ScmlFFIType *arg_types, size_t arg_count);
@@ -99,13 +111,19 @@ int scml_ffi_declare_function_text(const char *function_name, const char *return
 int scml_ffi_undeclare_function(const char *function_name);
 const ScmlFFISignature *scml_ffi_get_declared_signature(const char *function_name);
 const char *scml_ffi_last_error(void);
+void scml_ffi_clear_error(void);
+int scml_ffi_abi_supported(ScmlFFIAbi abi);
+char *scml_ffi_capabilities(void);
 ScmlFFIType scml_ffi_parse_type(const char *name, ScmlFFIType fallback);
 ScmlFFIReturnType scml_ffi_parse_return_type(const char *name, ScmlFFIReturnType fallback);
+ScmlFFIAbi scml_ffi_parse_abi(const char *name, ScmlFFIAbi fallback);
 size_t scml_ffi_parse_arg_types(const char *spec, ScmlFFIType *out_types, size_t max_types);
 void *scml_ffi_alloc(size_t size);
 void *scml_ffi_alloc_array(size_t count, size_t elem_size);
 void *scml_ffi_realloc_memory(void *ptr, size_t new_size);
 void *scml_ffi_alloc_cstring(const char *text);
+void *scml_ffi_alloc_utf16(const char *text);
+char *scml_ffi_read_utf16(const void *ptr, size_t max_code_units);
 char *scml_ffi_read_cstring(const void *ptr);
 int scml_ffi_write_cstring(void *base, size_t offset, const char *text, size_t max_bytes);
 int scml_ffi_free_memory(void *ptr);
@@ -123,6 +141,7 @@ int scml_ffi_memory_copy(void *dst, const void *src, size_t size);
 int scml_ffi_memory_set(void *dst, int value, size_t size);
 size_t scml_ffi_memory_block_size(void *ptr);
 int scml_ffi_struct_begin(const char *struct_name);
+int scml_ffi_union_begin(const char *union_name);
 int scml_ffi_struct_add_field(const char *struct_name, const char *field_name, ScmlFFIType type);
 int scml_ffi_struct_add_array_field(const char *struct_name, const char *field_name, ScmlFFIType type, size_t element_count);
 int scml_ffi_struct_finish(const char *struct_name);

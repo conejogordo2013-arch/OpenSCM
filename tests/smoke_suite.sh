@@ -236,9 +236,42 @@ SCML
   echo "[smoke] run libffi many-argument native call regression"
   bin/scml compile "$ffi_native_src" "$ffi_native_bin"
   ffi_native_output="$(bin/scml run "$ffi_native_bin")"
-  rm -f "$ffi_native_lib"
   if [[ "$ffi_native_output" != "120" ]]; then
     echo "[smoke] unexpected many-argument FFI output: $ffi_native_output" >&2
+    rm -f "$ffi_native_lib"
+    exit 1
+  fi
+
+  ffi_pointer_src=".scml/ffi_pointer_vtable.scml"
+  ffi_pointer_bin=".scml/ffi_pointer_vtable.scmlbin"
+  cat >"$ffi_pointer_src" <<'SCML'
+:MAIN
+0B31: "ffi.add_search_path" "examples"
+0B31: "ffi.load" "libscml_ffi_native"
+0B31: "ffi.abi_supported" "cdecl"
+03E5: $RETVAL
+0B31: "ffi.declare" "scml_ffi_add_i32_ptr" "pointer" ""
+0B31: "scml_ffi_add_i32_ptr"
+0004: $ADD_PTR $RETVAL
+0B31: "ffi.call_ptr" $ADD_PTR "int" "int,int" 5 6
+03E5: $RETVAL
+0B31: "ffi.declare" "scml_ffi_fake_object" "pointer" ""
+0B31: "scml_ffi_fake_object"
+0004: $OBJ $RETVAL
+0B31: "ffi.vtable_call" $OBJ 0 "int" "int" 32
+03E5: $RETVAL
+0001:
+SCML
+  echo "[smoke] run FFI function pointer/vtable regression"
+  bin/scml compile "$ffi_pointer_src" "$ffi_pointer_bin"
+  ffi_pointer_output="$(bin/scml run "$ffi_pointer_bin")"
+  rm -f "$ffi_native_lib"
+  expected_ffi_pointer_output=$'1
+11
+42'
+  if [[ "$ffi_pointer_output" != "$expected_ffi_pointer_output" ]]; then
+    echo "[smoke] unexpected FFI function pointer/vtable output" >&2
+    printf 'expected: %q\nactual:   %q\n' "$expected_ffi_pointer_output" "$ffi_pointer_output" >&2
     exit 1
   fi
 else
@@ -324,6 +357,41 @@ expected_ffi_more_advanced_output=$'7\n0x3039\n48879\n0x8\nabcdefg\nabcdefgZ'
 if [[ "$ffi_more_advanced_output" != "$expected_ffi_more_advanced_output" ]]; then
   echo "[smoke] unexpected advanced FFI pointer/cstring output" >&2
   printf 'expected: %q\nactual:   %q\n' "$expected_ffi_more_advanced_output" "$ffi_more_advanced_output" >&2
+  exit 1
+fi
+
+ffi_native_layout_src=".scml/ffi_native_layout.scml"
+ffi_native_layout_bin=".scml/ffi_native_layout.scmlbin"
+cat >"$ffi_native_layout_src" <<'SCML'
+:MAIN
+0B31: "ffi.last_error"
+03E5: $RETVAL
+0B31: "ffi.utf16" "hello utf16"
+0004: $WIDE $RETVAL
+0B31: "ffi.read_utf16" $WIDE
+03E5: $RETVAL
+0B31: "ffi.free" $WIDE
+0B31: "ffi.union_begin" "NumberBits"
+0B31: "ffi.struct_field" "NumberBits" "as_i32" "int"
+0B31: "ffi.struct_field" "NumberBits" "as_u64" "uint64"
+0B31: "ffi.struct_finish" "NumberBits"
+0B31: "ffi.struct_offset" "NumberBits" "as_u64"
+03E5: $RETVAL
+0B31: "ffi.struct_size" "NumberBits"
+03E5: $RETVAL
+0001:
+SCML
+
+echo "[smoke] run FFI UTF-16/union layout regression"
+bin/scml compile "$ffi_native_layout_src" "$ffi_native_layout_bin"
+ffi_native_layout_output="$(bin/scml run "$ffi_native_layout_bin")"
+expected_ffi_native_layout_output=$'no FFI error
+hello utf16
+0
+8'
+if [[ "$ffi_native_layout_output" != "$expected_ffi_native_layout_output" ]]; then
+  echo "[smoke] unexpected FFI UTF-16/union layout output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_ffi_native_layout_output" "$ffi_native_layout_output" >&2
   exit 1
 fi
 

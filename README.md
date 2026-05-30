@@ -447,10 +447,17 @@ libraries with transitive dependencies can be loaded with `RTLD_GLOBAL`-style
 visibility when the platform supports it. Extension probing lets scripts load a
 basename such as `"libexample"` from registered search paths and let the host pick
 `.so`, `.dylib`, or `.dll`. For struct/buffer-heavy native APIs, the generic
-allocator helpers (`ffi.alloc`, `ffi.cstring`, `ffi.free`, `ffi.ptr_add`,
-`ffi.read`, `ffi.write`, `ffi.memcpy`, `ffi.memset`, and `ffi.read_cstring`) let
-scripts build native memory layouts and pass pointers without adding API-specific
-modules to the VM core.
+allocator helpers (`ffi.alloc`, `ffi.cstring`, `ffi.utf16`, `ffi.free`,
+`ffi.ptr_add`, `ffi.peek_ptr`, `ffi.poke_ptr`, `ffi.read`, `ffi.write`,
+`ffi.memcpy`, `ffi.memset`, `ffi.read_cstring`, and `ffi.read_utf16`) let scripts
+build native memory layouts and pass pointers without adding API-specific modules
+to the VM core. `ffi.call_ptr` / `ffi.call_abi_ptr` invoke function pointers
+returned by loaders or native APIs, while `ffi.vtable_call` / `ffi.com_call` read
+COM-style vtables, prepend the object pointer, and dispatch a method by slot.
+`ffi.union_begin` defines overlapped native layouts for APIs that use C unions.
+For diagnostics and visibility, scripts can call `ffi.capabilities` / `ffi.info`,
+`ffi.abi_supported`, `ffi.last_error`, and `ffi.clear_error` to inspect the active
+FFI feature set and the latest controlled native interop error.
 
 Example native library and script files are provided in `examples/ffi_native.c`
 and `examples/ffi_dynamic_call.scml`:

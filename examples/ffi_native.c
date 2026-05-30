@@ -29,3 +29,29 @@ SCML_FFI_EXPORT int32_t scml_ffi_sum15_i32(int32_t a1, int32_t a2, int32_t a3, i
 SCML_FFI_EXPORT const char *scml_ffi_echo_string(const char *text) {
     return text;
 }
+
+typedef int32_t (*ScmlFFIBinaryI32)(int32_t, int32_t);
+
+SCML_FFI_EXPORT void *scml_ffi_add_i32_ptr(void) {
+    return (void *)(ScmlFFIBinaryI32)scml_ffi_add_i32;
+}
+
+typedef struct ScmlFFIFakeObject ScmlFFIFakeObject;
+typedef struct ScmlFFIFakeVTable {
+    int32_t (*add_bias)(ScmlFFIFakeObject *self, int32_t value);
+} ScmlFFIFakeVTable;
+
+struct ScmlFFIFakeObject {
+    ScmlFFIFakeVTable *vtable;
+    int32_t bias;
+};
+
+static int32_t scml_ffi_fake_add_bias(ScmlFFIFakeObject *self, int32_t value) {
+    return self ? self->bias + value : value;
+}
+
+SCML_FFI_EXPORT void *scml_ffi_fake_object(void) {
+    static ScmlFFIFakeVTable vtable = { scml_ffi_fake_add_bias };
+    static ScmlFFIFakeObject object = { &vtable, 10 };
+    return &object;
+}
