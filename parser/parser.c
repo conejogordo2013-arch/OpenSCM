@@ -200,6 +200,40 @@ static int modern_include_name(char *t, char *inc_name, size_t inc_size){
     return 1;
 }
 
+
+static void macro_push_object(Macro **head, const char *name, const char *body){
+    if(!name || !*name) return;
+    Macro *m=(Macro*)calloc(1,sizeof(*m));
+    if(!m) return;
+    m->name=xstrdup(name);
+    m->body=xstrdup(body?body:"1");
+    m->function_like=0;
+    m->next=*head;
+    *head=m;
+}
+
+static void seed_env_defines(Macro **macros){
+    const char *env=getenv("SCML_DEFINES");
+    if(!env || !*env) return;
+    char *copy=xstrdup(env);
+    char *save=NULL;
+    char *entry=strtok_r(copy,";",&save);
+    while(entry){
+        char *t=trim(entry);
+        if(*t){
+            char *name=t;
+            while(*t && !isspace((unsigned char)*t) && *t!='=') t++;
+            char sep=*t;
+            if(*t) *t++=0;
+            char *body=trim(t);
+            if(sep=='=' && *body=='=') body++;
+            macro_push_object(macros,name,*body?body:"1");
+        }
+        entry=strtok_r(NULL,";",&save);
+    }
+    free(copy);
+}
+
 static void macro_free(Macro *m){ while(m){Macro*n=m->next; free(m->name); for(size_t i=0;i<m->argc;i++)free(m->args[i]); free(m->args); free(m->body); free(m); m=n;} }
 static Macro *find_macro(Macro *m,const char *name){ for(;m;m=m->next) if(strcmp(m->name,name)==0) return m; return NULL; }
 static void macro_remove(Macro **head, const char *name){ Macro *prev=NULL,*cur=*head; while(cur){ if(strcmp(cur->name,name)==0){ if(prev) prev->next=cur->next; else *head=cur->next; cur->next=NULL; macro_free(cur); return; } prev=cur; cur=cur->next; } }
@@ -396,6 +430,41 @@ static int preprocess_text(const char *path, const char *text, Macro **macros, c
         else if(strcmp(t,"#endif")==0){ if(ctop==0){snprintf(err,err_size,"#endif without #if in %s:%d",path,line_no);goto fail;} ctop--; active = (ctop==0)?1:cond[ctop-1].active; }
         else if(starts(t,"#error")){ if(active){ snprintf(err,err_size,"#error %s (%s:%d)",trim(t+6),path,line_no); goto fail; } }
         else if(starts(t,"#warning")){ if(active){ fprintf(stderr,"SCML preprocessor warning: %s (%s:%d)\n",trim(t+8),path,line_no); } }
+
+        else if(starts(t,"#for")){
+            if(active){
+                char *p=trim(t+4);
+                char *in_kw=strstr(p," in ");
+                if(!in_kw){ snprintf(err,err_size,"bad #for in %s:%d",path,line_no); goto fail; }
+                *in_kw=0;
+                char *ident=trim(p);
+                char *items=trim(in_kw+4);
+                char *colon=strrchr(items,':');
+                if(colon) *colon=0;
+                char *body=NULL; size_t blen=0,bcap=0;
+                int nested=0;
+                line=strtok_r(NULL,"\n",&save); line_no++; logical_line_no++;
+                while(line){
+                    char *bt=trim(line);
+                    if(starts(bt,"#for")) nested++;
+                    if(starts(bt,"#endfor")){ if(nested==0) break; nested--; }
+                    append(&body,&blen,&bcap,line); append(&body,&blen,&bcap,"\n");
+                    line=strtok_r(NULL,"\n",&save); line_no++; logical_line_no++;
+                }
+                if(!line){ free(body); snprintf(err,err_size,"unterminated #for in %s",path); goto fail; }
+                char *itemcopy=xstrdup(items); size_t ac=0; char **vals=split_args(itemcopy,&ac);
+                for(size_t i=0;i<ac;i++){
+                    macro_push_object(macros, ident, trim(vals[i]));
+                    char *processed=NULL;
+                    if(!preprocess_text(path, body?body:"", macros, &processed, err, err_size)){ free(itemcopy); free(body); goto fail; }
+                    append(out,&olen,&ocap,processed?processed:"");
+                    free(processed);
+                    macro_remove(macros, ident);
+                    free(vals[i]);
+                }
+                free(vals); free(itemcopy); free(body);
+            }
+        }
         else if(starts(t,"#line")){
             if(active){
                 int new_line=0;
@@ -462,7 +531,7 @@ fail:
     free(dir); free(copy); return 0;
 }
 
-int scml_preprocess_file(const char *path, char **out_text, char *err, size_t err_size){ Macro *macros=NULL; char *txt=read_file(path,err,err_size); if(!txt)return 0; *out_text=NULL; int ok=preprocess_text(path,txt,&macros,out_text,err,err_size); free(txt); macro_free(macros); return ok; }
+int scml_preprocess_file(const char *path, char **out_text, char *err, size_t err_size){ Macro *macros=NULL; seed_env_defines(&macros); char *txt=read_file(path,err,err_size); if(!txt){ macro_free(macros); return 0; } *out_text=NULL; int ok=preprocess_text(path,txt,&macros,out_text,err,err_size); free(txt); macro_free(macros); return ok; }
 
 static int add_stmt(ScmlProgram*p,ScmlStatement*s){ if(p->count==p->capacity){size_t nc=p->capacity?p->capacity*2:32; ScmlStatement*ni=(ScmlStatement*)realloc(p->items,nc*sizeof(*ni)); if(!ni)return 0; p->items=ni;p->capacity=nc;} p->items[p->count++]=*s; return 1; }
 static int parse_int(const char*s){ if(strlen(s)>1&&s[0]=='0'&&isxdigit((unsigned char)s[1])) return (int)strtol(s,NULL,16); return (int)strtol(s,NULL,0); }

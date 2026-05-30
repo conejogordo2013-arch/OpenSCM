@@ -95,8 +95,9 @@ SCML now supports manifest-driven projects for large codebases. A `scml.pkg` fil
 
 ```ini
 name = "enterprise-demo"
-source = "src/main.scml"
-package = "packages/mathkit"
+source_dir = "src"
+package_dir = "packages/mathkit"
+define = "PROJECT_MODE enterprise"
 output = "build/enterprise-demo.scmlbin"
 jobs = 4
 ```
@@ -107,10 +108,11 @@ Useful tooling commands:
 bin/scml init my_app my_app
 bin/scml build my_app/scml.pkg
 bin/scml check my_app/scml.pkg
+bin/scml metadata my_app/scml.pkg
 bin/scml fmt my_app/src/main.scml
 ```
 
-Project packages are added to `SCML_PATH`, so headers can be included ergonomically with `#include <package_header.scmlh>` or modern `use <package_header.scmlh>;`. The standard library also exposes richer type-contract aliases (`bool`, `u32`, `i64`, `f64`, `ref`, `array<T>`, `vec<T>`, `option<T>`, `result<T>`) on top of the current VM value families, host-backed OS-thread helpers (`THREAD_CREATE_SLEEP`, `THREAD_DONE`, `THREAD_JOIN`, `THREAD_YIELD`) for real native concurrency around runtime jobs, and raised VM capacity defaults for much larger scripts, event queues, async tasks, globals, stack frames, native modules, and heap objects.
+Project manifests can name individual files with `source =`, recursively discover huge source trees with `source_dir =`, expose package roots with `package`/`package_dir`, and publish build-time feature switches with `define =`. `bin/scml metadata` prints the resolved source graph, package roots, defines, output, and job count for editor/CI integrations. Project packages are added to `SCML_PATH`, so headers can be included ergonomically with `#include <package_header.scmlh>` or modern `use <package_header.scmlh>;`. The standard library also exposes richer type-contract aliases (`bool`, `u32`, `i64`, `f64`, `ref`, `array<T>`, `vec<T>`, `option<T>`, `result<T>`) on top of the current VM value families, host-backed OS-thread helpers (`THREAD_CREATE_SLEEP`, `THREAD_DONE`, `THREAD_JOIN`, `THREAD_YIELD`) for real native concurrency around runtime jobs, and raised VM capacity defaults for much larger scripts, event queues, async tasks, globals, stack frames, native modules, and heap objects.
 
 The migration is intentionally incremental: `std.scmlh` now uses modern brace-style macro declarations in the migrated std/example headers and includes lower-case modern aliases such as `set`, `add`, `array_new`, `array_get`, `array_set`, `vector_new`, `vector_push`, `vector_pop`, `type_assert`, `async_spawn`, and `thread_join`, while the uppercase legacy macros continue to work. The starter examples (`helloworld`, `variables`, `functions`, `complexlogic`, `std_usage`, `dynamic_arrays`, `hostless_async_static`, and the enterprise project) now demonstrate mixed modern + legacy SCML style.
 

@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -15,10 +16,11 @@ static void usage(const char *argv0) {
             "  %s compile input1.scml input2.scml output.scmlbin\n"
             "  %s build [scml.pkg]\n"
             "  %s check [scml.pkg|input.scml ...]\n"
+            "  %s metadata [scml.pkg]\n"
             "  %s init [dir] [name]\n"
             "  %s fmt input.scml [more.scml ...]\n"
             "  %s run input.scmlbin [--trace] [--dump-memory] [--no-builtin-modules] [--trigger EVENT]\n",
-            argv0, argv0, argv0, argv0, argv0, argv0, argv0);
+            argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
 }
 
 int main(int argc, char **argv) {
@@ -40,23 +42,27 @@ int main(int argc, char **argv) {
 
     if (strcmp(argv[1], "build") == 0) {
         const char *manifest = argc >= 3 ? argv[2] : "scml.pkg";
-        ScmlProject project;
-        if (!scml_project_load(manifest, &project, err, sizeof(err))) {
+        ScmlProject *project = (ScmlProject *)calloc(1, sizeof(*project));
+        if (!project) { fprintf(stderr, "out of memory\n"); return 1; }
+        if (!scml_project_load(manifest, project, err, sizeof(err))) {
             fprintf(stderr, "project error: %s\n", err);
+            free(project);
             return 1;
         }
         if (!scml_project_compile(manifest, err, sizeof(err))) {
             fprintf(stderr, "build error: %s\n", err);
+            free(project);
             return 1;
         }
         printf("built %s -> %s (%zu source%s, %zu package%s, jobs=%d)\n",
-               project.name,
-               project.output,
-               project.source_count,
-               project.source_count == 1 ? "" : "s",
-               project.package_count,
-               project.package_count == 1 ? "" : "s",
-               project.jobs);
+               project->name,
+               project->output,
+               project->source_count,
+               project->source_count == 1 ? "" : "s",
+               project->package_count,
+               project->package_count == 1 ? "" : "s",
+               project->jobs);
+        free(project);
         return 0;
     }
 
@@ -80,6 +86,16 @@ int main(int argc, char **argv) {
         }
         remove(".scml/check.scmlbin");
         printf("check ok: %zu source%s\n", input_count, input_count == 1 ? "" : "s");
+        return 0;
+    }
+
+
+    if (strcmp(argv[1], "metadata") == 0 || strcmp(argv[1], "meta") == 0) {
+        const char *manifest = argc >= 3 ? argv[2] : "scml.pkg";
+        if (!scml_project_metadata(manifest, stdout, err, sizeof(err))) {
+            fprintf(stderr, "metadata error: %s\n", err);
+            return 1;
+        }
         return 0;
     }
 
