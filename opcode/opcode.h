@@ -6,6 +6,7 @@
 #define SCML_MAX_OPCODE 200
 #define SCML_MAGIC 0x4C4D4353u /* SCML */
 #define SCML_VERSION 6u
+#define SCML_OPERANDS_MAX 16u
 
 #ifdef __cplusplus
 extern "C" {

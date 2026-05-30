@@ -48,7 +48,28 @@ typedef struct ScmlFFISearchPath {
 typedef struct ScmlFFIMemoryBlock {
     void *ptr;
     size_t size;
+    int owned;
 } ScmlFFIMemoryBlock;
+
+typedef struct ScmlFFIStructField {
+    char *name;
+    ScmlFFIType type;
+    size_t offset;
+    size_t size;
+    size_t alignment;
+    size_t element_size;
+    size_t element_count;
+} ScmlFFIStructField;
+
+typedef struct ScmlFFIStructDef {
+    char *name;
+    ScmlFFIStructField *fields;
+    size_t field_count;
+    size_t field_capacity;
+    size_t size;
+    size_t alignment;
+    int finished;
+} ScmlFFIStructDef;
 
 static ScmlFFILibrary *g_libraries = NULL;
 static size_t g_library_count = 0;
@@ -65,6 +86,11 @@ static size_t g_search_path_capacity = 0;
 static ScmlFFIMemoryBlock *g_memory_blocks = NULL;
 static size_t g_memory_block_count = 0;
 static size_t g_memory_block_capacity = 0;
+static ScmlFFIStructDef *g_structs = NULL;
+static size_t g_struct_count = 0;
+static size_t g_struct_capacity = 0;
+static size_t g_struct_field_count = 0;
+static size_t g_struct_field_capacity = 0;
 static char g_last_error[512];
 
 static char *ffi_strdup(const char *s) {
@@ -81,6 +107,15 @@ static void ffi_set_error(const char *prefix, const char *detail) {
 const char *scml_ffi_last_error(void) { return g_last_error[0] ? g_last_error : "no FFI error"; }
 
 static void ffi_clear_error(void) { g_last_error[0] = '\0'; }
+
+
+static char *ffi_trim(char *s) {
+    while (s && *s && isspace((unsigned char)*s)) s++;
+    if (!s) return s;
+    char *end = s + strlen(s);
+    while (end > s && isspace((unsigned char)end[-1])) *--end = '\0';
+    return s;
+}
 
 static int ffi_grow_array(void **array_ptr, size_t elem_size, size_t *capacity, size_t min_capacity, size_t initial_capacity) {
     if (*capacity >= min_capacity) return 1;
@@ -114,6 +149,16 @@ static int ffi_ensure_search_path_capacity(size_t min_capacity) {
 
 static int ffi_ensure_memory_block_capacity(size_t min_capacity) {
     return ffi_grow_array((void **)&g_memory_blocks, sizeof(g_memory_blocks[0]), &g_memory_block_capacity, min_capacity, SCML_FFI_INITIAL_SYMBOLS);
+}
+
+static int ffi_ensure_struct_capacity(size_t min_capacity) {
+    return ffi_grow_array((void **)&g_structs, sizeof(g_structs[0]), &g_struct_capacity, min_capacity, SCML_FFI_INITIAL_STRUCTS);
+}
+
+static int ffi_ensure_struct_field_capacity(ScmlFFIStructDef *def, size_t min_capacity) {
+    int ok = ffi_grow_array((void **)&def->fields, sizeof(def->fields[0]), &def->field_capacity, min_capacity, SCML_FFI_INITIAL_STRUCT_FIELDS);
+    if (ok && g_struct_field_capacity < g_struct_field_count + (def->field_capacity - def->field_count)) g_struct_field_capacity = g_struct_field_count + (def->field_capacity - def->field_count);
+    return ok;
 }
 
 static unsigned int ffi_normalize_load_flags(unsigned int flags) {
@@ -391,8 +436,16 @@ ScmlFFIType scml_ffi_parse_type(const char *name, ScmlFFIType fallback) {
     const char *end = name + strlen(name);
     while (end > name && isspace((unsigned char)end[-1])) end--;
     size_t n = (size_t)(end - name);
+    if (ffi_token_equals(name, n, "bool") || ffi_token_equals(name, n, "boolean")) return SCML_FFI_TYPE_BOOL;
+    if (ffi_token_equals(name, n, "i8") || ffi_token_equals(name, n, "int8") || ffi_token_equals(name, n, "char")) return SCML_FFI_TYPE_INT8;
+    if (ffi_token_equals(name, n, "u8") || ffi_token_equals(name, n, "uint8") || ffi_token_equals(name, n, "byte") || ffi_token_equals(name, n, "uchar")) return SCML_FFI_TYPE_UINT8;
+    if (ffi_token_equals(name, n, "i16") || ffi_token_equals(name, n, "int16") || ffi_token_equals(name, n, "short")) return SCML_FFI_TYPE_INT16;
+    if (ffi_token_equals(name, n, "u16") || ffi_token_equals(name, n, "uint16") || ffi_token_equals(name, n, "ushort")) return SCML_FFI_TYPE_UINT16;
     if (ffi_token_equals(name, n, "int") || ffi_token_equals(name, n, "i32") || ffi_token_equals(name, n, "int32")) return SCML_FFI_TYPE_INT32;
-    if (ffi_token_equals(name, n, "i64") || ffi_token_equals(name, n, "int64") || ffi_token_equals(name, n, "long")) return SCML_FFI_TYPE_INT64;
+    if (ffi_token_equals(name, n, "u32") || ffi_token_equals(name, n, "uint") || ffi_token_equals(name, n, "uint32")) return SCML_FFI_TYPE_UINT32;
+    if (ffi_token_equals(name, n, "i64") || ffi_token_equals(name, n, "int64") || ffi_token_equals(name, n, "long") || ffi_token_equals(name, n, "longlong")) return SCML_FFI_TYPE_INT64;
+    if (ffi_token_equals(name, n, "u64") || ffi_token_equals(name, n, "uint64") || ffi_token_equals(name, n, "ulong") || ffi_token_equals(name, n, "ulonglong")) return SCML_FFI_TYPE_UINT64;
+    if (ffi_token_equals(name, n, "size") || ffi_token_equals(name, n, "size_t") || ffi_token_equals(name, n, "usize")) return SCML_FFI_TYPE_SIZE;
     if (ffi_token_equals(name, n, "float") || ffi_token_equals(name, n, "f32")) return SCML_FFI_TYPE_FLOAT;
     if (ffi_token_equals(name, n, "double") || ffi_token_equals(name, n, "f64")) return SCML_FFI_TYPE_DOUBLE;
     if (ffi_token_equals(name, n, "pointer") || ffi_token_equals(name, n, "ptr") || ffi_token_equals(name, n, "void*")) return SCML_FFI_TYPE_POINTER;
@@ -522,6 +575,13 @@ static int64_t SCML_FFI_MAYBE_UNUSED ffi_int64_value(const ScmlValue *v) {
     return (int64_t)v->integer;
 }
 
+static uint64_t SCML_FFI_MAYBE_UNUSED ffi_uint64_value(const ScmlValue *v) {
+    if (v->type == SCML_VAL_POINTER) return (uint64_t)v->pointer;
+    if (v->type == SCML_VAL_FLOAT) return (uint64_t)v->real;
+    if (v->type == SCML_VAL_STRING) return v->string ? (uint64_t)strtoull(v->string, NULL, 0) : 0;
+    return (uint64_t)(uint32_t)v->integer;
+}
+
 static double SCML_FFI_MAYBE_UNUSED ffi_double_value(const ScmlValue *v) {
     if (v->type == SCML_VAL_FLOAT) return (double)v->real;
     if (v->type == SCML_VAL_POINTER) return (double)v->pointer;
@@ -547,8 +607,14 @@ int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const Scm
     ffi_cif cif;
     ffi_type **arg_types = NULL;
     void **arg_values = NULL;
+    int8_t *int8_args = NULL;
+    uint8_t *uint8_args = NULL;
+    int16_t *int16_args = NULL;
+    uint16_t *uint16_args = NULL;
     int32_t *int32_args = NULL;
+    uint32_t *uint32_args = NULL;
     int64_t *int64_args = NULL;
+    uint64_t *uint64_args = NULL;
     float *float_args = NULL;
     double *double_args = NULL;
     void **ptr_args = NULL;
@@ -557,12 +623,18 @@ int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const Scm
     if (arg_count > 0) {
         arg_types = (ffi_type **)calloc(arg_count, sizeof(*arg_types));
         arg_values = (void **)calloc(arg_count, sizeof(*arg_values));
+        int8_args = (int8_t *)calloc(arg_count, sizeof(*int8_args));
+        uint8_args = (uint8_t *)calloc(arg_count, sizeof(*uint8_args));
+        int16_args = (int16_t *)calloc(arg_count, sizeof(*int16_args));
+        uint16_args = (uint16_t *)calloc(arg_count, sizeof(*uint16_args));
         int32_args = (int32_t *)calloc(arg_count, sizeof(*int32_args));
+        uint32_args = (uint32_t *)calloc(arg_count, sizeof(*uint32_args));
         int64_args = (int64_t *)calloc(arg_count, sizeof(*int64_args));
+        uint64_args = (uint64_t *)calloc(arg_count, sizeof(*uint64_args));
         float_args = (float *)calloc(arg_count, sizeof(*float_args));
         double_args = (double *)calloc(arg_count, sizeof(*double_args));
         ptr_args = (void **)calloc(arg_count, sizeof(*ptr_args));
-        if (!arg_types || !arg_values || !int32_args || !int64_args || !float_args || !double_args || !ptr_args) {
+        if (!arg_types || !arg_values || !int8_args || !uint8_args || !int16_args || !uint16_args || !int32_args || !uint32_args || !int64_args || !uint64_args || !float_args || !double_args || !ptr_args) {
             ffi_set_error("call_native failed", "out of memory preparing arguments");
             goto cleanup;
         }
@@ -571,6 +643,38 @@ int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const Scm
     for (size_t i = 0; i < arg_count; i++) {
         ScmlFFIType type = signature->arg_types ? signature->arg_types[i] : ffi_default_arg_type(&args[i]);
         switch (type) {
+        case SCML_FFI_TYPE_BOOL:
+        case SCML_FFI_TYPE_UINT8:
+            uint8_args[i] = (uint8_t)ffi_uint64_value(&args[i]);
+            arg_types[i] = &ffi_type_uint8;
+            arg_values[i] = &uint8_args[i];
+            break;
+        case SCML_FFI_TYPE_INT8:
+            int8_args[i] = (int8_t)ffi_int64_value(&args[i]);
+            arg_types[i] = &ffi_type_sint8;
+            arg_values[i] = &int8_args[i];
+            break;
+        case SCML_FFI_TYPE_UINT16:
+            uint16_args[i] = (uint16_t)ffi_uint64_value(&args[i]);
+            arg_types[i] = &ffi_type_uint16;
+            arg_values[i] = &uint16_args[i];
+            break;
+        case SCML_FFI_TYPE_INT16:
+            int16_args[i] = (int16_t)ffi_int64_value(&args[i]);
+            arg_types[i] = &ffi_type_sint16;
+            arg_values[i] = &int16_args[i];
+            break;
+        case SCML_FFI_TYPE_UINT32:
+            uint32_args[i] = (uint32_t)ffi_uint64_value(&args[i]);
+            arg_types[i] = &ffi_type_uint32;
+            arg_values[i] = &uint32_args[i];
+            break;
+        case SCML_FFI_TYPE_UINT64:
+        case SCML_FFI_TYPE_SIZE:
+            uint64_args[i] = (uint64_t)ffi_uint64_value(&args[i]);
+            arg_types[i] = sizeof(size_t) == 8 && type == SCML_FFI_TYPE_SIZE ? &ffi_type_uint64 : (type == SCML_FFI_TYPE_SIZE ? &ffi_type_uint32 : &ffi_type_uint64);
+            arg_values[i] = &uint64_args[i];
+            break;
         case SCML_FFI_TYPE_FLOAT:
             float_args[i] = (float)ffi_double_value(&args[i]);
             arg_types[i] = &ffi_type_float;
@@ -603,7 +707,14 @@ int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const Scm
     }
 
     ffi_type *rtype = &ffi_type_sint32;
-    if (signature->return_type == SCML_FFI_TYPE_FLOAT) rtype = &ffi_type_float;
+    if (signature->return_type == SCML_FFI_TYPE_BOOL || signature->return_type == SCML_FFI_TYPE_UINT8) rtype = &ffi_type_uint8;
+    else if (signature->return_type == SCML_FFI_TYPE_INT8) rtype = &ffi_type_sint8;
+    else if (signature->return_type == SCML_FFI_TYPE_UINT16) rtype = &ffi_type_uint16;
+    else if (signature->return_type == SCML_FFI_TYPE_INT16) rtype = &ffi_type_sint16;
+    else if (signature->return_type == SCML_FFI_TYPE_UINT32) rtype = &ffi_type_uint32;
+    else if (signature->return_type == SCML_FFI_TYPE_UINT64) rtype = &ffi_type_uint64;
+    else if (signature->return_type == SCML_FFI_TYPE_SIZE) rtype = sizeof(size_t) == 8 ? &ffi_type_uint64 : &ffi_type_uint32;
+    else if (signature->return_type == SCML_FFI_TYPE_FLOAT) rtype = &ffi_type_float;
     else if (signature->return_type == SCML_FFI_TYPE_DOUBLE) rtype = &ffi_type_double;
     else if (signature->return_type == SCML_FFI_TYPE_INT64) rtype = &ffi_type_sint64;
     else if (signature->return_type == SCML_FFI_TYPE_POINTER || signature->return_type == SCML_FFI_TYPE_STRING) rtype = &ffi_type_pointer;
@@ -614,7 +725,31 @@ int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const Scm
         goto cleanup;
     }
 
-    if (signature->return_type == SCML_FFI_TYPE_FLOAT) {
+    if (signature->return_type == SCML_FFI_TYPE_BOOL || signature->return_type == SCML_FFI_TYPE_UINT8) {
+        uint8_t out = 0;
+        ffi_call(&cif, FFI_FN(function_ptr), &out, arg_values);
+        if (ret) *ret = scml_value_int((int32_t)out);
+    } else if (signature->return_type == SCML_FFI_TYPE_INT8) {
+        int8_t out = 0;
+        ffi_call(&cif, FFI_FN(function_ptr), &out, arg_values);
+        if (ret) *ret = scml_value_int((int32_t)out);
+    } else if (signature->return_type == SCML_FFI_TYPE_UINT16) {
+        uint16_t out = 0;
+        ffi_call(&cif, FFI_FN(function_ptr), &out, arg_values);
+        if (ret) *ret = scml_value_int((int32_t)out);
+    } else if (signature->return_type == SCML_FFI_TYPE_INT16) {
+        int16_t out = 0;
+        ffi_call(&cif, FFI_FN(function_ptr), &out, arg_values);
+        if (ret) *ret = scml_value_int((int32_t)out);
+    } else if (signature->return_type == SCML_FFI_TYPE_UINT32) {
+        uint32_t out = 0;
+        ffi_call(&cif, FFI_FN(function_ptr), &out, arg_values);
+        if (ret) *ret = scml_value_pointer((uintptr_t)out);
+    } else if (signature->return_type == SCML_FFI_TYPE_UINT64 || signature->return_type == SCML_FFI_TYPE_SIZE) {
+        uint64_t out = 0;
+        ffi_call(&cif, FFI_FN(function_ptr), &out, arg_values);
+        if (ret) *ret = scml_value_pointer((uintptr_t)out);
+    } else if (signature->return_type == SCML_FFI_TYPE_FLOAT) {
         float out = 0.0f;
         ffi_call(&cif, FFI_FN(function_ptr), &out, arg_values);
         if (ret) *ret = scml_value_float(out);
@@ -643,8 +778,14 @@ int scml_ffi_call_native_ex(void *function_ptr, const ScmlValue *args, const Scm
 cleanup:
     free(arg_types);
     free(arg_values);
+    free(int8_args);
+    free(uint8_args);
+    free(int16_args);
+    free(uint16_args);
     free(int32_args);
+    free(uint32_args);
     free(int64_args);
+    free(uint64_args);
     free(float_args);
     free(double_args);
     free(ptr_args);
@@ -653,8 +794,8 @@ cleanup:
     if (arg_count > SCML_FFI_FALLBACK_MAX_ARGS) { ffi_set_error("call_native failed", "too many arguments without libffi"); return 0; }
     if (signature->arg_types) {
         for (size_t i = 0; i < arg_count; i++) {
-            if (signature->arg_types[i] == SCML_FFI_TYPE_FLOAT || signature->arg_types[i] == SCML_FFI_TYPE_DOUBLE || signature->arg_types[i] == SCML_FFI_TYPE_INT64) {
-                ffi_set_error("call_native failed", "float/double/int64 signatures require libffi");
+            if (signature->arg_types[i] == SCML_FFI_TYPE_FLOAT || signature->arg_types[i] == SCML_FFI_TYPE_DOUBLE) {
+                ffi_set_error("call_native failed", "float/double signatures require libffi");
                 return 0;
             }
         }
@@ -720,8 +861,8 @@ static ScmlFFIMemoryBlock *ffi_memory_find_containing(const void *ptr, size_t ac
     uintptr_t target = (uintptr_t)ptr;
     for (size_t i = 0; i < g_memory_block_count; i++) {
         uintptr_t start = (uintptr_t)g_memory_blocks[i].ptr;
-        uintptr_t end = start + g_memory_blocks[i].size;
-        if (target >= start && target <= end && access_size <= (size_t)(end - target)) return &g_memory_blocks[i];
+        size_t block_size = g_memory_blocks[i].size;
+        if (target >= start && (size_t)(target - start) <= block_size && access_size <= block_size - (size_t)(target - start)) return &g_memory_blocks[i];
     }
     return NULL;
 }
@@ -732,15 +873,23 @@ static int ffi_memory_check_access(const void *ptr, size_t access_size) {
     if (block || g_memory_block_count == 0) return 1;
     for (size_t i = 0; i < g_memory_block_count; i++) {
         uintptr_t start = (uintptr_t)g_memory_blocks[i].ptr;
-        uintptr_t end = start + g_memory_blocks[i].size;
+        size_t block_size = g_memory_blocks[i].size;
         uintptr_t target = (uintptr_t)ptr;
-        if (target >= start && target <= end) { ffi_set_error("memory access failed", "tracked allocation bounds exceeded"); return 0; }
+        if (target >= start && (size_t)(target - start) <= block_size) { ffi_set_error("memory access failed", "tracked allocation bounds exceeded"); return 0; }
     }
     return 1;
 }
 
 static size_t ffi_type_size(ScmlFFIType type) {
     switch (type) {
+    case SCML_FFI_TYPE_BOOL: return sizeof(uint8_t);
+    case SCML_FFI_TYPE_INT8: return sizeof(int8_t);
+    case SCML_FFI_TYPE_UINT8: return sizeof(uint8_t);
+    case SCML_FFI_TYPE_INT16: return sizeof(int16_t);
+    case SCML_FFI_TYPE_UINT16: return sizeof(uint16_t);
+    case SCML_FFI_TYPE_UINT32: return sizeof(uint32_t);
+    case SCML_FFI_TYPE_UINT64: return sizeof(uint64_t);
+    case SCML_FFI_TYPE_SIZE: return sizeof(size_t);
     case SCML_FFI_TYPE_FLOAT: return sizeof(float);
     case SCML_FFI_TYPE_DOUBLE: return sizeof(double);
     case SCML_FFI_TYPE_INT64: return sizeof(int64_t);
@@ -752,6 +901,29 @@ static size_t ffi_type_size(ScmlFFIType type) {
     }
 }
 
+size_t scml_ffi_type_size(ScmlFFIType type) { return ffi_type_size(type); }
+
+size_t scml_ffi_type_alignment(ScmlFFIType type) {
+    switch (type) {
+    case SCML_FFI_TYPE_BOOL:
+    case SCML_FFI_TYPE_INT8:
+    case SCML_FFI_TYPE_UINT8: return sizeof(uint8_t);
+    case SCML_FFI_TYPE_INT16:
+    case SCML_FFI_TYPE_UINT16: return sizeof(uint16_t);
+    case SCML_FFI_TYPE_INT32:
+    case SCML_FFI_TYPE_UINT32:
+    case SCML_FFI_TYPE_FLOAT: return sizeof(uint32_t);
+    case SCML_FFI_TYPE_INT64:
+    case SCML_FFI_TYPE_UINT64:
+    case SCML_FFI_TYPE_DOUBLE: return sizeof(uint64_t);
+    case SCML_FFI_TYPE_POINTER:
+    case SCML_FFI_TYPE_STRING: return sizeof(void *);
+    case SCML_FFI_TYPE_SIZE: return sizeof(size_t);
+    case SCML_FFI_TYPE_VOID:
+    default: return 1;
+    }
+}
+
 void *scml_ffi_alloc(size_t size) {
     if (size == 0) { ffi_set_error("alloc failed", "size must be greater than zero"); return NULL; }
     if (!ffi_ensure_memory_block_capacity(g_memory_block_count + 1)) return NULL;
@@ -759,8 +931,28 @@ void *scml_ffi_alloc(size_t size) {
     if (!ptr) { ffi_set_error("alloc failed", "out of memory"); return NULL; }
     g_memory_blocks[g_memory_block_count].ptr = ptr;
     g_memory_blocks[g_memory_block_count].size = size;
+    g_memory_blocks[g_memory_block_count].owned = 1;
     g_memory_block_count++;
     return ptr;
+}
+
+void *scml_ffi_alloc_array(size_t count, size_t elem_size) {
+    if (count == 0 || elem_size == 0) { ffi_set_error("alloc_array failed", "count and element size must be greater than zero"); return NULL; }
+    if (count > ((size_t)-1) / elem_size) { ffi_set_error("alloc_array failed", "size overflow"); return NULL; }
+    return scml_ffi_alloc(count * elem_size);
+}
+
+void *scml_ffi_realloc_memory(void *ptr, size_t new_size) {
+    if (!ptr) return scml_ffi_alloc(new_size);
+    if (new_size == 0) { ffi_set_error("realloc failed", "size must be greater than zero"); return NULL; }
+    ScmlFFIMemoryBlock *block = ffi_memory_find(ptr);
+    if (!block || !block->owned) { ffi_set_error("realloc failed", "pointer is not owned by FFI allocator"); return NULL; }
+    void *new_ptr = realloc(ptr, new_size);
+    if (!new_ptr) { ffi_set_error("realloc failed", "out of memory"); return NULL; }
+    if (new_size > block->size) memset((unsigned char *)new_ptr + block->size, 0, new_size - block->size);
+    block->ptr = new_ptr;
+    block->size = new_size;
+    return new_ptr;
 }
 
 void *scml_ffi_alloc_cstring(const char *text) {
@@ -793,10 +985,55 @@ char *scml_ffi_read_cstring(const void *ptr) {
     return out;
 }
 
+int scml_ffi_write_cstring(void *base, size_t offset, const char *text, size_t max_bytes) {
+    if (!base) { ffi_set_error("write_cstring failed", "null pointer"); return 0; }
+    if (max_bytes == 0) { ffi_set_error("write_cstring failed", "max_bytes must be greater than zero"); return 0; }
+    unsigned char *addr = (unsigned char *)base + offset;
+    if (!ffi_memory_check_access(addr, max_bytes)) return 0;
+    const char *src = text ? text : "";
+    size_t n = strlen(src);
+    if (n >= max_bytes) n = max_bytes - 1;
+    memcpy(addr, src, n);
+    addr[n] = '\0';
+    return 1;
+}
+
+int scml_ffi_track_memory(void *ptr, size_t size) {
+    if (!ptr) { ffi_set_error("track_memory failed", "null pointer"); return 0; }
+    if (size == 0) { ffi_set_error("track_memory failed", "size must be greater than zero"); return 0; }
+    ScmlFFIMemoryBlock *existing = ffi_memory_find(ptr);
+    if (existing) {
+        if (existing->owned) { ffi_set_error("track_memory failed", "pointer is already owned by FFI allocator"); return 0; }
+        existing->size = size;
+        return 1;
+    }
+    if (!ffi_ensure_memory_block_capacity(g_memory_block_count + 1)) return 0;
+    g_memory_blocks[g_memory_block_count].ptr = ptr;
+    g_memory_blocks[g_memory_block_count].size = size;
+    g_memory_blocks[g_memory_block_count].owned = 0;
+    g_memory_block_count++;
+    return 1;
+}
+
+int scml_ffi_untrack_memory(void *ptr) {
+    if (!ptr) { ffi_set_error("untrack_memory failed", "null pointer"); return 0; }
+    for (size_t i = 0; i < g_memory_block_count; i++) {
+        if (g_memory_blocks[i].ptr == ptr) {
+            if (g_memory_blocks[i].owned) { ffi_set_error("untrack_memory failed", "pointer is owned by FFI allocator"); return 0; }
+            if (i + 1 < g_memory_block_count) memmove(&g_memory_blocks[i], &g_memory_blocks[i + 1], (g_memory_block_count - i - 1) * sizeof(g_memory_blocks[0]));
+            g_memory_block_count--;
+            return 1;
+        }
+    }
+    ffi_set_error("untrack_memory failed", "pointer is not tracked");
+    return 0;
+}
+
 int scml_ffi_free_memory(void *ptr) {
     if (!ptr) { ffi_set_error("free failed", "null pointer"); return 0; }
     for (size_t i = 0; i < g_memory_block_count; i++) {
         if (g_memory_blocks[i].ptr == ptr) {
+            if (!g_memory_blocks[i].owned) { ffi_set_error("free failed", "pointer is tracked but not owned by FFI allocator"); return 0; }
             free(ptr);
             if (i + 1 < g_memory_block_count) memmove(&g_memory_blocks[i], &g_memory_blocks[i + 1], (g_memory_block_count - i - 1) * sizeof(g_memory_blocks[0]));
             g_memory_block_count--;
@@ -812,12 +1049,26 @@ void *scml_ffi_ptr_add(void *ptr, intptr_t offset) {
     return (void *)((unsigned char *)ptr + offset);
 }
 
+intptr_t scml_ffi_ptr_diff(const void *lhs, const void *rhs) {
+    if (!lhs || !rhs) { ffi_set_error("ptr_diff failed", "null pointer"); return 0; }
+    return (intptr_t)((const unsigned char *)lhs - (const unsigned char *)rhs);
+}
+
 int scml_ffi_memory_read(void *base, size_t offset, ScmlFFIType type, ScmlValue *ret) {
     if (!ret) { ffi_set_error("memory read failed", "missing output"); return 0; }
     unsigned char *addr = (unsigned char *)base + offset;
     size_t size = ffi_type_size(type);
+    if (size == 0) { ffi_set_error("memory read failed", "void values are not addressable"); return 0; }
     if (!ffi_memory_check_access(addr, size)) return 0;
     switch (type) {
+    case SCML_FFI_TYPE_BOOL:
+    case SCML_FFI_TYPE_UINT8: { uint8_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_int((int32_t)v); return 1; }
+    case SCML_FFI_TYPE_INT8: { int8_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_int((int32_t)v); return 1; }
+    case SCML_FFI_TYPE_UINT16: { uint16_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_int((int32_t)v); return 1; }
+    case SCML_FFI_TYPE_INT16: { int16_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_int((int32_t)v); return 1; }
+    case SCML_FFI_TYPE_UINT32: { uint32_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_pointer((uintptr_t)v); return 1; }
+    case SCML_FFI_TYPE_UINT64: { uint64_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_pointer((uintptr_t)v); return 1; }
+    case SCML_FFI_TYPE_SIZE: { size_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_pointer((uintptr_t)v); return 1; }
     case SCML_FFI_TYPE_FLOAT: { float v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_float(v); return 1; }
     case SCML_FFI_TYPE_DOUBLE: { double v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_float((float)v); return 1; }
     case SCML_FFI_TYPE_INT64: { int64_t v; memcpy(&v, addr, sizeof(v)); *ret = scml_value_pointer((uintptr_t)v); return 1; }
@@ -832,8 +1083,17 @@ int scml_ffi_memory_write(void *base, size_t offset, ScmlFFIType type, const Scm
     if (!value) { ffi_set_error("memory write failed", "missing value"); return 0; }
     unsigned char *addr = (unsigned char *)base + offset;
     size_t size = ffi_type_size(type);
+    if (size == 0) { ffi_set_error("memory write failed", "void values are not addressable"); return 0; }
     if (!ffi_memory_check_access(addr, size)) return 0;
     switch (type) {
+    case SCML_FFI_TYPE_BOOL:
+    case SCML_FFI_TYPE_UINT8: { uint8_t v = (uint8_t)ffi_uint64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
+    case SCML_FFI_TYPE_INT8: { int8_t v = (int8_t)ffi_int64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
+    case SCML_FFI_TYPE_UINT16: { uint16_t v = (uint16_t)ffi_uint64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
+    case SCML_FFI_TYPE_INT16: { int16_t v = (int16_t)ffi_int64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
+    case SCML_FFI_TYPE_UINT32: { uint32_t v = (uint32_t)ffi_uint64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
+    case SCML_FFI_TYPE_UINT64: { uint64_t v = (uint64_t)ffi_uint64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
+    case SCML_FFI_TYPE_SIZE: { size_t v = (size_t)ffi_uint64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
     case SCML_FFI_TYPE_FLOAT: { float v = (float)ffi_double_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
     case SCML_FFI_TYPE_DOUBLE: { double v = ffi_double_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
     case SCML_FFI_TYPE_INT64: { int64_t v = ffi_int64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
@@ -842,6 +1102,20 @@ int scml_ffi_memory_write(void *base, size_t offset, ScmlFFIType type, const Scm
     case SCML_FFI_TYPE_INT32:
     default: { int32_t v = (int32_t)ffi_int64_value(value); memcpy(addr, &v, sizeof(v)); return 1; }
     }
+}
+
+int scml_ffi_array_read(void *base, size_t index, ScmlFFIType type, ScmlValue *ret) {
+    size_t size = ffi_type_size(type);
+    if (size == 0) { ffi_set_error("array read failed", "void elements are not addressable"); return 0; }
+    if (index > ((size_t)-1) / size) { ffi_set_error("array read failed", "offset overflow"); return 0; }
+    return scml_ffi_memory_read(base, index * size, type, ret);
+}
+
+int scml_ffi_array_write(void *base, size_t index, ScmlFFIType type, const ScmlValue *value) {
+    size_t size = ffi_type_size(type);
+    if (size == 0) { ffi_set_error("array write failed", "void elements are not addressable"); return 0; }
+    if (index > ((size_t)-1) / size) { ffi_set_error("array write failed", "offset overflow"); return 0; }
+    return scml_ffi_memory_write(base, index * size, type, value);
 }
 
 int scml_ffi_memory_copy(void *dst, const void *src, size_t size) {
@@ -861,6 +1135,274 @@ size_t scml_ffi_memory_block_size(void *ptr) {
     return block ? block->size : 0;
 }
 
+static size_t ffi_align_up(size_t value, size_t alignment) {
+    if (alignment <= 1) return value;
+    size_t rem = value % alignment;
+    return rem ? value + (alignment - rem) : value;
+}
+
+static ScmlFFIStructDef *ffi_struct_find(const char *name) {
+    if (!name) return NULL;
+    for (size_t i = 0; i < g_struct_count; i++) if (g_structs[i].name && strcmp(g_structs[i].name, name) == 0) return &g_structs[i];
+    return NULL;
+}
+
+static ScmlFFIStructField *ffi_struct_field_find(ScmlFFIStructDef *def, const char *field_name) {
+    if (!def || !field_name) return NULL;
+    for (size_t i = 0; i < def->field_count; i++) if (def->fields[i].name && strcmp(def->fields[i].name, field_name) == 0) return &def->fields[i];
+    return NULL;
+}
+
+int scml_ffi_struct_begin(const char *struct_name) {
+    if (!struct_name || !struct_name[0]) { ffi_set_error("struct_begin failed", "empty struct name"); return 0; }
+    ScmlFFIStructDef *existing = ffi_struct_find(struct_name);
+    if (existing) {
+        for (size_t i = 0; i < existing->field_count; i++) free(existing->fields[i].name);
+        g_struct_field_count -= existing->field_count;
+        existing->field_count = 0;
+        existing->size = 0;
+        existing->alignment = 1;
+        existing->finished = 0;
+        return 1;
+    }
+    if (!ffi_ensure_struct_capacity(g_struct_count + 1)) return 0;
+    char *owned_name = ffi_strdup(struct_name);
+    if (!owned_name) { ffi_set_error("struct_begin failed", "out of memory"); return 0; }
+    ScmlFFIStructDef *def = &g_structs[g_struct_count++];
+    def->name = owned_name;
+    def->fields = NULL;
+    def->field_count = 0;
+    def->field_capacity = 0;
+    def->size = 0;
+    def->alignment = 1;
+    def->finished = 0;
+    return 1;
+}
+
+static int ffi_struct_add_field_count(const char *struct_name, const char *field_name, ScmlFFIType type, size_t element_count) {
+    ScmlFFIStructDef *def = ffi_struct_find(struct_name);
+    if (!def) { ffi_set_error("struct_add_field failed", "struct is not open"); return 0; }
+    if (!field_name || !field_name[0]) { ffi_set_error("struct_add_field failed", "empty field name"); return 0; }
+    if (def->finished) { ffi_set_error("struct_add_field failed", "struct is already finished"); return 0; }
+    if (ffi_struct_field_find(def, field_name)) { ffi_set_error("struct_add_field failed", "duplicate field name"); return 0; }
+    if (element_count == 0) { ffi_set_error("struct_add_field failed", "element count must be greater than zero"); return 0; }
+    size_t element_size = ffi_type_size(type);
+    if (element_size == 0) { ffi_set_error("struct_add_field failed", "void fields are not allowed"); return 0; }
+    if (element_count > ((size_t)-1) / element_size) { ffi_set_error("struct_add_field failed", "field size overflow"); return 0; }
+    size_t size = element_size * element_count;
+    size_t alignment = scml_ffi_type_alignment(type);
+    if (!ffi_ensure_struct_field_capacity(def, def->field_count + 1)) return 0;
+    char *owned_name = ffi_strdup(field_name);
+    if (!owned_name) { ffi_set_error("struct_add_field failed", "out of memory"); return 0; }
+    size_t offset = ffi_align_up(def->size, alignment);
+    ScmlFFIStructField *field = &def->fields[def->field_count++];
+    field->name = owned_name;
+    field->type = type;
+    field->offset = offset;
+    field->size = size;
+    field->alignment = alignment;
+    field->element_size = element_size;
+    field->element_count = element_count;
+    def->size = offset + size;
+    if (alignment > def->alignment) def->alignment = alignment;
+    g_struct_field_count++;
+    return 1;
+}
+
+int scml_ffi_struct_add_field(const char *struct_name, const char *field_name, ScmlFFIType type) {
+    return ffi_struct_add_field_count(struct_name, field_name, type, 1);
+}
+
+int scml_ffi_struct_add_array_field(const char *struct_name, const char *field_name, ScmlFFIType type, size_t element_count) {
+    return ffi_struct_add_field_count(struct_name, field_name, type, element_count);
+}
+
+int scml_ffi_struct_finish(const char *struct_name) {
+    ScmlFFIStructDef *def = ffi_struct_find(struct_name);
+    if (!def) { ffi_set_error("struct_finish failed", "unknown struct"); return 0; }
+    def->size = ffi_align_up(def->size, def->alignment);
+    def->finished = 1;
+    return 1;
+}
+
+int scml_ffi_struct_define_text(const char *struct_name, const char *field_spec) {
+    if (!field_spec) { ffi_set_error("struct_define failed", "missing field spec"); return 0; }
+    if (!scml_ffi_struct_begin(struct_name)) return 0;
+    const char *p = field_spec;
+    while (*p) {
+        while (*p == ',' || isspace((unsigned char)*p)) p++;
+        if (!*p) break;
+        const char *type_start = p;
+        while (*p && *p != ':' && !isspace((unsigned char)*p)) p++;
+        size_t type_len = (size_t)(p - type_start);
+        while (isspace((unsigned char)*p)) p++;
+        if (*p == ':') p++;
+        while (isspace((unsigned char)*p)) p++;
+        const char *name_start = p;
+        while (*p && *p != ',') p++;
+        size_t name_len = (size_t)(p - name_start);
+        while (name_len > 0 && isspace((unsigned char)name_start[name_len - 1])) name_len--;
+        char type_buf[32], name_buf[64];
+        if (type_len == 0 || type_len >= sizeof(type_buf) || name_len == 0 || name_len >= sizeof(name_buf)) { ffi_set_error("struct_define failed", "bad field spec"); return 0; }
+        memcpy(type_buf, type_start, type_len); type_buf[type_len] = '\0';
+        memcpy(name_buf, name_start, name_len); name_buf[name_len] = '\0';
+        size_t element_count = 1;
+        char *type_array = strchr(type_buf, '[');
+        char *name_array = strchr(name_buf, '[');
+        char *array = type_array ? type_array : name_array;
+        if (array) {
+            char *end_array = strchr(array, ']');
+            if (!end_array || end_array[1] != '\0') { ffi_set_error("struct_define failed", "bad array field spec"); return 0; }
+            *array = '\0';
+            *end_array = '\0';
+            char *count_text = ffi_trim(array + 1);
+            char *endptr = NULL;
+            unsigned long parsed_count = strtoul(count_text, &endptr, 0);
+            if (!count_text[0] || (endptr && *ffi_trim(endptr)) || parsed_count == 0) { ffi_set_error("struct_define failed", "bad array field count"); return 0; }
+            element_count = (size_t)parsed_count;
+        }
+        if (!scml_ffi_struct_add_array_field(struct_name, ffi_trim(name_buf), scml_ffi_parse_type(ffi_trim(type_buf), SCML_FFI_TYPE_INT32), element_count)) return 0;
+    }
+    return scml_ffi_struct_finish(struct_name);
+}
+
+size_t scml_ffi_struct_size(const char *struct_name) {
+    ScmlFFIStructDef *def = ffi_struct_find(struct_name);
+    return def ? ffi_align_up(def->size, def->alignment) : 0;
+}
+
+size_t scml_ffi_struct_alignment(const char *struct_name) {
+    ScmlFFIStructDef *def = ffi_struct_find(struct_name);
+    return def ? def->alignment : 0;
+}
+
+int scml_ffi_struct_field_info(const char *struct_name, const char *field_name, ScmlFFIFieldInfo *out_info) {
+    ScmlFFIStructField *field = ffi_struct_field_find(ffi_struct_find(struct_name), field_name);
+    if (!field) { ffi_set_error("struct_field_info failed", "unknown field"); return 0; }
+    if (out_info) {
+        out_info->name = field->name;
+        out_info->type = field->type;
+        out_info->offset = field->offset;
+        out_info->size = field->size;
+        out_info->alignment = field->alignment;
+        out_info->element_size = field->element_size;
+        out_info->element_count = field->element_count;
+    }
+    return 1;
+}
+
+static int ffi_struct_field_index_address(void *base, const char *struct_name, const char *field_name, size_t element_index, ScmlFFIFieldInfo *out_info, void **out_ptr) {
+    if (!base) { ffi_set_error("struct field index failed", "null base pointer"); return 0; }
+    ScmlFFIFieldInfo info;
+    if (!scml_ffi_struct_field_info(struct_name, field_name, &info)) return 0;
+    if (element_index >= info.element_count) { ffi_set_error("struct field index failed", "array field index out of range"); return 0; }
+    if (out_info) *out_info = info;
+    if (out_ptr) *out_ptr = (unsigned char *)base + info.offset + element_index * info.element_size;
+    return 1;
+}
+
+void *scml_ffi_struct_field_element_ptr(void *base, const char *struct_name, const char *field_name, size_t element_index) {
+    ScmlFFIFieldInfo info;
+    void *ptr = NULL;
+    if (!ffi_struct_field_index_address(base, struct_name, field_name, element_index, &info, &ptr)) return NULL;
+    if (!ffi_memory_check_access(ptr, info.element_size)) return NULL;
+    return ptr;
+}
+
+int scml_ffi_struct_field_read_index(void *base, const char *struct_name, const char *field_name, size_t element_index, ScmlValue *ret) {
+    ScmlFFIFieldInfo info;
+    void *ptr = NULL;
+    if (!ffi_struct_field_index_address(base, struct_name, field_name, element_index, &info, &ptr)) return 0;
+    if (!ffi_memory_check_access(ptr, info.element_size)) return 0;
+    return scml_ffi_memory_read(ptr, 0, info.type, ret);
+}
+
+int scml_ffi_struct_field_write_index(void *base, const char *struct_name, const char *field_name, size_t element_index, const ScmlValue *value) {
+    ScmlFFIFieldInfo info;
+    void *ptr = NULL;
+    if (!ffi_struct_field_index_address(base, struct_name, field_name, element_index, &info, &ptr)) return 0;
+    if (!ffi_memory_check_access(ptr, info.element_size)) return 0;
+    return scml_ffi_memory_write(ptr, 0, info.type, value);
+}
+
+int scml_ffi_struct_read(void *base, const char *struct_name, const char *field_name, ScmlValue *ret) {
+    ScmlFFIFieldInfo info;
+    if (!scml_ffi_struct_field_info(struct_name, field_name, &info)) return 0;
+    return scml_ffi_memory_read(base, info.offset, info.type, ret);
+}
+
+int scml_ffi_struct_write(void *base, const char *struct_name, const char *field_name, const ScmlValue *value) {
+    ScmlFFIFieldInfo info;
+    if (!scml_ffi_struct_field_info(struct_name, field_name, &info)) return 0;
+    return scml_ffi_memory_write(base, info.offset, info.type, value);
+}
+
+static int ffi_struct_array_base(void *base, size_t index, const char *struct_name, void **out_ptr) {
+    if (!out_ptr) return 0;
+    if (!base) { ffi_set_error("struct array access failed", "null base pointer"); return 0; }
+    size_t struct_size = scml_ffi_struct_size(struct_name);
+    if (struct_size == 0) { ffi_set_error("struct array access failed", "unknown or empty struct"); return 0; }
+    if (index > ((size_t)-1) / struct_size) { ffi_set_error("struct array access failed", "offset overflow"); return 0; }
+    *out_ptr = (unsigned char *)base + index * struct_size;
+    return 1;
+}
+
+void *scml_ffi_struct_ptr(void *base, const char *struct_name, size_t index) {
+    void *ptr = NULL;
+    if (!ffi_struct_array_base(base, index, struct_name, &ptr)) return NULL;
+    if (!ffi_memory_check_access(ptr, scml_ffi_struct_size(struct_name))) return NULL;
+    return ptr;
+}
+
+void *scml_ffi_struct_field_ptr(void *base, const char *struct_name, const char *field_name) {
+    if (!base) { ffi_set_error("struct_field_ptr failed", "null base pointer"); return NULL; }
+    ScmlFFIFieldInfo info;
+    if (!scml_ffi_struct_field_info(struct_name, field_name, &info)) return NULL;
+    void *ptr = (unsigned char *)base + info.offset;
+    if (!ffi_memory_check_access(ptr, info.size)) return NULL;
+    return ptr;
+}
+
+void *scml_ffi_alloc_struct(const char *struct_name) {
+    size_t size = scml_ffi_struct_size(struct_name);
+    if (size == 0) { ffi_set_error("alloc_struct failed", "unknown or empty struct"); return NULL; }
+    return scml_ffi_alloc(size);
+}
+
+void *scml_ffi_alloc_struct_array(const char *struct_name, size_t count) {
+    size_t size = scml_ffi_struct_size(struct_name);
+    if (size == 0) { ffi_set_error("alloc_struct_array failed", "unknown or empty struct"); return NULL; }
+    return scml_ffi_alloc_array(count, size);
+}
+
+int scml_ffi_struct_array_read(void *base, size_t index, const char *struct_name, const char *field_name, ScmlValue *ret) {
+    void *ptr = NULL;
+    if (!ffi_struct_array_base(base, index, struct_name, &ptr)) return 0;
+    return scml_ffi_struct_read(ptr, struct_name, field_name, ret);
+}
+
+int scml_ffi_struct_array_write(void *base, size_t index, const char *struct_name, const char *field_name, const ScmlValue *value) {
+    void *ptr = NULL;
+    if (!ffi_struct_array_base(base, index, struct_name, &ptr)) return 0;
+    return scml_ffi_struct_write(ptr, struct_name, field_name, value);
+}
+
+int scml_ffi_struct_undefine(const char *struct_name) {
+    for (size_t i = 0; i < g_struct_count; i++) {
+        if (g_structs[i].name && strcmp(g_structs[i].name, struct_name) == 0) {
+            free(g_structs[i].name);
+            for (size_t f = 0; f < g_structs[i].field_count; f++) free(g_structs[i].fields[f].name);
+            g_struct_field_count -= g_structs[i].field_count;
+            free(g_structs[i].fields);
+            if (i + 1 < g_struct_count) memmove(&g_structs[i], &g_structs[i + 1], (g_struct_count - i - 1) * sizeof(g_structs[0]));
+            g_struct_count--;
+            return 1;
+        }
+    }
+    ffi_set_error("struct_undefine failed", "unknown struct");
+    return 0;
+}
+
 void scml_ffi_get_stats(ScmlFFIStats *out_stats) {
     if (!out_stats) return;
     out_stats->library_count = g_library_count;
@@ -873,6 +1415,10 @@ void scml_ffi_get_stats(ScmlFFIStats *out_stats) {
     out_stats->search_path_capacity = g_search_path_capacity;
     out_stats->memory_block_count = g_memory_block_count;
     out_stats->memory_block_capacity = g_memory_block_capacity;
+    out_stats->struct_count = g_struct_count;
+    out_stats->struct_capacity = g_struct_capacity;
+    out_stats->struct_field_count = g_struct_field_count;
+    out_stats->struct_field_capacity = g_struct_field_capacity;
 }
 
 void scml_ffi_shutdown(void) {
@@ -891,11 +1437,22 @@ void scml_ffi_shutdown(void) {
     g_search_paths = NULL;
     g_search_path_count = 0;
     g_search_path_capacity = 0;
-    for (size_t i = 0; i < g_memory_block_count; i++) free(g_memory_blocks[i].ptr);
+    for (size_t i = 0; i < g_memory_block_count; i++) if (g_memory_blocks[i].owned) free(g_memory_blocks[i].ptr);
     free(g_memory_blocks);
     g_memory_blocks = NULL;
     g_memory_block_count = 0;
     g_memory_block_capacity = 0;
+    for (size_t i = 0; i < g_struct_count; i++) {
+        free(g_structs[i].name);
+        for (size_t f = 0; f < g_structs[i].field_count; f++) free(g_structs[i].fields[f].name);
+        free(g_structs[i].fields);
+    }
+    free(g_structs);
+    g_structs = NULL;
+    g_struct_count = 0;
+    g_struct_capacity = 0;
+    g_struct_field_count = 0;
+    g_struct_field_capacity = 0;
     while (g_library_count > 0) {
         size_t i = g_library_count - 1;
         void *handle = g_libraries[i].handle;
