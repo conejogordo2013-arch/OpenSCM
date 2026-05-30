@@ -6,6 +6,7 @@ CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
 ifeq ($(OS),Windows_NT)
 EXEEXT ?= .exe
 THREAD_LIBS ?=
+DL_LIBS ?=
 MKDIR_P ?= mkdir
 RM_F ?= del /Q
 RM_RF ?= rmdir /S /Q
@@ -13,14 +14,22 @@ PATH_FIX = $(subst /,\,$1)
 else
 EXEEXT ?=
 THREAD_LIBS ?= -pthread
+DL_LIBS ?= -ldl
 MKDIR_P ?= mkdir -p
 RM_F ?= rm -f
 RM_RF ?= rm -rf
 PATH_FIX = $1
 endif
 
-LDLIBS ?= -lm $(THREAD_LIBS)
-CORE_SRC = vm/vm.c compiler/compiler.c compiler/project.c parser/parser.c lexer/lexer.c opcode/opcode.c runtime/scml_runtime_modules.c
+FFI_CFLAGS ?= $(shell pkg-config --cflags libffi 2>/dev/null)
+FFI_LDLIBS ?= $(shell pkg-config --libs libffi 2>/dev/null)
+ifneq ($(strip $(FFI_LDLIBS)),)
+CFLAGS += -DSCML_USE_LIBFFI=1 $(FFI_CFLAGS)
+LDLIBS ?= -lm $(THREAD_LIBS) $(DL_LIBS) $(FFI_LDLIBS)
+else
+LDLIBS ?= -lm $(THREAD_LIBS) $(DL_LIBS)
+endif
+CORE_SRC = vm/vm.c compiler/compiler.c compiler/project.c parser/parser.c lexer/lexer.c opcode/opcode.c runtime/scml_runtime_modules.c ffi/scml_ffi.c
 DEBUGGER_SRC = debugger/debugger.c
 CLI_SRC = main.c $(CORE_SRC)
 CLI_OBJ = $(CLI_SRC:.c=.o)

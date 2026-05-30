@@ -1,0 +1,45 @@
+; Generic dynamic FFI example.
+; Build the sample library first, for example on Linux:
+;   cc -shared -fPIC -o examples/libscml_ffi_native.so examples/ffi_native.c
+; or on Windows:
+;   cl /LD examples\ffi_native.c /Fe:examples\scml_ffi_native.dll
+;
+; This script uses only generic FFI calls. SCML does not know the native API.
+
+0B31: "ffi.add_search_path" "examples"
+0B31: "ffi.load" "libscml_ffi_native"
+
+0B31: "ffi.declare" "scml_ffi_add_i32" "int" "int,int"
+0B31: "ffi.declare" "scml_ffi_mul_f32" "float" "float,float"
+0B31: "ffi.declare" "scml_ffi_add_f64" "double" "double,double"
+0B31: "ffi.declare" "scml_ffi_sum7_i32" "int" "int,int,int,int,int,int,int"
+0B31: "ffi.declare" "scml_ffi_echo_string" "pointer" "string"
+
+0B31: "scml_ffi_add_i32" 40 2
+03E5: $RETVAL
+
+0B31: "scml_ffi_mul_f32" 6.0 7.0
+03E5: $RETVAL
+
+0B31: "scml_ffi_add_f64" 20.5 21.5
+03E5: $RETVAL
+
+0B31: "scml_ffi_sum7_i32" 1 2 3 4 5 6 21
+03E5: $RETVAL
+
+0B31: "scml_ffi_echo_string" "hello from dynamic FFI"
+03E5: $RETVAL
+
+0B31: "ffi.alloc" 16
+0004: $BUF $RETVAL
+0B31: "ffi.write" $BUF 0 "int" 1234
+0B31: "ffi.read" $BUF 0 "int"
+03E5: $RETVAL
+
+0B31: "ffi.cstring" "owned native string"
+0004: $TEXT $RETVAL
+0B31: "ffi.read_cstring" $TEXT
+03E5: $RETVAL
+0B31: "ffi.free" $TEXT
+0B31: "ffi.free" $BUF
+0001:
