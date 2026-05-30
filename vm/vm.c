@@ -770,12 +770,47 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_pointer((uintptr_t)ptr);
         return 1;
     }
+    if (strcmp(name, "ffi.alloc_array") == 0) {
+        if (arg_count != 2) return 0;
+        size_t elem_size = 0;
+        if (args[1].type == SCML_VAL_STRING) elem_size = scml_ffi_type_size(scml_ffi_parse_type(args[1].string, SCML_FFI_TYPE_INT32));
+        else elem_size = (size_t)value_to_int(&args[1]);
+        void *ptr = scml_ffi_alloc_array((size_t)value_to_int(&args[0]), elem_size);
+        if (!ptr) return 0;
+        if (ret) *ret = value_pointer((uintptr_t)ptr);
+        return 1;
+    }
+    if (strcmp(name, "ffi.realloc") == 0) {
+        if (arg_count != 2) return 0;
+        void *ptr = scml_ffi_realloc_memory((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]));
+        if (!ptr) return 0;
+        if (ret) *ret = value_pointer((uintptr_t)ptr);
+        return 1;
+    }
     if (strcmp(name, "ffi.cstring") == 0) {
         if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
         void *ptr = scml_ffi_alloc_cstring(args[0].string);
         if (!ptr) return 0;
         if (ret) *ret = value_pointer((uintptr_t)ptr);
         return 1;
+    }
+    if (strcmp(name, "ffi.write_cstring") == 0) {
+        if (arg_count != 4 || args[2].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_write_cstring((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), args[2].string, (size_t)value_to_int(&args[3]));
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.track") == 0 || strcmp(name, "ffi.track_memory") == 0) {
+        if (arg_count != 2) return 0;
+        int ok = scml_ffi_track_memory((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]));
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.untrack") == 0 || strcmp(name, "ffi.untrack_memory") == 0) {
+        if (arg_count != 1) return 0;
+        int ok = scml_ffi_untrack_memory((void *)vm_value_to_pointer(&args[0]));
+        if (ret) *ret = value_int(ok);
+        return ok;
     }
     if (strcmp(name, "ffi.free") == 0) {
         if (arg_count != 1) return 0;
@@ -790,6 +825,22 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_pointer((uintptr_t)ptr);
         return 1;
     }
+    if (strcmp(name, "ffi.ptr_diff") == 0) {
+        if (arg_count != 2) return 0;
+        intptr_t diff = scml_ffi_ptr_diff((const void *)vm_value_to_pointer(&args[0]), (const void *)vm_value_to_pointer(&args[1]));
+        if (ret) *ret = value_pointer((uintptr_t)diff);
+        return 1;
+    }
+    if (strcmp(name, "ffi.sizeof") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        if (ret) *ret = value_int((int32_t)scml_ffi_type_size(scml_ffi_parse_type(args[0].string, SCML_FFI_TYPE_INT32)));
+        return 1;
+    }
+    if (strcmp(name, "ffi.alignof") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        if (ret) *ret = value_int((int32_t)scml_ffi_type_alignment(scml_ffi_parse_type(args[0].string, SCML_FFI_TYPE_INT32)));
+        return 1;
+    }
     if (strcmp(name, "ffi.read") == 0) {
         if (arg_count != 3) return 0;
         ScmlFFIType type;
@@ -801,6 +852,20 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         ScmlFFIType type;
         if (!vm_ffi_type_arg(&args[2], &type)) return 0;
         int ok = scml_ffi_memory_write((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), type, &args[3]);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.array_read") == 0) {
+        if (arg_count != 3) return 0;
+        ScmlFFIType type;
+        if (!vm_ffi_type_arg(&args[2], &type)) return 0;
+        return scml_ffi_array_read((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), type, ret);
+    }
+    if (strcmp(name, "ffi.array_write") == 0) {
+        if (arg_count != 4) return 0;
+        ScmlFFIType type;
+        if (!vm_ffi_type_arg(&args[2], &type)) return 0;
+        int ok = scml_ffi_array_write((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), type, &args[3]);
         if (ret) *ret = value_int(ok);
         return ok;
     }
@@ -829,6 +894,114 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_int((int32_t)scml_ffi_memory_block_size((void *)vm_value_to_pointer(&args[0])));
         return 1;
     }
+    if (strcmp(name, "ffi.alloc_struct") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        void *ptr = scml_ffi_alloc_struct(args[0].string);
+        if (!ptr) return 0;
+        if (ret) *ret = value_pointer((uintptr_t)ptr);
+        return 1;
+    }
+    if (strcmp(name, "ffi.alloc_struct_array") == 0) {
+        if (arg_count != 2 || args[0].type != SCML_VAL_STRING) return 0;
+        void *ptr = scml_ffi_alloc_struct_array(args[0].string, (size_t)value_to_int(&args[1]));
+        if (!ptr) return 0;
+        if (ret) *ret = value_pointer((uintptr_t)ptr);
+        return 1;
+    }
+    if (strcmp(name, "ffi.struct_define") == 0) {
+        if (arg_count != 2 || args[0].type != SCML_VAL_STRING || args[1].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_struct_define_text(args[0].string, args[1].string);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.struct_begin") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_struct_begin(args[0].string);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.struct_field") == 0) {
+        if ((arg_count != 3 && arg_count != 4) || args[0].type != SCML_VAL_STRING || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
+        size_t count = arg_count == 4 ? (size_t)value_to_int(&args[3]) : 1;
+        int ok = scml_ffi_struct_add_array_field(args[0].string, args[1].string, scml_ffi_parse_type(args[2].string, SCML_FFI_TYPE_INT32), count);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.struct_finish") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_struct_finish(args[0].string);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.struct_size") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        if (ret) *ret = value_int((int32_t)scml_ffi_struct_size(args[0].string));
+        return 1;
+    }
+    if (strcmp(name, "ffi.struct_align") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        if (ret) *ret = value_int((int32_t)scml_ffi_struct_alignment(args[0].string));
+        return 1;
+    }
+    if (strcmp(name, "ffi.struct_offset") == 0 || strcmp(name, "ffi.field_offset") == 0) {
+        if (arg_count != 2 || args[0].type != SCML_VAL_STRING || args[1].type != SCML_VAL_STRING) return 0;
+        ScmlFFIFieldInfo info;
+        if (!scml_ffi_struct_field_info(args[0].string, args[1].string, &info)) return 0;
+        if (ret) *ret = value_int((int32_t)info.offset);
+        return 1;
+    }
+    if (strcmp(name, "ffi.struct_ptr") == 0) {
+        if (arg_count != 3 || args[1].type != SCML_VAL_STRING) return 0;
+        void *ptr = scml_ffi_struct_ptr((void *)vm_value_to_pointer(&args[0]), args[1].string, (size_t)value_to_int(&args[2]));
+        if (!ptr) return 0;
+        if (ret) *ret = value_pointer((uintptr_t)ptr);
+        return 1;
+    }
+    if (strcmp(name, "ffi.struct_field_ptr") == 0 || strcmp(name, "ffi.field_ptr") == 0) {
+        if ((arg_count != 3 && arg_count != 4) || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
+        void *ptr = arg_count == 4
+            ? scml_ffi_struct_field_element_ptr((void *)vm_value_to_pointer(&args[0]), args[1].string, args[2].string, (size_t)value_to_int(&args[3]))
+            : scml_ffi_struct_field_ptr((void *)vm_value_to_pointer(&args[0]), args[1].string, args[2].string);
+        if (!ptr) return 0;
+        if (ret) *ret = value_pointer((uintptr_t)ptr);
+        return 1;
+    }
+    if (strcmp(name, "ffi.struct_read") == 0) {
+        if (arg_count != 3 || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
+        return scml_ffi_struct_read((void *)vm_value_to_pointer(&args[0]), args[1].string, args[2].string, ret);
+    }
+    if (strcmp(name, "ffi.struct_write") == 0) {
+        if (arg_count != 4 || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_struct_write((void *)vm_value_to_pointer(&args[0]), args[1].string, args[2].string, &args[3]);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.struct_field_read") == 0 || strcmp(name, "ffi.struct_field_read_index") == 0) {
+        if (arg_count != 4 || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
+        return scml_ffi_struct_field_read_index((void *)vm_value_to_pointer(&args[0]), args[1].string, args[2].string, (size_t)value_to_int(&args[3]), ret);
+    }
+    if (strcmp(name, "ffi.struct_field_write") == 0 || strcmp(name, "ffi.struct_field_write_index") == 0) {
+        if (arg_count != 5 || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_struct_field_write_index((void *)vm_value_to_pointer(&args[0]), args[1].string, args[2].string, (size_t)value_to_int(&args[3]), &args[4]);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.struct_array_read") == 0) {
+        if (arg_count != 4 || args[2].type != SCML_VAL_STRING || args[3].type != SCML_VAL_STRING) return 0;
+        return scml_ffi_struct_array_read((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), args[2].string, args[3].string, ret);
+    }
+    if (strcmp(name, "ffi.struct_array_write") == 0) {
+        if (arg_count != 5 || args[2].type != SCML_VAL_STRING || args[3].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_struct_array_write((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), args[2].string, args[3].string, &args[4]);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.struct_undefine") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_struct_undefine(args[0].string);
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
     if (strcmp(name, "ffi.stats") == 0) {
         ScmlFFIStats stats;
         scml_ffi_get_stats(&stats);
@@ -852,7 +1025,7 @@ int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue 
         }
     }
     if (vm_ffi_builtin(qualified_name, args, arg_count, ret)) return 1;
-    ScmlFFIType arg_types[SCML_FFI_FALLBACK_MAX_ARGS];
+    ScmlFFIType arg_types[SCML_OPERANDS_MAX - 1];
     ScmlFFISignature signature = vm_ffi_signature(vm, arg_count, arg_types, sizeof(arg_types) / sizeof(arg_types[0]));
     return scml_ffi_call_native_by_name_ex(qualified_name, args, &signature, ret);
 }
@@ -935,8 +1108,8 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         error_at(vm, ins_pc, err, err_size, "opcode operand count mismatch");
         return -1;
     }
-    DecOp ops[8] = {0};
-    if (argc > 8) { error_at(vm, ins_pc, err, err_size, "too many operands"); return -1; }
+    DecOp ops[SCML_OPERANDS_MAX] = {0};
+    if (argc > SCML_OPERANDS_MAX) { error_at(vm, ins_pc, err, err_size, "too many operands"); return -1; }
     for (uint8_t i = 0; i < argc; i++) {
         if (!decode_operand(vm, &ops[i], err, err_size)) { free_decoded(ops, i); return -1; }
     }
@@ -972,7 +1145,7 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         } else {
             const char *name = ops[0].type == SCML_OPERAND_STRING ? ops[0].s : ops[0].s;
             NativeFunc *native = native_find(vm, name);
-            ScmlValue args[7];
+            ScmlValue args[SCML_OPERANDS_MAX - 1];
             memset(args, 0, sizeof(args));
             for (uint8_t ai = 1; ai < argc; ai++) args[ai - 1] = eval(vm, &ops[ai]);
             ScmlValue ret = value_int(0);
@@ -1463,7 +1636,7 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     }
     case SCML_OP_CALL_NATIVE: {
         const char *name = ops[0].s;
-        ScmlValue args[7];
+        ScmlValue args[SCML_OPERANDS_MAX - 1];
         memset(args, 0, sizeof(args));
         for (uint8_t ai = 1; ai < argc; ai++) args[ai - 1] = eval(vm, &ops[ai]);
         ScmlValue ret = value_int(0);

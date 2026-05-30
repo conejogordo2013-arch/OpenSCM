@@ -13,6 +13,7 @@
 0B31: "ffi.declare" "scml_ffi_mul_f32" "float" "float,float"
 0B31: "ffi.declare" "scml_ffi_add_f64" "double" "double,double"
 0B31: "ffi.declare" "scml_ffi_sum7_i32" "int" "int,int,int,int,int,int,int"
+0B31: "ffi.declare" "scml_ffi_sum15_i32" "int" "int,int,int,int,int,int,int,int,int,int,int,int,int,int,int"
 0B31: "ffi.declare" "scml_ffi_echo_string" "pointer" "string"
 
 0B31: "scml_ffi_add_i32" 40 2
@@ -27,6 +28,9 @@
 0B31: "scml_ffi_sum7_i32" 1 2 3 4 5 6 21
 03E5: $RETVAL
 
+0B31: "scml_ffi_sum15_i32" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+03E5: $RETVAL
+
 0B31: "scml_ffi_echo_string" "hello from dynamic FFI"
 03E5: $RETVAL
 
@@ -35,6 +39,44 @@
 0B31: "ffi.write" $BUF 0 "int" 1234
 0B31: "ffi.read" $BUF 0 "int"
 03E5: $RETVAL
+
+; Advanced layout helpers: define a native-compatible struct and work with
+; typed fields/arrays without hand-computing offsets.
+0B31: "ffi.struct_define" "Vec3" "float:x,float:y,float:z,uint16:flags"
+0B31: "ffi.struct_size" "Vec3"
+0004: $VEC_SIZE $RETVAL
+0B31: "ffi.alloc" $VEC_SIZE
+0004: $VEC $RETVAL
+0B31: "ffi.struct_write" $VEC "Vec3" "x" 1.5
+0B31: "ffi.struct_write" $VEC "Vec3" "flags" 513
+0B31: "ffi.struct_read" $VEC "Vec3" "x"
+03E5: $RETVAL
+0B31: "ffi.struct_read" $VEC "Vec3" "flags"
+03E5: $RETVAL
+
+0B31: "ffi.alloc_array" 4 "uint16"
+0004: $ARR $RETVAL
+0B31: "ffi.array_write" $ARR 2 "uint16" 655
+0B31: "ffi.array_read" $ARR 2 "uint16"
+03E5: $RETVAL
+0B31: "ffi.free" $ARR
+0B31: "ffi.free" $VEC
+
+; Struct arrays, field pointers, safe bounded C string writes and realloc let
+; FFI code model more complex native data structures.
+0B31: "ffi.struct_define" "Packet" "uint32:id,uint16:flags,uint8:kind"
+0B31: "ffi.alloc_struct_array" "Packet" 3
+0004: $PACKETS $RETVAL
+0B31: "ffi.struct_array_write" $PACKETS 1 "Packet" "id" 12345
+0B31: "ffi.struct_array_write" $PACKETS 1 "Packet" "kind" 7
+0B31: "ffi.struct_ptr" $PACKETS "Packet" 1
+0004: $PACKET1 $RETVAL
+0B31: "ffi.struct_field_ptr" $PACKET1 "Packet" "flags"
+0004: $FLAGS_PTR $RETVAL
+0B31: "ffi.write" $FLAGS_PTR 0 "uint16" 48879
+0B31: "ffi.struct_array_read" $PACKETS 1 "Packet" "flags"
+03E5: $RETVAL
+0B31: "ffi.free" $PACKETS
 
 0B31: "ffi.cstring" "owned native string"
 0004: $TEXT $RETVAL

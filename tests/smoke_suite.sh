@@ -145,7 +145,7 @@ fi
 too_many_src=".scml/too_many_operands.scml"
 cat >"$too_many_src" <<'SCML'
 :MAIN
-CALL_NATIVE "runtime.wait" 1 2 3 4 5 6 7 8 9
+CALL_NATIVE "runtime.wait" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
 0001:
 SCML
 
@@ -215,6 +215,152 @@ expected_span_output=$'\033[H.@\n..'
 if [[ "$span_output" != "$expected_span_output" ]]; then
   echo "[smoke] unexpected span render output" >&2
   printf 'expected: %q\nactual:   %q\n' "$expected_span_output" "$span_output" >&2
+  exit 1
+fi
+
+if pkg-config --exists libffi 2>/dev/null; then
+  ffi_native_lib="examples/libscml_ffi_native.so"
+  ffi_native_src=".scml/ffi_native_many_args.scml"
+  ffi_native_bin=".scml/ffi_native_many_args.scmlbin"
+  ${CC:-cc} -shared -fPIC -o "$ffi_native_lib" examples/ffi_native.c
+  cat >"$ffi_native_src" <<'SCML'
+:MAIN
+0B31: "ffi.add_search_path" "examples"
+0B31: "ffi.load" "libscml_ffi_native"
+0B31: "ffi.declare" "scml_ffi_sum15_i32" "int" "int,int,int,int,int,int,int,int,int,int,int,int,int,int,int"
+0B31: "scml_ffi_sum15_i32" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+03E5: $RETVAL
+0001:
+SCML
+
+  echo "[smoke] run libffi many-argument native call regression"
+  bin/scml compile "$ffi_native_src" "$ffi_native_bin"
+  ffi_native_output="$(bin/scml run "$ffi_native_bin")"
+  rm -f "$ffi_native_lib"
+  if [[ "$ffi_native_output" != "120" ]]; then
+    echo "[smoke] unexpected many-argument FFI output: $ffi_native_output" >&2
+    exit 1
+  fi
+else
+  echo "[smoke] skip libffi many-argument native call regression (libffi unavailable)"
+fi
+
+ffi_advanced_src=".scml/ffi_advanced.scml"
+ffi_advanced_bin=".scml/ffi_advanced.scmlbin"
+cat >"$ffi_advanced_src" <<'SCML'
+:MAIN
+0B31: "ffi.struct_define" "Vec3" "float:x,float:y,float:z,uint16:flags"
+0B31: "ffi.struct_size" "Vec3"
+0004: $SZ $RETVAL
+0B31: "ffi.alloc" $SZ
+0004: $VEC $RETVAL
+0B31: "ffi.struct_write" $VEC "Vec3" "x" 1.5
+0B31: "ffi.struct_write" $VEC "Vec3" "flags" 513
+0B31: "ffi.struct_read" $VEC "Vec3" "x"
+03E5: $RETVAL
+0B31: "ffi.struct_read" $VEC "Vec3" "flags"
+03E5: $RETVAL
+0B31: "ffi.alloc_array" 4 "uint16"
+0004: $ARR $RETVAL
+0B31: "ffi.array_write" $ARR 2 "uint16" 655
+0B31: "ffi.array_read" $ARR 2 "uint16"
+03E5: $RETVAL
+0B31: "ffi.free" $ARR
+0B31: "ffi.free" $VEC
+0001:
+SCML
+
+echo "[smoke] run advanced FFI struct/array regression"
+bin/scml compile "$ffi_advanced_src" "$ffi_advanced_bin"
+ffi_advanced_output="$(bin/scml run "$ffi_advanced_bin")"
+expected_ffi_advanced_output=$'1.5\n513\n655'
+if [[ "$ffi_advanced_output" != "$expected_ffi_advanced_output" ]]; then
+  echo "[smoke] unexpected advanced FFI output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_ffi_advanced_output" "$ffi_advanced_output" >&2
+  exit 1
+fi
+
+ffi_more_advanced_src=".scml/ffi_more_advanced.scml"
+ffi_more_advanced_bin=".scml/ffi_more_advanced.scmlbin"
+cat >"$ffi_more_advanced_src" <<'SCML'
+:MAIN
+0B31: "ffi.struct_define" "Packet" "uint32:id,uint16:flags,uint8:kind"
+0B31: "ffi.alloc_struct_array" "Packet" 3
+0004: $PACKETS $RETVAL
+0B31: "ffi.struct_array_write" $PACKETS 1 "Packet" "id" 12345
+0B31: "ffi.struct_array_write" $PACKETS 1 "Packet" "kind" 7
+0B31: "ffi.struct_array_read" $PACKETS 1 "Packet" "kind"
+03E5: $RETVAL
+0B31: "ffi.struct_ptr" $PACKETS "Packet" 1
+0004: $P1 $RETVAL
+0B31: "ffi.struct_read" $P1 "Packet" "id"
+03E5: $RETVAL
+0B31: "ffi.struct_field_ptr" $P1 "Packet" "flags"
+0004: $FLAGS $RETVAL
+0B31: "ffi.write" $FLAGS 0 "uint16" 48879
+0B31: "ffi.struct_array_read" $PACKETS 1 "Packet" "flags"
+03E5: $RETVAL
+0B31: "ffi.ptr_diff" $P1 $PACKETS
+03E5: $RETVAL
+0B31: "ffi.alloc" 8
+0004: $TEXT $RETVAL
+0B31: "ffi.write_cstring" $TEXT 0 "abcdefghi" 8
+0B31: "ffi.read_cstring" $TEXT
+03E5: $RETVAL
+0B31: "ffi.realloc" $TEXT 16
+0004: $TEXT $RETVAL
+0B31: "ffi.write_cstring" $TEXT 7 "Z" 2
+0B31: "ffi.read_cstring" $TEXT
+03E5: $RETVAL
+0B31: "ffi.free" $TEXT
+0B31: "ffi.free" $PACKETS
+0001:
+SCML
+
+echo "[smoke] run advanced FFI struct arrays/pointers/cstrings regression"
+bin/scml compile "$ffi_more_advanced_src" "$ffi_more_advanced_bin"
+ffi_more_advanced_output="$(bin/scml run "$ffi_more_advanced_bin")"
+expected_ffi_more_advanced_output=$'7\n0x3039\n48879\n0x8\nabcdefg\nabcdefgZ'
+if [[ "$ffi_more_advanced_output" != "$expected_ffi_more_advanced_output" ]]; then
+  echo "[smoke] unexpected advanced FFI pointer/cstring output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_ffi_more_advanced_output" "$ffi_more_advanced_output" >&2
+  exit 1
+fi
+
+ffi_struct_array_fields_src=".scml/ffi_struct_array_fields.scml"
+ffi_struct_array_fields_bin=".scml/ffi_struct_array_fields.scmlbin"
+cat >"$ffi_struct_array_fields_src" <<'SCML'
+:MAIN
+0B31: "ffi.struct_define" "Header" "uint32:id,uint8[4]:tag,uint16[3]:scores"
+0B31: "ffi.alloc_struct" "Header"
+0004: $H $RETVAL
+0B31: "ffi.struct_field_write" $H "Header" "scores" 2 900
+0B31: "ffi.struct_field_read" $H "Header" "scores" 2
+03E5: $RETVAL
+0B31: "ffi.struct_field_ptr" $H "Header" "tag" 0
+0004: $TAG $RETVAL
+0B31: "ffi.write_cstring" $TAG 0 "XYZW" 4
+0B31: "ffi.read_cstring" $TAG
+03E5: $RETVAL
+0B31: "ffi.struct_field_ptr" $H "Header" "scores" 2
+0004: $SCORE2 $RETVAL
+0B31: "ffi.ptr_diff" $SCORE2 $H
+03E5: $RETVAL
+0B31: "ffi.free" $H
+0001:
+SCML
+
+echo "[smoke] run FFI fixed-array struct field regression"
+bin/scml compile "$ffi_struct_array_fields_src" "$ffi_struct_array_fields_bin"
+ffi_struct_array_fields_output="$(bin/scml run "$ffi_struct_array_fields_bin")"
+expected_ffi_struct_array_fields_output=$'900
+XYZ
+0xc'
+if [[ "$ffi_struct_array_fields_output" != "$expected_ffi_struct_array_fields_output" ]]; then
+  echo "[smoke] unexpected FFI fixed-array struct output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_ffi_struct_array_fields_output" "$ffi_struct_array_fields_output" >&2
   exit 1
 fi
 

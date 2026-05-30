@@ -15,6 +15,8 @@ extern "C" {
 #define SCML_FFI_INITIAL_SYMBOLS 2048
 #define SCML_FFI_INITIAL_SIGNATURES 1024
 #define SCML_FFI_INITIAL_SEARCH_PATHS 32
+#define SCML_FFI_INITIAL_STRUCTS 128
+#define SCML_FFI_INITIAL_STRUCT_FIELDS 512
 #define SCML_FFI_FALLBACK_MAX_ARGS 8
 
 #define SCML_FFI_LOAD_NOW 0x01u
@@ -29,7 +31,15 @@ typedef enum ScmlFFIType {
     SCML_FFI_TYPE_VOID = 3,
     SCML_FFI_TYPE_INT64 = 4,
     SCML_FFI_TYPE_DOUBLE = 5,
-    SCML_FFI_TYPE_STRING = 6
+    SCML_FFI_TYPE_STRING = 6,
+    SCML_FFI_TYPE_INT8 = 7,
+    SCML_FFI_TYPE_UINT8 = 8,
+    SCML_FFI_TYPE_INT16 = 9,
+    SCML_FFI_TYPE_UINT16 = 10,
+    SCML_FFI_TYPE_UINT32 = 11,
+    SCML_FFI_TYPE_UINT64 = 12,
+    SCML_FFI_TYPE_BOOL = 13,
+    SCML_FFI_TYPE_SIZE = 14
 } ScmlFFIType;
 
 typedef ScmlFFIType ScmlFFIReturnType;
@@ -47,6 +57,16 @@ typedef struct ScmlFFISignature {
 
 typedef struct ScmlFFILibrary ScmlFFILibrary;
 
+typedef struct ScmlFFIFieldInfo {
+    const char *name;
+    ScmlFFIType type;
+    size_t offset;
+    size_t size;
+    size_t alignment;
+    size_t element_size;
+    size_t element_count;
+} ScmlFFIFieldInfo;
+
 typedef struct ScmlFFIStats {
     size_t library_count;
     size_t library_capacity;
@@ -58,6 +78,10 @@ typedef struct ScmlFFIStats {
     size_t search_path_capacity;
     size_t memory_block_count;
     size_t memory_block_capacity;
+    size_t struct_count;
+    size_t struct_capacity;
+    size_t struct_field_count;
+    size_t struct_field_capacity;
 } ScmlFFIStats;
 
 void *scml_ffi_load_library(const char *path);
@@ -79,15 +103,45 @@ ScmlFFIType scml_ffi_parse_type(const char *name, ScmlFFIType fallback);
 ScmlFFIReturnType scml_ffi_parse_return_type(const char *name, ScmlFFIReturnType fallback);
 size_t scml_ffi_parse_arg_types(const char *spec, ScmlFFIType *out_types, size_t max_types);
 void *scml_ffi_alloc(size_t size);
+void *scml_ffi_alloc_array(size_t count, size_t elem_size);
+void *scml_ffi_realloc_memory(void *ptr, size_t new_size);
 void *scml_ffi_alloc_cstring(const char *text);
 char *scml_ffi_read_cstring(const void *ptr);
+int scml_ffi_write_cstring(void *base, size_t offset, const char *text, size_t max_bytes);
 int scml_ffi_free_memory(void *ptr);
+int scml_ffi_track_memory(void *ptr, size_t size);
+int scml_ffi_untrack_memory(void *ptr);
 void *scml_ffi_ptr_add(void *ptr, intptr_t offset);
+intptr_t scml_ffi_ptr_diff(const void *lhs, const void *rhs);
+size_t scml_ffi_type_size(ScmlFFIType type);
+size_t scml_ffi_type_alignment(ScmlFFIType type);
 int scml_ffi_memory_read(void *base, size_t offset, ScmlFFIType type, ScmlValue *ret);
 int scml_ffi_memory_write(void *base, size_t offset, ScmlFFIType type, const ScmlValue *value);
+int scml_ffi_array_read(void *base, size_t index, ScmlFFIType type, ScmlValue *ret);
+int scml_ffi_array_write(void *base, size_t index, ScmlFFIType type, const ScmlValue *value);
 int scml_ffi_memory_copy(void *dst, const void *src, size_t size);
 int scml_ffi_memory_set(void *dst, int value, size_t size);
 size_t scml_ffi_memory_block_size(void *ptr);
+int scml_ffi_struct_begin(const char *struct_name);
+int scml_ffi_struct_add_field(const char *struct_name, const char *field_name, ScmlFFIType type);
+int scml_ffi_struct_add_array_field(const char *struct_name, const char *field_name, ScmlFFIType type, size_t element_count);
+int scml_ffi_struct_finish(const char *struct_name);
+int scml_ffi_struct_define_text(const char *struct_name, const char *field_spec);
+size_t scml_ffi_struct_size(const char *struct_name);
+size_t scml_ffi_struct_alignment(const char *struct_name);
+int scml_ffi_struct_field_info(const char *struct_name, const char *field_name, ScmlFFIFieldInfo *out_info);
+int scml_ffi_struct_read(void *base, const char *struct_name, const char *field_name, ScmlValue *ret);
+int scml_ffi_struct_write(void *base, const char *struct_name, const char *field_name, const ScmlValue *value);
+void *scml_ffi_struct_ptr(void *base, const char *struct_name, size_t index);
+void *scml_ffi_struct_field_ptr(void *base, const char *struct_name, const char *field_name);
+void *scml_ffi_struct_field_element_ptr(void *base, const char *struct_name, const char *field_name, size_t element_index);
+int scml_ffi_struct_field_read_index(void *base, const char *struct_name, const char *field_name, size_t element_index, ScmlValue *ret);
+int scml_ffi_struct_field_write_index(void *base, const char *struct_name, const char *field_name, size_t element_index, const ScmlValue *value);
+void *scml_ffi_alloc_struct(const char *struct_name);
+void *scml_ffi_alloc_struct_array(const char *struct_name, size_t count);
+int scml_ffi_struct_array_read(void *base, size_t index, const char *struct_name, const char *field_name, ScmlValue *ret);
+int scml_ffi_struct_array_write(void *base, size_t index, const char *struct_name, const char *field_name, const ScmlValue *value);
+int scml_ffi_struct_undefine(const char *struct_name);
 void scml_ffi_get_stats(ScmlFFIStats *out_stats);
 void scml_ffi_shutdown(void);
 

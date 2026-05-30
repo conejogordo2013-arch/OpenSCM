@@ -17,7 +17,7 @@ typedef struct ScmlStatement {
     int line;
     char *label;
     ScmlOpcode opcode;
-    ScmlOperand operands[8];
+    ScmlOperand operands[SCML_OPERANDS_MAX];
     size_t operand_count;
 } ScmlStatement;
 
