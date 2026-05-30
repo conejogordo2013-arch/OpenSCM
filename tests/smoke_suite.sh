@@ -411,4 +411,113 @@ fi
 echo "[smoke] run migration audit"
 bash tools/scml_migration_audit.sh
 
+
+numeric_src=".scml/numeric_literals_regression.scml"
+numeric_bin=".scml/numeric_literals_regression.scmlbin"
+cat >"$numeric_src" <<'SCML'
+:MAIN
+0004: $A +1.5
+0004: $B 010
+00D6: $B 10 @DECIMAL_OK
+03E5: "leading zero decimal failed"
+0001:
+:DECIMAL_OK
+00D8: $A 1.0 @PLUS_FLOAT_OK
+03E5: "plus float failed"
+0001:
+:PLUS_FLOAT_OK
+03E5: "numeric literals ok"
+0001:
+SCML
+
+echo "[smoke] run numeric literal parsing regression"
+bin/scml compile "$numeric_src" "$numeric_bin"
+numeric_output="$(bin/scml run "$numeric_bin")"
+if [[ "$numeric_output" != "numeric literals ok" ]]; then
+  echo "[smoke] unexpected numeric literal output: $numeric_output" >&2
+  exit 1
+fi
+
+entity_src=".scml/entity_set_runtime.scml"
+entity_bin=".scml/entity_set_runtime.scmlbin"
+cat >"$entity_src" <<'SCML'
+:MAIN
+0B00: "worker" 1 2 3 $E
+0B01: $E "health" 100
+03E5: "entity set ok"
+0001:
+SCML
+
+echo "[smoke] run ENTITY_SET runtime dispatch regression"
+bin/scml compile "$entity_src" "$entity_bin"
+entity_output="$(bin/scml run "$entity_bin")"
+if [[ "$entity_output" != "entity set ok" ]]; then
+  echo "[smoke] unexpected entity set output: $entity_output" >&2
+  exit 1
+fi
+
+
+backend_src=".scml/backend_registry_runtime.scml"
+backend_bin=".scml/backend_registry_runtime.scmlbin"
+cat >"$backend_src" <<'SCML'
+:MAIN
+0B31: "runtime.backend_info" "gpu"
+0004: $INFO $RETVAL
+03E5: $INFO
+0B31: "runtime.select_backend" "gpu" "missing_backend"
+0004: $BAD $RETVAL
+03E5: $BAD
+0B31: "runtime.select_backend" "gpu" "default"
+0004: $OK $RETVAL
+03E5: $OK
+0001:
+SCML
+
+echo "[smoke] run runtime backend registry regression"
+bin/scml compile "$backend_src" "$backend_bin"
+backend_output="$(bin/scml run "$backend_bin")"
+if [[ "$backend_output" != module=gpu\ active=*backends=*compiled=*$'\n0\n1' ]]; then
+  echo "[smoke] unexpected backend registry output" >&2
+  printf 'actual: %q\n' "$backend_output" >&2
+  exit 1
+fi
+
+bad_store_bin=".scml/bad_store_destination.scmlbin"
+python3 - <<'PY' "$bad_store_bin"
+import struct, sys
+path = sys.argv[1]
+magic = 0x4C4D4353
+version = 6
+code = bytes([0x04, 0x02, 0x01]) + struct.pack('<i', 0) + bytes([0x01]) + struct.pack('<i', 1)
+with open(path, 'wb') as f:
+    f.write(struct.pack('<I H I I I', magic, version, len(code), 0, 0))
+    f.write(code)
+PY
+
+echo "[smoke] verify runtime rejects invalid STORE destination operand"
+if bin/scml run "$bad_store_bin" >/tmp/scml_bad_store.out 2>&1; then
+  echo "[smoke] runtime accepted invalid STORE destination" >&2
+  cat /tmp/scml_bad_store.out >&2
+  exit 1
+fi
+
+bad_jump_bin=".scml/bad_jump_target.scmlbin"
+python3 - <<'PY' "$bad_jump_bin"
+import struct, sys
+path = sys.argv[1]
+magic = 0x4C4D4353
+version = 6
+code = bytes([0x0A, 0x01, 0x04]) + struct.pack('<I', 999999)
+with open(path, 'wb') as f:
+    f.write(struct.pack('<I H I I I', magic, version, len(code), 0, 0))
+    f.write(code)
+PY
+
+echo "[smoke] verify runtime rejects invalid jump targets"
+if bin/scml run "$bad_jump_bin" >/tmp/scml_bad_jump.out 2>&1; then
+  echo "[smoke] runtime accepted invalid jump target" >&2
+  cat /tmp/scml_bad_jump.out >&2
+  exit 1
+fi
+
 echo "[smoke] all selected samples compiled and runtime regressions passed"

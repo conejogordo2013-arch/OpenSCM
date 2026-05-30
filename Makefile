@@ -2,53 +2,85 @@ CC ?= cc
 CXX ?= c++
 CFLAGS ?= -std=c99 -O2 -Wall -Wextra -pedantic
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
-LDLIBS ?= -lm -pthread
+
+ifeq ($(OS),Windows_NT)
+EXEEXT ?= .exe
+THREAD_LIBS ?=
+MKDIR_P ?= mkdir
+RM_F ?= del /Q
+RM_RF ?= rmdir /S /Q
+PATH_FIX = $(subst /,\,$1)
+else
+EXEEXT ?=
+THREAD_LIBS ?= -pthread
+MKDIR_P ?= mkdir -p
+RM_F ?= rm -f
+RM_RF ?= rm -rf
+PATH_FIX = $1
+endif
+
+LDLIBS ?= -lm $(THREAD_LIBS)
 CORE_SRC = vm/vm.c compiler/compiler.c compiler/project.c parser/parser.c lexer/lexer.c opcode/opcode.c runtime/scml_runtime_modules.c
 DEBUGGER_SRC = debugger/debugger.c
 CLI_SRC = main.c $(CORE_SRC)
 CLI_OBJ = $(CLI_SRC:.c=.o)
 CORE_OBJ = $(CORE_SRC:.c=.o)
 DEBUGGER_OBJ = $(DEBUGGER_SRC:.c=.o)
+SCML_BIN = bin/scml$(EXEEXT)
+GAMEPLAY_BIN = bin/scml_gameplay_example$(EXEEXT)
+EDITOR_BIN = bin/scml_editor$(EXEEXT)
 
-all: bin/scml
+all: $(SCML_BIN)
 
-bin/scml: $(CLI_OBJ) | bin
+ifneq ($(EXEEXT),)
+bin/scml: $(SCML_BIN)
+endif
+
+$(SCML_BIN): $(CLI_OBJ) | bin
 	$(CC) $(CFLAGS) -o $@ $(CLI_OBJ) $(LDLIBS)
 
-bin/scml_gameplay_example: examples/gameplay_embed.cpp $(CORE_OBJ) | bin
+ifneq ($(EXEEXT),)
+bin/scml_gameplay_example: $(GAMEPLAY_BIN)
+endif
+
+$(GAMEPLAY_BIN): examples/gameplay_embed.cpp $(CORE_OBJ) | bin
 	$(CXX) $(CXXFLAGS) -I. -o $@ examples/gameplay_embed.cpp $(CORE_OBJ) $(LDLIBS)
 
-bin/scml_editor: editor/scml_editor.cpp $(CORE_OBJ) $(DEBUGGER_OBJ) | bin
+ifneq ($(EXEEXT),)
+bin/scml_editor: $(EDITOR_BIN)
+endif
+
+$(EDITOR_BIN): editor/scml_editor.cpp $(CORE_OBJ) $(DEBUGGER_OBJ) | bin
 	$(CXX) $(CXXFLAGS) -I. -o $@ editor/scml_editor.cpp $(CORE_OBJ) $(DEBUGGER_OBJ) $(LDLIBS)
 
 bin:
-	mkdir -p bin
+	$(MKDIR_P) $(call PATH_FIX,bin)
 
-examples/gameplay.scmlbin: bin/scml examples/gameplay.scml stscm/stscm.scml
-	bin/scml compile examples/gameplay.scml $@
+examples/gameplay.scmlbin: $(SCML_BIN) examples/gameplay.scml stscm/stscm.scml
+	$(SCML_BIN) compile examples/gameplay.scml $@
 
-cpp-example: bin/scml_gameplay_example examples/gameplay.scmlbin
-	bin/scml_gameplay_example
+cpp-example: $(GAMEPLAY_BIN) examples/gameplay.scmlbin
+	$(GAMEPLAY_BIN)
 
-editor-example: bin/scml_editor examples/gameplay.scml
-	bin/scml_editor examples/gameplay.scml examples/editor_tmp.scmlbin
+editor-example: $(EDITOR_BIN) examples/gameplay.scml
+	$(EDITOR_BIN) examples/gameplay.scml examples/editor_tmp.scmlbin
 
 clean:
-	rm -f $(CLI_OBJ) $(DEBUGGER_OBJ) bin/scml bin/scml_gameplay_example bin/scml_editor examples/*.scmlbin log.txt
+	-$(RM_F) $(call PATH_FIX,$(CLI_OBJ) $(DEBUGGER_OBJ) bin/scml bin/scml.exe bin/scml_gameplay_example bin/scml_gameplay_example.exe bin/scml_editor bin/scml_editor.exe examples/*.scmlbin log.txt)
 
 .PHONY: all clean cpp-example editor-example core test doctor tooling migration-audit verify-examples
 
-core: bin/scml
+core: $(SCML_BIN)
 
 tooling:
 	@echo "Tooling scripts:"
 	@echo "  - tools/scml_doctor.sh"
 	@echo "  - tests/smoke_suite.sh"
 
-test: bin/scml
+test: $(SCML_BIN)
 	bash tests/smoke_suite.sh
 
-doctor: bin/scml
+doctor: $(SCML_BIN)
 	bash tools/scml_doctor.sh
 
 migration-audit:

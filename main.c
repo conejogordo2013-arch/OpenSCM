@@ -9,6 +9,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#ifdef _WIN32
+#include <direct.h>
+#define SCML_MKDIR(path) _mkdir(path)
+#else
+#define SCML_MKDIR(path) mkdir(path, 0777)
+#endif
+
 static void usage(const char *argv0) {
     fprintf(stderr,
             "usage:\n"
@@ -79,7 +86,7 @@ int main(int argc, char **argv) {
         if (argc < 3) { usage(argv[0]); return 1; }
         const char **inputs = (const char **)&argv[2];
         size_t input_count = (size_t)(argc - 2);
-        (void)mkdir(".scml", 0777);
+        (void)SCML_MKDIR(".scml");
         if (!scml_compile_files(input_count, inputs, ".scml/check.scmlbin", err, sizeof(err))) {
             fprintf(stderr, "check error: %s\n", err);
             return 1;

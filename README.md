@@ -85,9 +85,21 @@ Supported source concepts include:
 
 ## Build
 
+OpenSCM can be built with the repository `Makefile` on POSIX-like shells, MSYS2/MinGW, and other GNU Make environments:
+
 ```sh
 make
+make bin/scml_gameplay_example bin/scml_editor
 ```
+
+For IDEs and platforms where Make variables or shell utilities differ, use the portable CMake project instead. CMake auto-detects installed optional runtime backends such as SDL2, OpenGL, Vulkan, Direct3D, and Metal when available, and only registers compiled-in optional backends at runtime:
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+Disable optional backend auto-detection with `-DSCML_AUTODETECT_BACKENDS=OFF` when a fully headless build is desired.
 
 ## Project-scale workflow
 

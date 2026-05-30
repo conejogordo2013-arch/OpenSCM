@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -20,9 +21,18 @@ extern int unsetenv(const char *);
 
 #ifdef _WIN32
 #include <direct.h>
+#include <io.h>
 #define MKDIR(path) _mkdir(path)
+#define SCML_PATH_SEPARATOR ";"
+#ifndef S_ISDIR
+#define S_ISDIR(mode) (((mode) & _S_IFDIR) != 0)
+#endif
+#ifndef S_ISREG
+#define S_ISREG(mode) (((mode) & _S_IFREG) != 0)
+#endif
 #else
 #define MKDIR(path) mkdir(path, 0777)
+#define SCML_PATH_SEPARATOR ":"
 #endif
 
 static char *xstrdup2(const char *s) {
@@ -30,6 +40,37 @@ static char *xstrdup2(const char *s) {
     char *r = (char *)malloc(n + 1);
     if (r) memcpy(r, s ? s : "", n + 1);
     return r;
+}
+
+static char *scml_strtok_r(char *str, const char *delim, char **saveptr) {
+    char *s = str ? str : (saveptr ? *saveptr : NULL);
+    if (!s) return NULL;
+    s += strspn(s, delim);
+    if (!*s) { if (saveptr) *saveptr = NULL; return NULL; }
+    char *end = s + strcspn(s, delim);
+    if (*end) {
+        *end = '\0';
+        if (saveptr) *saveptr = end + 1;
+    } else if (saveptr) {
+        *saveptr = NULL;
+    }
+    return s;
+}
+
+static int scml_set_env(const char *name, const char *value) {
+#ifdef _WIN32
+    return _putenv_s(name, value ? value : "") == 0;
+#else
+    return setenv(name, value ? value : "", 1) == 0;
+#endif
+}
+
+static int scml_unset_env(const char *name) {
+#ifdef _WIN32
+    return _putenv_s(name, "") == 0;
+#else
+    return unsetenv(name) == 0;
+#endif
 }
 
 static char *trim_ws(char *s) {
@@ -166,16 +207,32 @@ static int add_define(ScmlProject *p, const char *value, char *err, size_t err_s
 }
 
 static int add_sources_from_dir(ScmlProject *p, const char *dir, char *err, size_t err_size) {
-#ifdef _WIN32
-    (void)p; (void)dir;
-    snprintf(err, err_size, "source_dir is not implemented on this platform; list source entries explicitly");
-    return 0;
-#else
-    DIR *d = opendir(dir);
-    if (!d) { snprintf(err, err_size, "cannot open source_dir %s", dir); return 0; }
     char **names = NULL;
     size_t count = 0;
     size_t capacity = 0;
+#ifdef _WIN32
+    char pattern[SCML_PROJECT_PATH_MAX];
+    snprintf(pattern, sizeof(pattern), has_sep(dir) ? "%s*" : "%s/*", dir);
+    struct _finddata_t ent;
+    intptr_t handle = _findfirst(pattern, &ent);
+    if (handle == -1) { snprintf(err, err_size, "cannot open source_dir %s", dir); return 0; }
+    do {
+        if (strcmp(ent.name, ".") == 0 || strcmp(ent.name, "..") == 0) continue;
+        if (count == capacity) {
+            size_t next = capacity ? capacity * 2 : 32;
+            char **new_names = (char **)realloc(names, next * sizeof(*names));
+            if (!new_names) { _findclose(handle); snprintf(err, err_size, "out of memory"); goto fail; }
+            names = new_names;
+            capacity = next;
+        }
+        names[count] = xstrdup2(ent.name);
+        if (!names[count]) { _findclose(handle); snprintf(err, err_size, "out of memory"); goto fail; }
+        count++;
+    } while (_findnext(handle, &ent) == 0);
+    _findclose(handle);
+#else
+    DIR *d = opendir(dir);
+    if (!d) { snprintf(err, err_size, "cannot open source_dir %s", dir); return 0; }
     struct dirent *ent;
     while ((ent = readdir(d)) != NULL) {
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
@@ -191,6 +248,7 @@ static int add_sources_from_dir(ScmlProject *p, const char *dir, char *err, size
         count++;
     }
     closedir(d);
+#endif
     if (count > 1) qsort(names, count, sizeof(*names), cmp_cstr_ptr);
     for (size_t i = 0; i < count; i++) {
         char child[SCML_PROJECT_PATH_MAX];
@@ -211,7 +269,6 @@ fail:
     for (size_t i = 0; i < count; i++) free(names[i]);
     free(names);
     return 0;
-#endif
 }
 
 static int add_package(ScmlProject *p, const char *value, char *err, size_t err_size) {
@@ -231,7 +288,7 @@ int scml_project_load(const char *manifest_path, ScmlProject *project, char *err
     char *text = read_text(manifest_path, err, err_size);
     if (!text) return 0;
     char *save = NULL;
-    char *line = strtok_r(text, "\n", &save);
+    char *line = scml_strtok_r(text, "\n", &save);
     int line_no = 1;
     while (line) {
         strip_manifest_comment(line);
@@ -252,7 +309,7 @@ int scml_project_load(const char *manifest_path, ScmlProject *project, char *err
             else if (strcmp(key, "jobs") == 0) { project->jobs = atoi(value); if (project->jobs < 1) project->jobs = 1; }
             else { snprintf(err, err_size, "%s:%d: unknown project key '%s'", manifest_path, line_no, key); free(text); return 0; }
         }
-        line = strtok_r(NULL, "\n", &save);
+        line = scml_strtok_r(NULL, "\n", &save);
         line_no++;
     }
     free(text);
@@ -270,13 +327,13 @@ static int compile_loaded_project(const ScmlProject *project, const char *output
     char *old_defines = xstrdup2(getenv("SCML_DEFINES"));
     char include_path[8192] = {0};
     strncat(include_path, project->root, sizeof(include_path) - strlen(include_path) - 1);
-    strncat(include_path, ":.", sizeof(include_path) - strlen(include_path) - 1);
+    strncat(include_path, SCML_PATH_SEPARATOR ".", sizeof(include_path) - strlen(include_path) - 1);
     for (size_t i = 0; i < project->package_count; i++) {
-        if (include_path[0]) strncat(include_path, ":", sizeof(include_path) - strlen(include_path) - 1);
+        if (include_path[0]) strncat(include_path, SCML_PATH_SEPARATOR, sizeof(include_path) - strlen(include_path) - 1);
         strncat(include_path, project->packages[i], sizeof(include_path) - strlen(include_path) - 1);
     }
     if (old_path && old_path[0]) {
-        if (include_path[0]) strncat(include_path, ":", sizeof(include_path) - strlen(include_path) - 1);
+        if (include_path[0]) strncat(include_path, SCML_PATH_SEPARATOR, sizeof(include_path) - strlen(include_path) - 1);
         strncat(include_path, old_path, sizeof(include_path) - strlen(include_path) - 1);
     }
     char define_env[8192] = {0};
@@ -288,17 +345,13 @@ static int compile_loaded_project(const ScmlProject *project, const char *output
         if (define_env[0]) strncat(define_env, ";", sizeof(define_env) - strlen(define_env) - 1);
         strncat(define_env, old_defines, sizeof(define_env) - strlen(define_env) - 1);
     }
-#ifndef _WIN32
-    if (include_path[0]) setenv("SCML_PATH", include_path, 1);
-    if (define_env[0]) setenv("SCML_DEFINES", define_env, 1);
-#endif
+    if (include_path[0]) scml_set_env("SCML_PATH", include_path);
+    if (define_env[0]) scml_set_env("SCML_DEFINES", define_env);
     int ok = scml_compile_files(project->source_count, sources, output_path, err, err_size);
-#ifndef _WIN32
-    if (old_path && old_path[0]) setenv("SCML_PATH", old_path, 1);
-    else unsetenv("SCML_PATH");
-    if (old_defines && old_defines[0]) setenv("SCML_DEFINES", old_defines, 1);
-    else unsetenv("SCML_DEFINES");
-#endif
+    if (old_path && old_path[0]) scml_set_env("SCML_PATH", old_path);
+    else scml_unset_env("SCML_PATH");
+    if (old_defines && old_defines[0]) scml_set_env("SCML_DEFINES", old_defines);
+    else scml_unset_env("SCML_DEFINES");
     free(old_path);
     free(old_defines);
     free(sources);
@@ -368,13 +421,13 @@ int scml_format_file(const char *path, char *err, size_t err_size) {
     FILE *out = fopen(path, "wb");
     if (!out) { snprintf(err, err_size, "cannot write %s", path); free(text); return 0; }
     char *save = NULL;
-    char *line = strtok_r(text, "\n", &save);
+    char *line = scml_strtok_r(text, "\n", &save);
     while (line) {
         char *t = trim_ws(line);
         if (*t == ':') fprintf(out, "%s\n", t);
         else if (*t) fprintf(out, "    %s\n", t);
         else fprintf(out, "\n");
-        line = strtok_r(NULL, "\n", &save);
+        line = scml_strtok_r(NULL, "\n", &save);
     }
     fclose(out);
     free(text);

@@ -264,6 +264,81 @@ static void error_at(ScmlVM *vm, size_t pc, char *err, size_t err_size, const ch
     else snprintf(err, err_size, "%s", message);
 }
 
+static int valid_pc_target(ScmlVM *vm, size_t target) {
+    return target <= vm->code_size;
+}
+
+static int require_var_operand(ScmlVM *vm, const DecOp *op, size_t pc, char *err, size_t err_size, const char *message) {
+    if (op->type == SCML_OPERAND_VAR && op->s) return 1;
+    error_at(vm, pc, err, err_size, message);
+    return 0;
+}
+
+static int require_address_operand(ScmlVM *vm, const DecOp *op, size_t pc, char *err, size_t err_size, const char *message) {
+    if (op->type == SCML_OPERAND_ADDRESS && valid_pc_target(vm, (size_t)op->i)) return 1;
+    error_at(vm, pc, err, err_size, message);
+    return 0;
+}
+
+static int require_native_name_operand(ScmlVM *vm, const DecOp *op, size_t pc, char *err, size_t err_size) {
+    if ((op->type == SCML_OPERAND_STRING || op->type == SCML_OPERAND_VAR) && op->s) return 1;
+    error_at(vm, pc, err, err_size, "native call requires string/function name");
+    return 0;
+}
+
+static int require_string_operand(ScmlVM *vm, const DecOp *op, size_t pc, char *err, size_t err_size, const char *message) {
+    if (op->type == SCML_OPERAND_STRING && op->s) return 1;
+    error_at(vm, pc, err, err_size, message);
+    return 0;
+}
+
+static int validate_decoded_operands(ScmlVM *vm, ScmlOpcode op, DecOp *ops, uint8_t argc, size_t pc, char *err, size_t err_size) {
+    switch (op) {
+    case SCML_OP_STORE:
+        return require_var_operand(vm, &ops[0], pc, err, err_size, "SET destination must be a variable");
+    case SCML_OP_ADD: case SCML_OP_SUB: case SCML_OP_MUL: case SCML_OP_DIV: case SCML_OP_MOD:
+    case SCML_OP_SIN: case SCML_OP_COS: case SCML_OP_TAN: case SCML_OP_SQRT: case SCML_OP_ATAN2:
+    case SCML_OP_FLOOR: case SCML_OP_CEIL: case SCML_OP_ROUND: case SCML_OP_ABS:
+    case SCML_OP_STR_REPEAT: case SCML_OP_STRCAT: case SCML_OP_TO_INT: case SCML_OP_TO_FLOAT:
+    case SCML_OP_BIT_AND: case SCML_OP_BIT_OR: case SCML_OP_BIT_XOR: case SCML_OP_BIT_NOT:
+    case SCML_OP_SHL: case SCML_OP_SHR: case SCML_OP_POW: case SCML_OP_STRLEN: case SCML_OP_SUBSTR:
+    case SCML_OP_ARRAY_LEN: case SCML_OP_SPAN_READ_U8:
+        return require_var_operand(vm, &ops[0], pc, err, err_size, "opcode destination must be a variable");
+    case SCML_OP_JMP:
+        return require_address_operand(vm, &ops[0], pc, err, err_size, "JUMP target must be a valid label address");
+    case SCML_OP_IF_EQ: case SCML_OP_IF_NE: case SCML_OP_IF_GT: case SCML_OP_IF_LT: case SCML_OP_IF_GE: case SCML_OP_IF_LE:
+        return require_address_operand(vm, &ops[2], pc, err, err_size, "conditional target must be a valid label address");
+    case SCML_OP_CALL:
+        if (ops[0].type == SCML_OPERAND_ADDRESS) return require_address_operand(vm, &ops[0], pc, err, err_size, "CALL target must be a valid label address");
+        return require_native_name_operand(vm, &ops[0], pc, err, err_size);
+    case SCML_OP_EVENT_BIND:
+        return require_address_operand(vm, &ops[1], pc, err, err_size, "event handler must be a valid label address");
+    case SCML_OP_ENTITY_SPAWN:
+        return require_var_operand(vm, &ops[4], pc, err, err_size, "ENTITY_SPAWN output must be a variable");
+    case SCML_OP_HEAP_ALLOC: case SCML_OP_ARRAY_CREATE: case SCML_OP_SPAN_CREATE:
+        return require_var_operand(vm, &ops[1], pc, err, err_size, "allocation output must be a variable");
+    case SCML_OP_HEAP_LOAD:
+        return require_var_operand(vm, &ops[0], pc, err, err_size, "heap load output must be a variable");
+    case SCML_OP_CALL_NATIVE:
+        return require_native_name_operand(vm, &ops[0], pc, err, err_size);
+    case SCML_OP_ASYNC_SPAWN:
+        return require_address_operand(vm, &ops[0], pc, err, err_size, "ASYNC_SPAWN target must be a valid label address") &&
+               require_var_operand(vm, &ops[1], pc, err, err_size, "ASYNC_SPAWN output must be a variable");
+    case SCML_OP_ASYNC_DONE:
+        return require_var_operand(vm, &ops[1], pc, err, err_size, "ASYNC_DONE output must be a variable");
+    case SCML_OP_TYPE_DECL:
+        return require_var_operand(vm, &ops[0], pc, err, err_size, "TYPE_DECL target must be a variable") &&
+               require_string_operand(vm, &ops[1], pc, err, err_size, "TYPE_DECL type must be a string");
+    case SCML_OP_TYPE_ASSERT:
+        return require_var_operand(vm, &ops[2], pc, err, err_size, "TYPE_ASSERT output must be a variable");
+    case SCML_OP_FILE_READ:
+        return require_var_operand(vm, &ops[1], pc, err, err_size, "FILE_READ output must be a variable");
+    default:
+        (void)argc;
+        return 1;
+    }
+}
+
 static HeapObject *heap_find(ScmlVM *vm, uint32_t ref) {
     for (size_t i = 0; i < SCML_HEAP_OBJECTS_MAX; i++) {
         if (vm->heap[i].active && vm->heap[i].id == ref) return &vm->heap[i];
@@ -366,6 +441,7 @@ static EventEntry *event_find(ScmlVM *vm, const char *name, int create) {
 }
 
 int scml_vm_bind_event(ScmlVM *vm, const char *event_name, uint32_t handler_pc) {
+    if (!vm || handler_pc > vm->code_size) return 0;
     EventEntry *event = event_find(vm, event_name, 1);
     if (!event || event->handler_count >= SCML_EVENT_HANDLERS_MAX) return 0;
     event->handlers[event->handler_count++] = handler_pc;
@@ -410,6 +486,7 @@ static AsyncTask *async_task_find(ScmlVM *vm, uint32_t id) {
 }
 
 static int queue_async_task(ScmlVM *vm, uint32_t pc, uint32_t task_id) {
+    if (pc > vm->code_size) return 0;
     size_t next = (vm->event_tail + 1) % SCML_EVENT_QUEUE_MAX;
     if (next == vm->event_head) return 0;
     vm->event_queue[vm->event_tail].name = NULL;
@@ -674,6 +751,10 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
     for (uint8_t i = 0; i < argc; i++) {
         if (!decode_operand(vm, &ops[i], err, err_size)) { free_decoded(ops, i); return -1; }
     }
+    if (!validate_decoded_operands(vm, op, ops, argc, ins_pc, err, err_size)) {
+        free_decoded(ops, argc);
+        return -1;
+    }
     if (vm->trace) fprintf(stderr, "[SCML] pc=%zu line=%u op=%s argc=%u\n", ins_pc, current_line(vm, ins_pc), scml_opcode_name(op), argc);
 
     switch (op) {
@@ -850,7 +931,9 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         const char *str = value_to_cstr(&sv, sb, sizeof(sb));
         int count = value_to_int(&cv);
         if (count < 0) count = 0;
-        size_t unit = strlen(str), total = unit * (size_t)count;
+        size_t unit = strlen(str);
+        if ((size_t)count > 0 && unit > (SIZE_MAX - 1) / (size_t)count) { value_free(&sv); value_free(&cv); error_at(vm, ins_pc, err, err_size, "string repeat too large"); free_decoded(ops, argc); return -1; }
+        size_t total = unit * (size_t)count;
         char *tmp = (char *)malloc(total + 1);
         if (!tmp) { value_free(&sv); value_free(&cv); error_at(vm, ins_pc, err, err_size, "out of memory"); free_decoded(ops, argc); return -1; }
         char *w = tmp;
@@ -924,8 +1007,18 @@ int scml_vm_step(ScmlVM *vm, char *err, size_t err_size) {
         value_free(&ret);
         break;
     }
-    case SCML_OP_ENTITY_SET:
+    case SCML_OP_ENTITY_SET: {
+        ScmlValue args[3];
+        args[0] = eval(vm, &ops[0]);
+        args[1] = eval(vm, &ops[1]);
+        args[2] = eval(vm, &ops[2]);
+        ScmlValue ret = value_int(0);
+        int ok = scml_vm_call_native(vm, "gpu.entity_set", args, 3, &ret);
+        for (int i = 0; i < 3; i++) value_free(&args[i]);
+        value_free(&ret);
+        if (!ok) { error_at(vm, ins_pc, err, err_size, "ENTITY_SET requires gpu.entity_set"); free_decoded(ops, argc); return -1; }
         break;
+    }
     case SCML_OP_HEAP_ALLOC: case SCML_OP_ARRAY_CREATE: {
         ScmlValue sz = eval(vm, &ops[0]);
         int count = value_to_int(&sz);

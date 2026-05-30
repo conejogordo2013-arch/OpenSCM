@@ -539,9 +539,23 @@ fail:
 int scml_preprocess_file(const char *path, char **out_text, char *err, size_t err_size){ Macro *macros=NULL; seed_env_defines(&macros); char *txt=read_file(path,err,err_size); if(!txt){ macro_free(macros); return 0; } *out_text=NULL; int ok=preprocess_text(path,txt,&macros,out_text,err,err_size); free(txt); macro_free(macros); return ok; }
 
 static int add_stmt(ScmlProgram*p,ScmlStatement*s){ if(p->count==p->capacity){size_t nc=p->capacity?p->capacity*2:32; ScmlStatement*ni=(ScmlStatement*)realloc(p->items,nc*sizeof(*ni)); if(!ni)return 0; p->items=ni;p->capacity=nc;} p->items[p->count++]=*s; return 1; }
-static int parse_int(const char*s){ if(strlen(s)>1&&s[0]=='0'&&isxdigit((unsigned char)s[1])) return (int)strtol(s,NULL,16); return (int)strtol(s,NULL,0); }
-static int is_float_token(const char*s){ if(*s=='-')s++; int dot=0,digit=0; while(*s){ if(*s=='.'){ if(dot)return 0; dot=1; } else if(isdigit((unsigned char)*s)) digit=1; else return 0; s++; } return dot&&digit; }
-static int is_number_token(const char*s){ if(*s=='-')s++; if(!*s)return 0; while(*s){ if(!isxdigit((unsigned char)*s))return 0; s++; } return 1; }
+static int parse_int(const char *s) {
+    const char *p = s;
+    int sign = 1;
+    int has_hex_alpha = 0;
+    if (*p == '+' || *p == '-') {
+        if (*p == '-') sign = -1;
+        p++;
+    }
+    if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) return (int)strtol(s, NULL, 16);
+    for (const char *q = p; *q; q++) {
+        if ((*q >= 'a' && *q <= 'f') || (*q >= 'A' && *q <= 'F')) { has_hex_alpha = 1; break; }
+    }
+    if (has_hex_alpha) return sign * (int)strtol(p, NULL, 16);
+    return (int)strtol(s, NULL, 10);
+}
+static int is_float_token(const char*s){ if(*s=='-'||*s=='+')s++; int dot=0,digit=0; while(*s){ if(*s=='.'){ if(dot)return 0; dot=1; } else if(isdigit((unsigned char)*s)) digit=1; else return 0; s++; } return dot&&digit; }
+static int is_number_token(const char*s){ if(*s=='-'||*s=='+')s++; if(!*s)return 0; if(s[0]=='0' && (s[1]=='x'||s[1]=='X')) s+=2; if(!*s)return 0; while(*s){ if(!isxdigit((unsigned char)*s))return 0; s++; } return 1; }
 
 int scml_parse_file(const char *path, ScmlProgram *program, char *err, size_t err_size){ memset(program,0,sizeof(*program)); char *txt=NULL; if(!scml_preprocess_file(path,&txt,err,err_size))return 0; char *save=NULL,*line=strtok_r(txt,"\n",&save); int ln=1; while(line){ ScmlTokenList toks; if(!scml_lex_line(line,ln,&toks,err,err_size)){free(txt);return 0;} if(toks.count){ ScmlStatement st; memset(&st,0,sizeof(st)); st.line=ln; size_t idx=0; if(toks.items[0].type==SCML_TOK_COLON && toks.count>1){ st.label=xstrdup(toks.items[1].text); if(!add_stmt(program,&st)){free(txt);return 0;} idx=2; }
             if(idx<toks.count){ memset(&st,0,sizeof(st)); st.line=ln; const ScmlOpcodeInfo *info=NULL; char *op=toks.items[idx].text; int assign = (idx + 2 < toks.count && strcmp(toks.items[idx + 1].text, "=") == 0); int plus_assign = (idx + 2 < toks.count && strcmp(toks.items[idx + 1].text, "+=") == 0); int minus_assign = (idx + 2 < toks.count && strcmp(toks.items[idx + 1].text, "-=") == 0); if(assign||plus_assign||minus_assign){ info=scml_opcode_from_name(assign?"SET":(plus_assign?"ADD":"SUB")); st.opcode=info->opcode; ScmlOperand *dst=&st.operands[st.operand_count++]; dst->type=SCML_OPERAND_VAR; dst->text=xstrdup(toks.items[idx].text); if(!assign){ ScmlOperand *src=&st.operands[st.operand_count++]; src->type=SCML_OPERAND_VAR; src->text=xstrdup(toks.items[idx].text); } ScmlToken *tk=&toks.items[idx+2]; ScmlOperand *val=&st.operands[st.operand_count++]; val->text=xstrdup(tk->text); if(tk->type==SCML_TOK_STRING)val->type=SCML_OPERAND_STRING; else if(tk->type==SCML_TOK_LABEL_REF)val->type=SCML_OPERAND_ADDRESS; else if(tk->type==SCML_TOK_NUMBER && is_float_token(tk->text)){val->type=SCML_OPERAND_FLOAT;val->real=(float)strtod(tk->text,NULL);} else if(tk->type==SCML_TOK_NUMBER){val->type=SCML_OPERAND_INT;val->integer=parse_int(tk->text);} else val->type=SCML_OPERAND_VAR; idx += 3; }
