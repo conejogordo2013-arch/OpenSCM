@@ -9,6 +9,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef _WIN32
+#include <dirent.h>
+#endif
 
 #ifndef _WIN32
 extern int setenv(const char *, const char *, int);
@@ -36,9 +39,42 @@ static char *trim_ws(char *s) {
     return s;
 }
 
+static void strip_manifest_comment(char *line) {
+    int quote = 0;
+    int escaped = 0;
+    for (char *p = line; *p; p++) {
+        if (escaped) { escaped = 0; continue; }
+        if (quote && *p == '\\') { escaped = 1; continue; }
+        if (*p == '"' || *p == '\'') {
+            if (!quote) quote = *p;
+            else if (quote == *p) quote = 0;
+            continue;
+        }
+        if (!quote && (*p == '#' || *p == ';')) { *p = 0; return; }
+    }
+}
+
+static int cmp_cstr_ptr(const void *a, const void *b) {
+    const char *const *pa = (const char *const *)a;
+    const char *const *pb = (const char *const *)b;
+    return strcmp(*pa, *pb);
+}
+
 static int has_sep(const char *p) {
     size_t n = strlen(p);
     return n && (p[n - 1] == '/' || p[n - 1] == '\\');
+}
+
+
+static int has_suffix(const char *s, const char *suffix) {
+    size_t n = strlen(s ? s : "");
+    size_t m = strlen(suffix ? suffix : "");
+    return n >= m && strcmp(s + n - m, suffix) == 0;
+}
+
+static int source_seen(const ScmlProject *p, const char *path) {
+    for (size_t i = 0; i < p->source_count; i++) if (strcmp(p->sources[i], path) == 0) return 1;
+    return 0;
 }
 
 static int is_abs_path(const char *p) {
@@ -63,8 +99,22 @@ static void path_join(char *out, size_t out_size, const char *base, const char *
 
 static int ensure_dir(const char *path, char *err, size_t err_size) {
     if (!path || !path[0] || strcmp(path, ".") == 0) return 1;
-    if (MKDIR(path) == 0 || errno == EEXIST) return 1;
-    snprintf(err, err_size, "cannot create directory %s", path);
+    char tmp[SCML_PROJECT_PATH_MAX];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    size_t n = strlen(tmp);
+    while (n > 1 && (tmp[n - 1] == '/' || tmp[n - 1] == '\\')) tmp[--n] = 0;
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p != '/' && *p != '\\') continue;
+        char saved = *p;
+        *p = 0;
+        if (tmp[0] && strcmp(tmp, ".") != 0 && MKDIR(tmp) != 0 && errno != EEXIST) {
+            snprintf(err, err_size, "cannot create directory %s", tmp);
+            return 0;
+        }
+        *p = saved;
+    }
+    if (MKDIR(tmp) == 0 || errno == EEXIST) return 1;
+    snprintf(err, err_size, "cannot create directory %s", tmp);
     return 0;
 }
 
@@ -100,10 +150,68 @@ static int strip_quotes(char *value) {
 }
 
 static int add_source(ScmlProject *p, const char *value, char *err, size_t err_size) {
+    char full[SCML_PROJECT_PATH_MAX];
     if (p->source_count >= SCML_PROJECT_MAX_SOURCES) { snprintf(err, err_size, "too many project sources"); return 0; }
-    path_join(p->sources[p->source_count], sizeof(p->sources[p->source_count]), p->root, value);
+    path_join(full, sizeof(full), p->root, value);
+    if (source_seen(p, full)) return 1;
+    snprintf(p->sources[p->source_count], sizeof(p->sources[p->source_count]), "%s", full);
     p->source_count++;
     return 1;
+}
+
+static int add_define(ScmlProject *p, const char *value, char *err, size_t err_size) {
+    if (p->define_count >= SCML_PROJECT_MAX_DEFINES) { snprintf(err, err_size, "too many project defines"); return 0; }
+    snprintf(p->defines[p->define_count++], sizeof(p->defines[0]), "%s", value);
+    return 1;
+}
+
+static int add_sources_from_dir(ScmlProject *p, const char *dir, char *err, size_t err_size) {
+#ifdef _WIN32
+    (void)p; (void)dir;
+    snprintf(err, err_size, "source_dir is not implemented on this platform; list source entries explicitly");
+    return 0;
+#else
+    DIR *d = opendir(dir);
+    if (!d) { snprintf(err, err_size, "cannot open source_dir %s", dir); return 0; }
+    char **names = NULL;
+    size_t count = 0;
+    size_t capacity = 0;
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+        if (count == capacity) {
+            size_t next = capacity ? capacity * 2 : 32;
+            char **new_names = (char **)realloc(names, next * sizeof(*names));
+            if (!new_names) { closedir(d); snprintf(err, err_size, "out of memory"); goto fail; }
+            names = new_names;
+            capacity = next;
+        }
+        names[count] = xstrdup2(ent->d_name);
+        if (!names[count]) { closedir(d); snprintf(err, err_size, "out of memory"); goto fail; }
+        count++;
+    }
+    closedir(d);
+    if (count > 1) qsort(names, count, sizeof(*names), cmp_cstr_ptr);
+    for (size_t i = 0; i < count; i++) {
+        char child[SCML_PROJECT_PATH_MAX];
+        path_join(child, sizeof(child), dir, names[i]);
+        struct stat st;
+        if (stat(child, &st) != 0) continue;
+        if (S_ISDIR(st.st_mode)) {
+            if (!add_sources_from_dir(p, child, err, err_size)) goto fail;
+        } else if (S_ISREG(st.st_mode) && has_suffix(child, ".scml")) {
+            if (p->source_count >= SCML_PROJECT_MAX_SOURCES) { snprintf(err, err_size, "too many project sources"); goto fail; }
+            if (!source_seen(p, child)) snprintf(p->sources[p->source_count++], sizeof(p->sources[0]), "%s", child);
+        }
+    }
+    for (size_t i = 0; i < count; i++) free(names[i]);
+    free(names);
+    return 1;
+fail:
+    for (size_t i = 0; i < count; i++) free(names[i]);
+    free(names);
+    return 0;
+#endif
 }
 
 static int add_package(ScmlProject *p, const char *value, char *err, size_t err_size) {
@@ -126,10 +234,7 @@ int scml_project_load(const char *manifest_path, ScmlProject *project, char *err
     char *line = strtok_r(text, "\n", &save);
     int line_no = 1;
     while (line) {
-        char *hash = strchr(line, '#');
-        char *semi = strchr(line, ';');
-        char *cut = hash && semi ? (hash < semi ? hash : semi) : (hash ? hash : semi);
-        if (cut) *cut = 0;
+        strip_manifest_comment(line);
         char *t = trim_ws(line);
         if (*t) {
             char *eq = strchr(t, '=');
@@ -141,7 +246,9 @@ int scml_project_load(const char *manifest_path, ScmlProject *project, char *err
             if (strcmp(key, "name") == 0) snprintf(project->name, sizeof(project->name), "%s", value);
             else if (strcmp(key, "output") == 0) path_join(project->output, sizeof(project->output), project->root, value);
             else if (strcmp(key, "source") == 0 || strcmp(key, "src") == 0) { if (!add_source(project, value, err, err_size)) { free(text); return 0; } }
-            else if (strcmp(key, "package") == 0 || strcmp(key, "pkg") == 0) { if (!add_package(project, value, err, err_size)) { free(text); return 0; } }
+            else if (strcmp(key, "source_dir") == 0 || strcmp(key, "sources") == 0) { char full[SCML_PROJECT_PATH_MAX]; path_join(full, sizeof(full), project->root, value); if (!add_sources_from_dir(project, full, err, err_size)) { free(text); return 0; } }
+            else if (strcmp(key, "package") == 0 || strcmp(key, "pkg") == 0 || strcmp(key, "package_dir") == 0) { if (!add_package(project, value, err, err_size)) { free(text); return 0; } }
+            else if (strcmp(key, "define") == 0 || strcmp(key, "cfg") == 0) { if (!add_define(project, value, err, err_size)) { free(text); return 0; } }
             else if (strcmp(key, "jobs") == 0) { project->jobs = atoi(value); if (project->jobs < 1) project->jobs = 1; }
             else { snprintf(err, err_size, "%s:%d: unknown project key '%s'", manifest_path, line_no, key); free(text); return 0; }
         }
@@ -160,6 +267,7 @@ static int compile_loaded_project(const ScmlProject *project, const char *output
     if (!ensure_parent_dir(output_path, err, err_size)) { free(sources); return 0; }
 
     char *old_path = xstrdup2(getenv("SCML_PATH"));
+    char *old_defines = xstrdup2(getenv("SCML_DEFINES"));
     char include_path[8192] = {0};
     strncat(include_path, project->root, sizeof(include_path) - strlen(include_path) - 1);
     strncat(include_path, ":.", sizeof(include_path) - strlen(include_path) - 1);
@@ -171,33 +279,51 @@ static int compile_loaded_project(const ScmlProject *project, const char *output
         if (include_path[0]) strncat(include_path, ":", sizeof(include_path) - strlen(include_path) - 1);
         strncat(include_path, old_path, sizeof(include_path) - strlen(include_path) - 1);
     }
+    char define_env[8192] = {0};
+    for (size_t i = 0; i < project->define_count; i++) {
+        if (define_env[0]) strncat(define_env, ";", sizeof(define_env) - strlen(define_env) - 1);
+        strncat(define_env, project->defines[i], sizeof(define_env) - strlen(define_env) - 1);
+    }
+    if (old_defines && old_defines[0]) {
+        if (define_env[0]) strncat(define_env, ";", sizeof(define_env) - strlen(define_env) - 1);
+        strncat(define_env, old_defines, sizeof(define_env) - strlen(define_env) - 1);
+    }
 #ifndef _WIN32
     if (include_path[0]) setenv("SCML_PATH", include_path, 1);
+    if (define_env[0]) setenv("SCML_DEFINES", define_env, 1);
 #endif
     int ok = scml_compile_files(project->source_count, sources, output_path, err, err_size);
 #ifndef _WIN32
     if (old_path && old_path[0]) setenv("SCML_PATH", old_path, 1);
     else unsetenv("SCML_PATH");
+    if (old_defines && old_defines[0]) setenv("SCML_DEFINES", old_defines, 1);
+    else unsetenv("SCML_DEFINES");
 #endif
     free(old_path);
+    free(old_defines);
     free(sources);
     return ok;
 }
 
 int scml_project_compile(const char *manifest_path, char *err, size_t err_size) {
-    ScmlProject project;
-    if (!scml_project_load(manifest_path, &project, err, err_size)) return 0;
-    return compile_loaded_project(&project, project.output, err, err_size);
+    ScmlProject *project = (ScmlProject *)calloc(1, sizeof(*project));
+    if (!project) { snprintf(err, err_size, "out of memory"); return 0; }
+    if (!scml_project_load(manifest_path, project, err, err_size)) { free(project); return 0; }
+    int ok = compile_loaded_project(project, project->output, err, err_size);
+    free(project);
+    return ok;
 }
 
 int scml_project_check(const char *manifest_path, char *err, size_t err_size) {
-    ScmlProject project;
-    if (!scml_project_load(manifest_path, &project, err, err_size)) return 0;
+    ScmlProject *project = (ScmlProject *)calloc(1, sizeof(*project));
+    if (!project) { snprintf(err, err_size, "out of memory"); return 0; }
+    if (!scml_project_load(manifest_path, project, err, err_size)) { free(project); return 0; }
     char tmp[SCML_PROJECT_PATH_MAX];
-    path_join(tmp, sizeof(tmp), project.root, ".scml/check.scmlbin");
-    if (!ensure_parent_dir(tmp, err, err_size)) return 0;
-    int ok = compile_loaded_project(&project, tmp, err, err_size);
+    path_join(tmp, sizeof(tmp), project->root, ".scml/check.scmlbin");
+    if (!ensure_parent_dir(tmp, err, err_size)) { free(project); return 0; }
+    int ok = compile_loaded_project(project, tmp, err, err_size);
     if (ok) remove(tmp);
+    free(project);
     return ok;
 }
 
@@ -212,12 +338,27 @@ int scml_project_init(const char *dir, const char *name, char *err, size_t err_s
     path_join(main_src, sizeof(main_src), srcdir, "main.scml");
     FILE *mf = fopen(manifest, "wb");
     if (!mf) { snprintf(err, err_size, "cannot create %s", manifest); return 0; }
-    fprintf(mf, "name = \"%s\"\nsource = \"src/main.scml\"\noutput = \"build/%s.scmlbin\"\njobs = 1\n", name && name[0] ? name : "app", name && name[0] ? name : "app");
+    fprintf(mf, "name = \"%s\"\nsource_dir = \"src\"\noutput = \"build/%s.scmlbin\"\njobs = 1\ndefine = \"SCML_PROJECT 1\"\n", name && name[0] ? name : "app", name && name[0] ? name : "app");
     fclose(mf);
     FILE *sf = fopen(main_src, "wb");
     if (!sf) { snprintf(err, err_size, "cannot create %s", main_src); return 0; }
     fprintf(sf, ":MAIN\n03E5: \"hello from %s\"\n0001:\n", name && name[0] ? name : "SCML");
     fclose(sf);
+    return 1;
+}
+
+int scml_project_metadata(const char *manifest_path, FILE *out, char *err, size_t err_size) {
+    ScmlProject *project = (ScmlProject *)calloc(1, sizeof(*project));
+    if (!project) { snprintf(err, err_size, "out of memory"); return 0; }
+    if (!scml_project_load(manifest_path, project, err, err_size)) { free(project); return 0; }
+    fprintf(out, "name: %s\nroot: %s\noutput: %s\njobs: %d\n", project->name, project->root, project->output, project->jobs);
+    fprintf(out, "sources (%zu):\n", project->source_count);
+    for (size_t i = 0; i < project->source_count; i++) fprintf(out, "  - %s\n", project->sources[i]);
+    fprintf(out, "packages (%zu):\n", project->package_count);
+    for (size_t i = 0; i < project->package_count; i++) fprintf(out, "  - %s\n", project->packages[i]);
+    fprintf(out, "defines (%zu):\n", project->define_count);
+    for (size_t i = 0; i < project->define_count; i++) fprintf(out, "  - %s\n", project->defines[i]);
+    free(project);
     return 1;
 }
 

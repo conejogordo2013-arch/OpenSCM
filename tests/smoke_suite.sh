@@ -365,6 +365,49 @@ actual:   %q
   exit 1
 fi
 
+mega_dir=".scml/mega_project_tooling"
+rm -rf "$mega_dir"
+mkdir -p "$mega_dir/src/core" "$mega_dir/packages"
+cat >"$mega_dir/scml.pkg" <<'SCML'
+name = "mega-project-tooling"
+source_dir = "src"
+package_dir = "packages"
+output = "build/nested/mega.scmlbin"
+jobs = 8
+define = "PROJECT_MODE mega # hash-inside-quotes"
+SCML
+cat >"$mega_dir/src/main.scml" <<'SCML'
+:MAIN
+#ifdef PROJECT_MODE
+03E5: "define ok"
+#endif
+#for N in "ONE","TWO","THREE":
+03E5: N
+#endfor
+0001:
+SCML
+
+echo "[smoke] build source_dir project with manifest defines and #for metaprogramming"
+bin/scml build "$mega_dir/scml.pkg"
+bin/scml metadata "$mega_dir/scml.pkg" >/tmp/scml_mega_meta.out
+if ! rg -q "sources \(1\)" /tmp/scml_mega_meta.out || ! rg -q "PROJECT_MODE mega" /tmp/scml_mega_meta.out; then
+  echo "[smoke] metadata did not report expected source/define" >&2
+  cat /tmp/scml_mega_meta.out >&2
+  exit 1
+fi
+mega_output="$(bin/scml run "$mega_dir/build/nested/mega.scmlbin")"
+expected_mega_output=$'define ok
+ONE
+TWO
+THREE'
+if [[ "$mega_output" != "$expected_mega_output" ]]; then
+  echo "[smoke] unexpected mega tooling output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_mega_output" "$mega_output" >&2
+  exit 1
+fi
+
 echo "[smoke] run migration audit"
 bash tools/scml_migration_audit.sh
 
