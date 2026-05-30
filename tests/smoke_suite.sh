@@ -372,9 +372,9 @@ cat >"$mega_dir/scml.pkg" <<'SCML'
 name = "mega-project-tooling"
 source_dir = "src"
 package_dir = "packages"
-output = "build/mega.scmlbin"
+output = "build/nested/mega.scmlbin"
 jobs = 8
-define = "PROJECT_MODE mega"
+define = "PROJECT_MODE mega # hash-inside-quotes"
 SCML
 cat >"$mega_dir/src/main.scml" <<'SCML'
 :MAIN
@@ -395,7 +395,7 @@ if ! rg -q "sources \(1\)" /tmp/scml_mega_meta.out || ! rg -q "PROJECT_MODE mega
   cat /tmp/scml_mega_meta.out >&2
   exit 1
 fi
-mega_output="$(bin/scml run "$mega_dir/build/mega.scmlbin")"
+mega_output="$(bin/scml run "$mega_dir/build/nested/mega.scmlbin")"
 expected_mega_output=$'define ok
 ONE
 TWO

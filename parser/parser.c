@@ -238,8 +238,8 @@ static void macro_free(Macro *m){ while(m){Macro*n=m->next; free(m->name); for(s
 static Macro *find_macro(Macro *m,const char *name){ for(;m;m=m->next) if(strcmp(m->name,name)==0) return m; return NULL; }
 static void macro_remove(Macro **head, const char *name){ Macro *prev=NULL,*cur=*head; while(cur){ if(strcmp(cur->name,name)==0){ if(prev) prev->next=cur->next; else *head=cur->next; cur->next=NULL; macro_free(cur); return; } prev=cur; cur=cur->next; } }
 
-static char *replace_all(const char *src,const char *key,const char *val){ char *out=NULL; size_t len=0,cap=0; size_t k=strlen(key); const char *p=src; while(*p){ if((p==src||!(isalnum((unsigned char)p[-1])||p[-1]=='_'))&&strncmp(p,key,k)==0&&!(isalnum((unsigned char)p[k])||p[k]=='_')){ append(&out,&len,&cap,val); p+=k; } else { char tmp[2]={*p++,0}; append(&out,&len,&cap,tmp);} } return out?out:xstrdup(""); }
-static char *replace_object_like(const char *src,const char *key,const char *val){ char *out=NULL; size_t len=0,cap=0; size_t k=strlen(key); const char *p=src; while(*p){ int before_ok=(p==src||!(isalnum((unsigned char)p[-1])||p[-1]=='_')); int after_ident=(isalnum((unsigned char)p[k])||p[k]=='_'); int call_like=(p[k]=='('); if(before_ok&&strncmp(p,key,k)==0&&!after_ident&&!call_like){ append(&out,&len,&cap,val); p+=k; } else { char tmp[2]={*p++,0}; append(&out,&len,&cap,tmp);} } return out?out:xstrdup(""); }
+static char *replace_all(const char *src,const char *key,const char *val){ char *out=NULL; size_t len=0,cap=0; size_t k=strlen(key); if(k==0) return xstrdup(src?src:""); const char *p=src; while(*p){ int enough=strlen(p)>=k; if(enough&&(p==src||!(isalnum((unsigned char)p[-1])||p[-1]=='_'))&&strncmp(p,key,k)==0&&!(isalnum((unsigned char)p[k])||p[k]=='_')){ append(&out,&len,&cap,val); p+=k; } else { char tmp[2]={*p++,0}; append(&out,&len,&cap,tmp);} } return out?out:xstrdup(""); }
+static char *replace_object_like(const char *src,const char *key,const char *val){ char *out=NULL; size_t len=0,cap=0; size_t k=strlen(key); if(k==0) return xstrdup(src?src:""); const char *p=src; while(*p){ int enough=strlen(p)>=k; int before_ok=(p==src||!(isalnum((unsigned char)p[-1])||p[-1]=='_')); int after_ident=(enough&&(isalnum((unsigned char)p[k])||p[k]=='_')); int call_like=(enough&&p[k]=='('); if(enough&&before_ok&&strncmp(p,key,k)==0&&!after_ident&&!call_like){ append(&out,&len,&cap,val); p+=k; } else { char tmp[2]={*p++,0}; append(&out,&len,&cap,tmp);} } return out?out:xstrdup(""); }
 
 static char **split_args(char *s,size_t *argc){ char **out=NULL; *argc=0; char *p=s; while(p&&*p){ while(isspace((unsigned char)*p)||*p==',')p++; if(!*p)break; char *start=p; int quoted=0; int depth=0; while(*p && (quoted || depth>0 || *p!=',')){ if(*p=='"') quoted=!quoted; else if(!quoted && *p=='(') depth++; else if(!quoted && *p==')' && depth>0) depth--; p++; } char saved=*p; *p=0; out=(char**)realloc(out,(*argc+1)*sizeof(char*)); out[(*argc)++]=xstrdup(trim(start)); if(saved) p++; } return out; }
 
@@ -456,7 +456,12 @@ static int preprocess_text(const char *path, const char *text, Macro **macros, c
                 for(size_t i=0;i<ac;i++){
                     macro_push_object(macros, ident, trim(vals[i]));
                     char *processed=NULL;
-                    if(!preprocess_text(path, body?body:"", macros, &processed, err, err_size)){ free(itemcopy); free(body); goto fail; }
+                    if(!preprocess_text(path, body?body:"", macros, &processed, err, err_size)){
+                        macro_remove(macros, ident);
+                        for(size_t j=0;j<ac;j++) free(vals[j]);
+                        free(vals); free(itemcopy); free(body);
+                        goto fail;
+                    }
                     append(out,&olen,&ocap,processed?processed:"");
                     free(processed);
                     macro_remove(macros, ident);
