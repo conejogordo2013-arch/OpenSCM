@@ -22,13 +22,14 @@ extern "C" {
 #define SCML_NATIVE_MODULES_MAX 256
 #define SCML_ASYNC_TASKS_MAX 4096
 
-typedef enum ScmlValueType { SCML_VAL_INT, SCML_VAL_STRING, SCML_VAL_FLOAT } ScmlValueType;
+typedef enum ScmlValueType { SCML_VAL_INT, SCML_VAL_STRING, SCML_VAL_FLOAT, SCML_VAL_POINTER } ScmlValueType;
 
 typedef struct ScmlValue {
     ScmlValueType type;
     int32_t integer;
     float real;
     char *string;
+    uintptr_t pointer;
 } ScmlValue;
 
 typedef struct ScmlEntity {
@@ -61,6 +62,9 @@ int scml_vm_register_function(ScmlVM *vm, const char *name, ScmlNativeFunc fn, v
 int scml_vm_register_module(ScmlVM *vm, const char *name, ScmlModuleResolver resolver, void *user_data);
 int scml_vm_unregister_module(ScmlVM *vm, const char *name);
 int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue *args, size_t arg_count, ScmlValue *ret);
+void *scml_vm_load_library(ScmlVM *vm, const char *path);
+int scml_vm_unload_library(ScmlVM *vm, void *handle);
+void *scml_vm_get_symbol(ScmlVM *vm, void *library_handle, const char *function_name);
 int scml_vm_bind_event(ScmlVM *vm, const char *event_name, uint32_t handler_pc);
 int scml_vm_trigger_event(ScmlVM *vm, const char *event_name, char *err, size_t err_size);
 void scml_vm_dump_memory(ScmlVM *vm, FILE *out);
@@ -71,6 +75,7 @@ void scml_vm_clear_events(ScmlVM *vm);
 ScmlValue scml_value_int(int32_t value);
 ScmlValue scml_value_float(float value);
 ScmlValue scml_value_string(const char *value);
+ScmlValue scml_value_pointer(uintptr_t value);
 void scml_value_dispose(ScmlValue *value);
 
 #ifdef __cplusplus

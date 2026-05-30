@@ -412,3 +412,54 @@ For practical per-OS installation/build requirements (MSYS2/Linux/macOS, X11, Vu
 
 
 Runtime defaults now include additional concrete handlers (`runtime.wait` sleep behavior and baseline `net.open_socket`/`net.send_data` responses) so SCML libraries can prototype richer systems with less boilerplate while still using the native-module boundary.
+
+## Generic dynamic FFI
+
+SCML includes a generic Foreign Function Interface for loading host dynamic libraries
+without teaching the VM about any specific external API. The core loader exposes:
+
+- `scml_ffi_load_library(path)` / `CALL_NATIVE "load_library" path`
+- `scml_ffi_unload_library(handle)` / `CALL_NATIVE "unload_library" handle`
+- `scml_ffi_get_symbol(handle, function_name)` for explicit symbol lookup
+- `CALL_NATIVE "FunctionName" ...args` for automatic symbol search across every
+  loaded library and invocation through the generic call layer
+
+Arguments are converted from VM values to native ABI values generically. By
+default the VM maps `int` to `int32_t`, `float` to `float`, strings to
+`const char *`, and pointer values to `void *`. Return values default to `int`;
+scripts can set `$FFI_RETURN_TYPE` to `"int"`, `"i64"`, `"float"`,
+`"double"`, `"pointer"`, `"string"`, or `"void"` before a call when the native
+function returns another type. Scripts can also set `$FFI_ARG_TYPES` to a
+comma-separated type list such as `"int,double,pointer"` to force exact ABI
+argument types for large native libraries with mixed signatures. For repeated
+calls, `CALL_NATIVE "ffi.declare" "FunctionName" "return_type" "arg,arg"` stores
+a reusable signature in the FFI registry, so later `CALL_NATIVE "FunctionName"`
+calls do not need to keep resetting global type variables.
+
+The implementation uses `LoadLibrary` / `GetProcAddress` on Windows and
+`dlopen` / `dlsym` on Unix-like systems. The library, symbol, signature, and
+search-path registries grow dynamically instead of using fixed slots, duplicate
+library loads are reference-counted, resolved symbols are cached, and unresolved
+symbols are reported as controlled VM runtime errors. `CALL_NATIVE "ffi.add_search_path" path`
+registers lookup directories, and `CALL_NATIVE "load_library" path flags`
+optionally accepts bit flags (`1` now, `2` lazy, `4` local, `8` global) so large
+libraries with transitive dependencies can be loaded with `RTLD_GLOBAL`-style
+visibility when the platform supports it. Extension probing lets scripts load a
+basename such as `"libexample"` from registered search paths and let the host pick
+`.so`, `.dylib`, or `.dll`. For struct/buffer-heavy native APIs, the generic
+allocator helpers (`ffi.alloc`, `ffi.cstring`, `ffi.free`, `ffi.ptr_add`,
+`ffi.read`, `ffi.write`, `ffi.memcpy`, `ffi.memset`, and `ffi.read_cstring`) let
+scripts build native memory layouts and pass pointers without adding API-specific
+modules to the VM core.
+
+Example native library and script files are provided in `examples/ffi_native.c`
+and `examples/ffi_dynamic_call.scml`:
+
+```sh
+cc -shared -fPIC -o examples/libscml_ffi_native.so examples/ffi_native.c
+bin/scml compile examples/ffi_dynamic_call.scml /tmp/ffi_dynamic_call.scmlbin
+bin/scml run /tmp/ffi_dynamic_call.scmlbin
+```
+
+The FFI layer is intentionally API-agnostic: it does not embed SDL, OpenGL,
+Vulkan, audio, filesystem modules, or any other external library-specific logic.

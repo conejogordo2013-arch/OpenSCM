@@ -20,6 +20,7 @@ set(SCML_CORE_SOURCES
     lexer/lexer.c
     opcode/opcode.c
     runtime/scml_runtime_modules.c
+    ffi/scml_ffi.c
 )
 
 add_library(scml_core STATIC ${SCML_CORE_SOURCES})
@@ -32,7 +33,16 @@ else()
 endif()
 
 find_package(Threads REQUIRED)
-target_link_libraries(scml_core PUBLIC Threads::Threads)
+target_link_libraries(scml_core PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(LIBFFI QUIET libffi)
+endif()
+if(LIBFFI_FOUND)
+    target_compile_definitions(scml_core PUBLIC SCML_USE_LIBFFI=1)
+    target_include_directories(scml_core PUBLIC ${LIBFFI_INCLUDE_DIRS})
+    target_link_libraries(scml_core PUBLIC ${LIBFFI_LIBRARIES})
+endif()
 
 if(SCML_AUTODETECT_BACKENDS)
     find_package(SDL2 QUIET)
