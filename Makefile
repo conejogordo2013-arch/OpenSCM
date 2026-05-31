@@ -2,6 +2,7 @@ CC ?= cc
 CXX ?= c++
 CFLAGS ?= -std=c99 -O2 -Wall -Wextra -pedantic
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
+DEPFLAGS ?= -MMD -MP
 
 ifeq ($(OS),Windows_NT)
 EXEEXT ?= .exe
@@ -35,6 +36,7 @@ CLI_SRC = main.c $(CORE_SRC)
 CLI_OBJ = $(CLI_SRC:.c=.o)
 CORE_OBJ = $(CORE_SRC:.c=.o)
 DEBUGGER_OBJ = $(DEBUGGER_SRC:.c=.o)
+DEPFILES = $(sort $(CLI_OBJ:.o=.d) $(CORE_OBJ:.o=.d) $(DEBUGGER_OBJ:.o=.d))
 SCML_BIN = bin/scml$(EXEEXT)
 GAMEPLAY_BIN = bin/scml_gameplay_example$(EXEEXT)
 EDITOR_BIN = bin/scml_editor$(EXEEXT)
@@ -44,6 +46,9 @@ all: $(SCML_BIN)
 ifneq ($(EXEEXT),)
 bin/scml: $(SCML_BIN)
 endif
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 $(SCML_BIN): $(CLI_OBJ) | bin
 	$(CC) $(CFLAGS) -o $@ $(CLI_OBJ) $(LDLIBS)
@@ -75,7 +80,7 @@ editor-example: $(EDITOR_BIN) examples/gameplay.scml
 	$(EDITOR_BIN) examples/gameplay.scml examples/editor_tmp.scmlbin
 
 clean:
-	-$(RM_F) $(call PATH_FIX,$(CLI_OBJ) $(DEBUGGER_OBJ) bin/scml bin/scml.exe bin/scml_gameplay_example bin/scml_gameplay_example.exe bin/scml_editor bin/scml_editor.exe examples/*.scmlbin log.txt)
+	-$(RM_F) $(call PATH_FIX,$(CLI_OBJ) $(DEBUGGER_OBJ) $(DEPFILES) bin/scml bin/scml.exe bin/scml_gameplay_example bin/scml_gameplay_example.exe bin/scml_editor bin/scml_editor.exe examples/*.scmlbin log.txt)
 
 .PHONY: all clean cpp-example editor-example core test doctor tooling migration-audit verify-examples
 
@@ -97,3 +102,5 @@ migration-audit:
 
 verify-examples:
 	bash tools/scml_verify_examples.sh
+
+-include $(DEPFILES)
