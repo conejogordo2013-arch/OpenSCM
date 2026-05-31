@@ -94,5 +94,53 @@
       "}"
     ],
     "description": "Modern SCML function label block"
+  },
+  "Modern For Loop": {
+    "prefix": "scfor",
+    "body": [
+      "for (let ${1:$I}: i32 = ${2:0}; ${1:$I} < ${3:10}; ${1:$I}++) {",
+      "    ${4:print(${1:$I});}",
+      "}"
+    ],
+    "description": "Modern SCML for loop"
+  },
+  "Modern Else If Chain": {
+    "prefix": "scelseif",
+    "body": [
+      "if (${1:$VALUE} == ${2:0}) {",
+      "    ${3:print(\"zero\");}",
+      "} else if (${1:$VALUE} == ${4:1}) {",
+      "    ${5:print(\"one\");}",
+      "} else {",
+      "    ${6:print(\"other\");}",
+      "}"
+    ],
+    "description": "Modern SCML if/else-if/else chain"
+  },
+  "FFI Declare": {
+    "prefix": "ffideclare",
+    "body": [
+      "0B31: \"ffi.declare\" \"${1:function_name}\" \"${2|int,i64,float,double,pointer,string,void|}\" \"${3:int,int}\""
+    ],
+    "description": "Declare a reusable FFI signature"
+  },
+  "FFI Load Library": {
+    "prefix": "ffiload",
+    "body": [
+      "0B31: \"ffi.add_search_path\" \"${1:examples}\"",
+      "0B31: \"ffi.load\" \"${2:library_name}\""
+    ],
+    "description": "Add an FFI search path and load a dynamic library"
+  },
+  "SCML FFI Header Macro": {
+    "prefix": "scffiheader",
+    "body": [
+      "macro ${1:LIB_LOAD}():",
+      "    0B31: \"ffi.add_search_path\" \"${2:native}\"",
+      "    0B31: \"ffi.load\" \"${3:library}\"",
+      "    0B31: \"ffi.declare\" \"${4:function_name}\" \"${5|int,float,double,pointer,string,void|}\" \"${6:int}\"",
+      "endmacro"
+    ],
+    "description": "SCML-only wrapper macro for an FFI library"
   }
 }
