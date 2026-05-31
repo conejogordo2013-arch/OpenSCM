@@ -34,7 +34,17 @@ script MAIN {
         $count += 1;
     }
 
-    if ($count == 3) {
+    for (let $i: i32 = 0; $i < 8; $i++) {
+        if ($i == 2) {
+            continue;
+        }
+        if ($i == 6) {
+            break;
+        }
+        $count += $i;
+    }
+
+    if ($count > 3) {
         print("modern SCML");
     } else {
         log("unexpected count");
@@ -54,9 +64,9 @@ Supported source concepts include:
 - SCM-style calls through `CALL @FUNC` and `return`.
 - Thread/event handler termination through `end_thread`.
 - Header files (`.scmlh`) with `#define`, legacy `#include`, modern `use`, legacy `macro name(args): ... endmacro`, and modern `macro name(args) { ... }`.
-- Optional convenience assignment such as `$PLAYER_HEALTH += 50`, compiled to the existing `ADD` opcode.
+- Optional convenience assignments such as `$PLAYER_HEALTH += 50`, `$MASK &= 255`, and `$FLAGS >>= 1`, compiled to the matching arithmetic/bitwise opcodes.
 - Modern declarations such as `let $COUNT: u32 = 32;`, `var`, and `const`, lowered to `TYPE_DECL` + `SET`.
-- Modern blocks: `script`, `fn`/`function`, `task`, `if/else`, `while`, `goto`, `call`, `spawn`, `return`, `halt`, and `yield`.
+- Modern blocks: `script`, `fn`/`function`, `task`, `if/else if/else`, `while`, C-style `for(init; condition; post)`, `break`, `continue`, `goto`, `call`, `spawn`, `return`, `halt`, and `yield`.
 - Modern calls such as `print(value);`, `log(value);`, `wait(ms);`, and native module calls like `runtime.get_ticks() -> $TICKS;`.
 - Modern package imports through `use "std.scmlh";`, `use <mathkit.scmlh>;`, or namespace-style `use vendor.mathkit;`.
 

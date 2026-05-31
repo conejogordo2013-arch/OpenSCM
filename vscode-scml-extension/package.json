@@ -17,7 +17,12 @@
     "onCommand:scml.compile",
     "onCommand:scml.run",
     "onCommand:scml.compileAndRun",
-    "onCommand:scml.restartLanguageServices"
+    "onCommand:scml.restartLanguageServices",
+    "onCommand:scml.selectExecutable",
+    "onCommand:scml.revealExecutable",
+    "onCommand:scml.checkCurrentFile",
+    "onCommand:scml.buildProject",
+    "onCommand:scml.showMetadata"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -64,6 +69,26 @@
       {
         "command": "scml.restartLanguageServices",
         "title": "SCML: Restart Language Services"
+      },
+      {
+        "command": "scml.selectExecutable",
+        "title": "SCML: Select CLI Executable"
+      },
+      {
+        "command": "scml.revealExecutable",
+        "title": "SCML: Show Resolved CLI Executable"
+      },
+      {
+        "command": "scml.checkCurrentFile",
+        "title": "SCML: Check Current File"
+      },
+      {
+        "command": "scml.buildProject",
+        "title": "SCML: Build Project Manifest"
+      },
+      {
+        "command": "scml.showMetadata",
+        "title": "SCML: Show Project Metadata"
       }
     ],
     "configuration": {
@@ -93,8 +118,104 @@
           "type": "boolean",
           "default": true,
           "description": "Run the SCML compiler on saved .scml files and surface compiler errors in Problems."
+        },
+        "scml.additionalCompileArgs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra arguments appended to `scml compile` before inputs/output. Useful for future CLI switches."
+        },
+        "scml.additionalRunArgs": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Extra arguments appended to `scml run` after the binary path."
+        },
+        "scml.runInTerminal": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run SCML binaries in an integrated terminal instead of the Output panel."
+        },
+        "scml.manifestPath": {
+          "type": "string",
+          "default": "${workspaceFolder}/scml.pkg",
+          "description": "Default scml.pkg path used by SCML: Build Project Manifest and SCML: Show Project Metadata."
+        },
+        "scml.clearOutputBeforeTask": {
+          "type": "boolean",
+          "default": true,
+          "description": "Clear the SCML output channel before compile/check/run tasks."
         }
       }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "scml.selectExecutable"
+        },
+        {
+          "command": "scml.revealExecutable"
+        },
+        {
+          "command": "scml.compile",
+          "when": "resourceLangId == scml"
+        },
+        {
+          "command": "scml.checkCurrentFile",
+          "when": "resourceLangId == scml"
+        },
+        {
+          "command": "scml.run",
+          "when": "resourceLangId == scml"
+        },
+        {
+          "command": "scml.compileAndRun",
+          "when": "resourceLangId == scml"
+        },
+        {
+          "command": "scml.buildProject"
+        },
+        {
+          "command": "scml.showMetadata"
+        },
+        {
+          "command": "scml.restartLanguageServices",
+          "when": "resourceLangId == scml"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "scml.compileAndRun",
+          "when": "resourceLangId == scml",
+          "group": "navigation"
+        },
+        {
+          "command": "scml.checkCurrentFile",
+          "when": "resourceLangId == scml",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "scml.compile",
+          "when": "resourceLangId == scml",
+          "group": "scml@1"
+        },
+        {
+          "command": "scml.compileAndRun",
+          "when": "resourceLangId == scml",
+          "group": "scml@2"
+        },
+        {
+          "command": "scml.checkCurrentFile",
+          "when": "resourceLangId == scml",
+          "group": "scml@3"
+        }
+      ]
     }
   }
 }
