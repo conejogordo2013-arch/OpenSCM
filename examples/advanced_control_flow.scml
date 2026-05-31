@@ -1,0 +1,17 @@
+script MAIN {
+    let $sum: i32 = 0;
+
+    for (let $i: i32 = 0; $i < 6; $i++) {
+        if ($i == 2) {
+            continue;
+        }
+        if ($i == 5) {
+            break;
+        }
+        $sum += $i;
+    }
+
+    $sum *= 2;
+    $sum >>= 1;
+    print($sum);
+}

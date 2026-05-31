@@ -10,3 +10,5 @@ examples/editor_tmp.scmlbin
 bin/scml.exe
 bin/scml_gameplay_example.exe
 bin/scml_editor.exe
+
+*.d
