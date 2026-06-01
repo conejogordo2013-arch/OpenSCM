@@ -16,6 +16,7 @@ SAMPLES=(
   "examples/hostless_async_static.scml"
   "examples/modern_surface.scml"
   "examples/advanced_control_flow.scml"
+  "examples/advanced_language_surface.scml"
   "examples/functions.scml"
   "examples/std_usage.scml"
   "examples/dynamic_arrays.scml"
@@ -55,6 +56,25 @@ if [[ "$advanced_control_output" != "8" ]]; then
   exit 1
 fi
 
+
+advanced_surface_bin=".scml/advanced_language_surface.scmlbin"
+echo "[smoke] run advanced language surface regression"
+bin/scml compile "examples/advanced_language_surface.scml" "$advanced_surface_bin"
+advanced_surface_output="$(bin/scml run "$advanced_surface_bin")"
+expected_advanced_surface_output=$'42
+0
+0
+42
+99
+3
+advanced surface ok'
+if [[ "$advanced_surface_output" != "$expected_advanced_surface_output" ]]; then
+  echo "[smoke] unexpected advanced language surface output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_advanced_surface_output" "$advanced_surface_output" >&2
+  exit 1
+fi
 
 else_if_src=".scml/else_if_control.scml"
 else_if_bin=".scml/else_if_control.scmlbin"
