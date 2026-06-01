@@ -1,0 +1,64 @@
+use "../std.scmlh";
+
+NAMESPACE SCML::Demo {
+    CLASS Animal {
+    PUBLIC:
+        VOID hablar();
+    PRIVATE:
+        INT edad;
+    };
+
+    INTERFACE IRenderable {
+    PUBLIC:
+        VOID draw();
+    };
+}
+
+MODULE gameplay.core;
+
+TMPL<typename T>
+concept Numero = SCML::is_arithmetic_v<T>;
+
+enum class Estado {
+    Idle,
+    Running,
+    Done
+};
+
+script MAIN {
+    AUTO x = 10;
+    INT y = 32;
+    AUTO total = x + y;
+    print(total);
+
+    AUTO [sx, sy] = punto;
+    print(sx);
+    print(sy);
+
+    SCML_VECTOR_NEW(8, $vec);
+    SCML_VECTOR_PUSH($vec, 42);
+    SCML_VECTOR_GET($first, $vec, 0);
+    print($first);
+
+    SCML_OPTIONAL_SOME(99, $opt);
+    SCML_OPTIONAL_UNWRAP($unwrapped, $opt, @OPTIONAL_NONE);
+    print($unwrapped);
+
+    SCML_EXPECTED_OK(7, $expected);
+    SCML_ANY_SET($any, "payload");
+    SCML_REFLECT_TYPE($any, $type_name);
+    SCML_RANGE_I32(0, 3, $range);
+    SCML_SPACESHIP_CMP($cmp, 10, 7);
+    print($cmp);
+
+    AUTO suma = [](INT a, INT b) {
+        RETURN a + b;
+    };
+
+    SCML_LAMBDA_STUB($lambda_stub);
+    SCML_COUT("advanced surface ok");
+}
+
+:OPTIONAL_NONE
+PRINT("optional none")
+END_THREAD()

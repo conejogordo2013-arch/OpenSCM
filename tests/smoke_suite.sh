@@ -15,6 +15,8 @@ SAMPLES=(
   "examples/rotating_ascii_cubes.scml"
   "examples/hostless_async_static.scml"
   "examples/modern_surface.scml"
+  "examples/advanced_control_flow.scml"
+  "examples/advanced_language_surface.scml"
   "examples/functions.scml"
   "examples/std_usage.scml"
   "examples/dynamic_arrays.scml"
@@ -41,6 +43,90 @@ if [[ "$modern_output" != "$expected_modern_output" ]]; then
   printf 'expected: %q
 actual:   %q
 ' "$expected_modern_output" "$modern_output" >&2
+  exit 1
+fi
+
+
+advanced_control_bin=".scml/advanced_control_flow.scmlbin"
+echo "[smoke] run advanced modern control-flow regression"
+bin/scml compile "examples/advanced_control_flow.scml" "$advanced_control_bin"
+advanced_control_output="$(bin/scml run "$advanced_control_bin")"
+if [[ "$advanced_control_output" != "8" ]]; then
+  echo "[smoke] unexpected advanced control-flow output: $advanced_control_output" >&2
+  exit 1
+fi
+
+
+advanced_surface_bin=".scml/advanced_language_surface.scmlbin"
+echo "[smoke] run advanced language surface regression"
+bin/scml compile "examples/advanced_language_surface.scml" "$advanced_surface_bin"
+advanced_surface_output="$(bin/scml run "$advanced_surface_bin")"
+expected_advanced_surface_output=$'42
+0
+0
+42
+99
+3
+advanced surface ok'
+if [[ "$advanced_surface_output" != "$expected_advanced_surface_output" ]]; then
+  echo "[smoke] unexpected advanced language surface output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_advanced_surface_output" "$advanced_surface_output" >&2
+  exit 1
+fi
+
+else_if_src=".scml/else_if_control.scml"
+else_if_bin=".scml/else_if_control.scmlbin"
+cat >"$else_if_src" <<'SCML'
+script MAIN {
+    let $value: i32 = 1;
+    let $seen: i32 = 0;
+
+    if ($value == 1) {
+        $seen = 10;
+    } else if ($value == 1) {
+        $seen = 20;
+    } else {
+        $seen = 30;
+    }
+    print($seen);
+
+    if ($value == 2) {
+        $seen = 40;
+    } else if ($value == 3) {
+        $seen = 50;
+    } else {
+        $seen = 60;
+    }
+    print($seen);
+}
+SCML
+
+echo "[smoke] run modern else-if chain regression"
+bin/scml compile "$else_if_src" "$else_if_bin"
+else_if_output="$(bin/scml run "$else_if_bin")"
+expected_else_if_output=$'10
+60'
+if [[ "$else_if_output" != "$expected_else_if_output" ]]; then
+  echo "[smoke] unexpected else-if output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_else_if_output" "$else_if_output" >&2
+  exit 1
+fi
+
+break_bad_src=".scml/break_outside_loop.scml"
+cat >"$break_bad_src" <<'SCML'
+script MAIN {
+    break;
+}
+SCML
+
+echo "[smoke] verify modern syntax rejects break outside loops"
+if bin/scml compile "$break_bad_src" ".scml/break_outside_loop.scmlbin" >/tmp/scml_break_bad.out 2>&1; then
+  echo "[smoke] compiler accepted break outside loop" >&2
+  cat /tmp/scml_break_bad.out >&2
   exit 1
 fi
 
@@ -242,7 +328,8 @@ SCML
     exit 1
   fi
 
-  ffi_pointer_src=".scml/ffi_pointer_vtable.scmlbin"
+  ffi_pointer_src=".scml/ffi_pointer_vtable.scml"
+  ffi_pointer_bin=".scml/ffi_pointer_vtable.scmlbin"
   cat >"$ffi_pointer_src" <<'SCML'
 :MAIN
 0B31: "ffi.add_search_path" "examples"

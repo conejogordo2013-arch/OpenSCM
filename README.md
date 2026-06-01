@@ -34,7 +34,17 @@ script MAIN {
         $count += 1;
     }
 
-    if ($count == 3) {
+    for (let $i: i32 = 0; $i < 8; $i++) {
+        if ($i == 2) {
+            continue;
+        }
+        if ($i == 6) {
+            break;
+        }
+        $count += $i;
+    }
+
+    if ($count > 3) {
         print("modern SCML");
     } else {
         log("unexpected count");
@@ -54,11 +64,13 @@ Supported source concepts include:
 - SCM-style calls through `CALL @FUNC` and `return`.
 - Thread/event handler termination through `end_thread`.
 - Header files (`.scmlh`) with `#define`, legacy `#include`, modern `use`, legacy `macro name(args): ... endmacro`, and modern `macro name(args) { ... }`.
-- Optional convenience assignment such as `$PLAYER_HEALTH += 50`, compiled to the existing `ADD` opcode.
-- Modern declarations such as `let $COUNT: u32 = 32;`, `var`, and `const`, lowered to `TYPE_DECL` + `SET`.
-- Modern blocks: `script`, `fn`/`function`, `task`, `if/else`, `while`, `goto`, `call`, `spawn`, `return`, `halt`, and `yield`.
+- Optional convenience assignments such as `$PLAYER_HEALTH += 50`, `$MASK &= 255`, and `$FLAGS >>= 1`, compiled to the matching arithmetic/bitwise opcodes.
+- Modern declarations such as `let $COUNT: u32 = 32;`, `var`, `const`, uppercase `AUTO`, C-style typed declarations (`INT y = 32;`, `SCML::VECTOR<INT> values;`), and simple arithmetic initializers lowered to existing `TYPE_DECL`, `SET`, and arithmetic opcodes.
+- Modern blocks: `script`, `fn`/`function`, `task`, `if/else if/else`, `while`, C-style `for(init; condition; post)`, `break`, `continue`, `goto`, `call`, `spawn`, `return`, `halt`, and `yield`.
+- Advanced surface-only metadata blocks for `CLASS`, `INTERFACE`, `NAMESPACE`, `MODULE`, `TMPL`, `concept`, `enum class`, access sections (`PUBLIC:`, `PRIVATE:`, `PROTECTED:`), virtual/inline member declarations, lightweight exceptions (`try`/`catch`/`finally` blocks plus `throw` state), lambda stubs, and structured bindings such as `AUTO [x, y] = point;`.
 - Modern calls such as `print(value);`, `log(value);`, `wait(ms);`, and native module calls like `runtime.get_ticks() -> $TICKS;`.
 - Modern package imports through `use "std.scmlh";`, `use <mathkit.scmlh>;`, or namespace-style `use vendor.mathkit;`.
+- Advanced std helpers in `std.scmlh` / `stscm/std.scmlh` for `SCML_VECTOR_*`, `SCML_LIST_*`, `SCML_MAP_*`, `SCML_UNORDERED_MAP_NEW`, `SCML_OPTIONAL_*`, `SCML_EXPECTED_*`, `SCML_VARIANT_SET`, `SCML_ANY_SET`, `SCML_FILESYS_*`, stream-style `SCML_COUT`/`SCML_CIN`, reference/const/move/smart-pointer markers, reflection/RTTI helpers, concepts/constexpr helpers, thread wrappers, ranges, three-way comparison, VM trace flags, and JIT-hint metadata.
 
 ## Architecture
 

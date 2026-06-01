@@ -44,17 +44,26 @@ const BUILTIN_OPCODES = [
 ];
 
 const DIRECTIVES = ['#include', '#define', '#undef', '#if', '#ifdef', '#ifndef', '#elif', '#else', '#endif', '#error', '#warning', '#line', '#pragma'];
-const KEYWORDS = ['macro', 'endmacro', 'CALL', 'JUMP', 'GOTO', 'RETURN', 'END_THREAD', 'WAIT'];
-const TYPE_NAMES = ['i32', 'f32', 'str', 'any', 'int', 'float', 'string'];
+const KEYWORDS = ['macro', 'endmacro', 'CALL', 'JUMP', 'GOTO', 'RETURN', 'END_THREAD', 'WAIT', 'use', 'script', 'module', 'namespace', 'class', 'fn', 'function', 'task', 'let', 'var', 'const', 'if', 'else', 'while', 'for', 'break', 'continue', 'goto', 'call', 'spawn', 'return', 'halt', 'yield', 'print', 'log', 'wait'];
+const TYPE_NAMES = ['i8', 'i16', 'i32', 'i64', 'u8', 'u16', 'u32', 'u64', 'f32', 'f64', 'str', 'bool', 'ref', 'any', 'int', 'float', 'number', 'string', 'array<any>'];
 
 let diagnostics;
 let outputChannel;
 let cachedCatalog;
 
+function substituteVariables(value, vars) {
+  return String(value || '').replace(/\$\{(workspaceFolder|file|fileDirname|fileBasename|fileBasenameNoExtension)\}/g, (_, key) => vars[key] || '');
+}
+
 function resolveScmlExecutable(workspaceFolder) {
   const cfg = vscode.workspace.getConfiguration('scml');
   const configured = cfg.get('executablePath', '').trim();
-  if (configured && fs.existsSync(configured)) return configured;
+  const root = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+  if (configured) {
+    const expanded = substituteVariables(configured, { workspaceFolder: root });
+    if (path.isAbsolute(expanded) || expanded.includes(path.sep)) return expanded;
+    return expanded;
+  }
   const candidates = [];
   if (workspaceFolder) {
     candidates.push(path.join(workspaceFolder.uri.fsPath, 'bin', process.platform === 'win32' ? 'scml.exe' : 'scml'));
@@ -64,14 +73,31 @@ function resolveScmlExecutable(workspaceFolder) {
   return process.platform === 'win32' ? 'scml.exe' : 'scml';
 }
 
-function runCommand(cmd, args, cwd) {
+function quoteForLog(value) {
+  const s = String(value);
+  return /[\s"]/.test(s) ? JSON.stringify(s) : s;
+}
+
+function commandLineForLog(cmd, args) {
+  return [cmd, ...args].map(quoteForLog).join(' ');
+}
+
+function runCommand(cmd, args, cwd, options = {}) {
+  const silent = Boolean(options.silent);
+  if (outputChannel && !silent) outputChannel.appendLine(`$ ${commandLineForLog(cmd, args)}`);
   return new Promise((resolve, reject) => {
     const child = cp.spawn(cmd, args, { cwd, shell: false });
     let stdout = '', stderr = '';
     child.stdout.on('data', d => stdout += d.toString());
     child.stderr.on('data', d => stderr += d.toString());
-    child.on('error', reject);
-    child.on('close', code => code === 0 ? resolve({ stdout, stderr }) : reject(new Error(stderr || stdout || `Exit code ${code}`)));
+    child.on('error', err => reject(new Error(`Unable to start '${cmd}'. Configure scml.executablePath. ${err.message}`)));
+    child.on('close', code => {
+      if (outputChannel && !silent) {
+        if (stdout) outputChannel.append(stdout);
+        if (stderr) outputChannel.append(stderr);
+      }
+      return code === 0 ? resolve({ stdout, stderr }) : reject(new Error(stderr || stdout || `Exit code ${code}`));
+    });
   });
 }
 
@@ -129,7 +155,7 @@ function parseOpcodeCatalog() {
 function parseMacroCatalog() {
   const catalog = new Map();
   const files = [path.join(extensionRepoRoot(), 'stscm', 'std.scmlh'), path.join(extensionRepoRoot(), 'std.scmlh')];
-  const re = /^\s*macro\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:/gm;
+  const re = /^\s*macro\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*[:{]/gm;
   for (const file of files) {
     const text = readTextIfExists(file);
     let m;
@@ -170,13 +196,13 @@ function parseDocument(document) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    const include = trimmed.match(/^#\s*include\s+"([^"]+)"/);
+    const include = trimmed.match(/^#\s*include\s+["<]([^">]+)[">]/) || trimmed.match(/^use\s+["<]([^">]+)[">]/);
     if (include) includes.push({ path: include[1], range: rangeForMatch(document, lineNo, include, 1) });
 
     const define = trimmed.match(/^#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)/);
     if (define) defines.set(define[1], new vscode.Location(document.uri, rangeForMatch(document, lineNo, define, 1)));
 
-    const macro = trimmed.match(/^macro\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:/);
+    const macro = trimmed.match(/^macro\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*[:{]/);
     if (macro) {
       inMacro = { name: macro[1], line: lineNo };
       macros.set(macro[1], { name: macro[1], args: macro[2].trim() ? macro[2].split(',').map(a => a.trim()) : [], location: new vscode.Location(document.uri, rangeForMatch(document, lineNo, macro, 1)), endLine: lineNo });
@@ -207,7 +233,7 @@ function parseDocument(document) {
     }
 
     const opToken = trimmed.match(/^([A-Za-z_][A-Za-z0-9_.]*|[0-9A-Fa-f]{4})\s*:/) || trimmed.match(/^([A-Za-z_][A-Za-z0-9_.]*)\s*\(/) || trimmed.match(/^([A-Za-z_][A-Za-z0-9_.]*)\b/);
-    if (opToken && !trimmed.startsWith('#') && !/^[$]?[A-Za-z_][A-Za-z0-9_@]*\s*(=|\+=|-=)/.test(trimmed)) {
+    if (opToken && !trimmed.startsWith('#') && !/^[$]?[A-Za-z_][A-Za-z0-9_@]*\s*(=|[+\-*/%&|^]=|<<=|>>=|\+\+|--)/.test(trimmed)) {
       const name = opToken[1].toUpperCase();
       const rawName = opToken[1];
       if (/^[0-9A-Fa-f]{4}$/.test(rawName)) {
@@ -255,7 +281,7 @@ async function runCompilerDiagnostics(document) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'scml-diag-'));
   const outBin = path.join(tmpDir, 'diagnostic.scmlbin');
   try {
-    await runCommand(exe, ['compile', document.uri.fsPath, outBin], cwd);
+    await runCommand(exe, ['compile', document.uri.fsPath, outBin], cwd, { silent: true });
   } catch (e) {
     const message = String(e.message || e);
     const m = message.match(/line\s+(\d+):\s*(.*)/i);
@@ -269,20 +295,59 @@ async function runCompilerDiagnostics(document) {
   }
 }
 
+function configArray(cfg, key) {
+  const value = cfg.get(key, []);
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
+}
+
+function outputBinFor(file, workspaceFolder) {
+  const cfg = vscode.workspace.getConfiguration('scml');
+  const root = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(file);
+  const vars = {
+    workspaceFolder: root,
+    file,
+    fileDirname: path.dirname(file),
+    fileBasename: path.basename(file),
+    fileBasenameNoExtension: path.basename(file).replace(/\.scmlh?$/, '')
+  };
+  const outDir = substituteVariables(cfg.get('defaultBinOutputDir', '${workspaceFolder}/bin'), vars);
+  return path.join(outDir, `${vars.fileBasenameNoExtension}.scmlbin`);
+}
+
+function manifestPathFor(workspaceFolder) {
+  const root = workspaceFolder ? workspaceFolder.uri.fsPath : (vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd());
+  const cfg = vscode.workspace.getConfiguration('scml');
+  return substituteVariables(cfg.get('manifestPath', '${workspaceFolder}/scml.pkg'), { workspaceFolder: root });
+}
+
+function prepareOutput() {
+  const cfg = vscode.workspace.getConfiguration('scml');
+  if (cfg.get('clearOutputBeforeTask', true)) outputChannel.clear();
+  outputChannel.show(true);
+}
+
 async function compileCurrent() {
   const { file, workspaceFolder } = getActiveScmlFile();
+  if (file.endsWith('.scmlh')) throw new Error('Header files (.scmlh) cannot be compiled directly. Open a .scml source or use SCML: Check Current File.');
+  prepareOutput();
   const exe = resolveScmlExecutable(workspaceFolder);
   const cfg = vscode.workspace.getConfiguration('scml');
-  const outDirCfg = cfg.get('defaultBinOutputDir', '${workspaceFolder}/bin');
-  const root = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(file);
-  const outDir = outDirCfg.replace('${workspaceFolder}', root);
-  fs.mkdirSync(outDir, { recursive: true });
-  const outBin = path.join(outDir, path.basename(file).replace(/\.scmlh?$/, '.scmlbin'));
+  const outBin = outputBinFor(file, workspaceFolder);
+  fs.mkdirSync(path.dirname(outBin), { recursive: true });
   const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(file);
-  const result = await runCommand(exe, ['compile', file, outBin], cwd);
+  const result = await runCommand(exe, ['compile', ...configArray(cfg, 'additionalCompileArgs'), file, outBin], cwd);
   if (result.stderr) vscode.window.showWarningMessage(result.stderr.trim());
   vscode.window.showInformationMessage(`SCML compiled: ${outBin}`);
   return outBin;
+}
+
+async function checkCurrentFile() {
+  const { file, workspaceFolder } = getActiveScmlFile();
+  prepareOutput();
+  const exe = resolveScmlExecutable(workspaceFolder);
+  const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(file);
+  await runCommand(exe, ['check', file], cwd);
+  vscode.window.showInformationMessage('SCML check completed.');
 }
 
 async function runCurrentBinary(binPath) {
@@ -291,12 +356,28 @@ async function runCurrentBinary(binPath) {
   const cfg = vscode.workspace.getConfiguration('scml');
   const args = ['run', binPath];
   if (cfg.get('runWithTrace', false)) args.push('--trace');
+  args.push(...configArray(cfg, 'additionalRunArgs'));
   const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(binPath);
-  const result = await runCommand(exe, args, cwd);
-  outputChannel.appendLine(result.stdout || '');
-  if (result.stderr) outputChannel.appendLine(result.stderr);
-  outputChannel.show(true);
+  if (cfg.get('runInTerminal', false)) {
+    const terminal = vscode.window.createTerminal({ name: 'SCML Run', cwd });
+    terminal.show(true);
+    terminal.sendText(commandLineForLog(exe, args));
+    return;
+  }
+  prepareOutput();
+  await runCommand(exe, args, cwd);
   vscode.window.showInformationMessage('SCML run completed. Check Output panel.');
+}
+
+async function buildProject(showMetadata = false) {
+  const editor = vscode.window.activeTextEditor;
+  const workspaceFolder = editor ? vscode.workspace.getWorkspaceFolder(editor.document.uri) : vscode.workspace.workspaceFolders?.[0];
+  prepareOutput();
+  const exe = resolveScmlExecutable(workspaceFolder);
+  const manifest = manifestPathFor(workspaceFolder);
+  const cwd = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(manifest);
+  await runCommand(exe, [showMetadata ? 'metadata' : 'build', manifest], cwd);
+  vscode.window.showInformationMessage(showMetadata ? 'SCML metadata completed.' : 'SCML project build completed.');
 }
 
 function opcodeCompletionItems() {
@@ -339,16 +420,43 @@ function activate(context) {
   context.subscriptions.push(vscode.commands.registerCommand('scml.run', async () => {
     try {
       const { file, workspaceFolder } = getActiveScmlFile();
-      const cfg = vscode.workspace.getConfiguration('scml');
-      const root = workspaceFolder ? workspaceFolder.uri.fsPath : path.dirname(file);
-      const outDir = cfg.get('defaultBinOutputDir', '${workspaceFolder}/bin').replace('${workspaceFolder}', root);
-      const binPath = path.join(outDir, path.basename(file).replace(/\.scmlh?$/, '.scmlbin'));
-      await runCurrentBinary(binPath);
+      await runCurrentBinary(outputBinFor(file, workspaceFolder));
     } catch (e) { vscode.window.showErrorMessage(`SCML run failed: ${e.message}`); }
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('scml.compileAndRun', async () => {
     try { const bin = await compileCurrent(); await runCurrentBinary(bin); } catch (e) { vscode.window.showErrorMessage(`SCML compile+run failed: ${e.message}`); }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('scml.checkCurrentFile', async () => {
+    try { await checkCurrentFile(); } catch (e) { vscode.window.showErrorMessage(`SCML check failed: ${e.message}`); }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('scml.buildProject', async () => {
+    try { await buildProject(false); } catch (e) { vscode.window.showErrorMessage(`SCML project build failed: ${e.message}`); }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('scml.showMetadata', async () => {
+    try { await buildProject(true); } catch (e) { vscode.window.showErrorMessage(`SCML metadata failed: ${e.message}`); }
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('scml.revealExecutable', () => {
+    const editor = vscode.window.activeTextEditor;
+    const folder = editor ? vscode.workspace.getWorkspaceFolder(editor.document.uri) : vscode.workspace.workspaceFolders?.[0];
+    vscode.window.showInformationMessage(`SCML executable: ${resolveScmlExecutable(folder)}`);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('scml.selectExecutable', async () => {
+    const picked = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectFolders: false,
+      canSelectMany: false,
+      title: 'Select the SCML CLI executable that supports modern syntax'
+    });
+    if (!picked || !picked[0]) return;
+    await vscode.workspace.getConfiguration('scml').update('executablePath', picked[0].fsPath, vscode.ConfigurationTarget.Workspace);
+    cachedCatalog = undefined;
+    vscode.window.showInformationMessage(`SCML executable selected: ${picked[0].fsPath}`);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('scml.restartLanguageServices', () => {

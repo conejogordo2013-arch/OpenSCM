@@ -1741,3 +1741,168 @@ macro vector_pop(out_value, vec_ref) {
     0006: 97@ 96@ 2
     0B12: out_value vec_ref 97@
 }
+
+; -----------------------------------------------------------------------------
+; Advanced SCML surface helpers
+; -----------------------------------------------------------------------------
+; These helpers make the modern SCML surface feel closer to C++/C#/STL while
+; still lowering to the existing VM opcodes. They are intentionally small,
+; predictable wrappers: large libraries can be layered on top without expanding
+; the core runtime.
+
+#define nullptr 0
+#define NULLPTR 0
+#define null 0
+#define TRUE 1
+#define FALSE 0
+
+macro SCML_COUT(value) {
+    03E5: value
+}
+macro SCML_CIN(prompt, out_value) {
+    0B21: prompt out_value
+}
+
+macro SCML_VECTOR_NEW(capacity, out_vec) {
+    vector_new(out_vec, capacity)
+}
+macro SCML_VECTOR_PUSH(vec_ref, value) {
+    vector_push(vec_ref, value)
+}
+macro SCML_VECTOR_GET(out_value, vec_ref, index) {
+    vector_get(out_value, vec_ref, index)
+}
+macro SCML_VECTOR_SIZE(out_size, vec_ref) {
+    vector_size(out_size, vec_ref)
+}
+macro SCML_LIST_NEW(capacity, out_list) {
+    vector_new(out_list, capacity)
+}
+macro SCML_LIST_PUSH(list_ref, value) {
+    vector_push(list_ref, value)
+}
+macro SCML_STRING_SET(out_string, value) {
+    0B4B: out_string "str"
+    0004: out_string value
+}
+macro SCML_MAP_NEW(out_map) {
+    MAP_T_NEW("any", "any", 32, out_map)
+}
+macro SCML_MAP_PUT(map_ref, key, value) {
+    MAP_T_PUT_I32(map_ref, key, value)
+}
+macro SCML_UNORDERED_MAP_NEW(out_map) {
+    MAP_T_NEW("hash<any>", "any", 32, out_map)
+}
+
+macro SCML_OPTIONAL_SOME(value, out_optional) {
+    OPTIONAL_T_SOME("any", value, out_optional)
+}
+macro SCML_OPTIONAL_NONE(out_optional) {
+    OPTIONAL_T_NONE("any", out_optional)
+}
+macro SCML_OPTIONAL_UNWRAP(out_value, optional_ref, fallback_label) {
+    OPTIONAL_T_UNWRAP("any", out_value, optional_ref, fallback_label)
+}
+macro SCML_EXPECTED_OK(value, out_expected) {
+    0B14: 2 out_expected
+    0B13: out_expected 0 1
+    0B13: out_expected 1 value
+}
+macro SCML_EXPECTED_ERR(value, out_expected) {
+    0B14: 2 out_expected
+    0B13: out_expected 0 0
+    0B13: out_expected 1 value
+}
+macro SCML_VARIANT_SET(out_variant, tag, value) {
+    0B14: 2 out_variant
+    0B13: out_variant 0 tag
+    0B13: out_variant 1 value
+}
+macro SCML_ANY_SET(out_any, value) {
+    0B4B: out_any "any"
+    0004: out_any value
+}
+
+macro SCML_FILESYS_PATH_SET(out_path, value) {
+    0B4B: out_path "str"
+    0004: out_path value
+}
+macro SCML_FILESYS_EXISTS(path_value, out_exists) {
+    0004: out_exists 0
+}
+
+macro SCML_REF_BIND(out_ref, value) {
+    0B4B: out_ref "any"
+    0004: out_ref value
+}
+macro SCML_CONST_BIND(out_const, value) {
+    0B4B: out_const "any"
+    0004: out_const value
+}
+macro SCML_MOVE(out_value, value) {
+    0B4B: out_value "any"
+    0004: out_value value
+}
+macro SCML_SMART_PTR_NEW(value, out_ptr) {
+    0B14: 2 out_ptr
+    0B13: out_ptr 0 1
+    0B13: out_ptr 1 value
+}
+
+macro SCML_REFLECT_TYPE(value, out_type) {
+    0004: out_type "any"
+}
+macro SCML_REFLECT_NAME(value, out_name) {
+    0004: out_name "value"
+}
+macro SCML_RTTI_TAG(value, type_name) {
+    RTTI_TAG_SET(value, type_name)
+}
+
+macro SCML_CONCEPT_ASSERT(value, type_name, out_ok) {
+    TYPE_ASSERT(value, type_name, out_ok)
+}
+macro SCML_CONSTEXPR_ADD(out_value, a, b) {
+    CONSTEXPR_ADD(out_value, a, b)
+}
+macro SCML_LAMBDA_STUB(out_lambda) {
+    0B4B: out_lambda "any"
+    0004: out_lambda 0
+}
+
+macro SCML_THREAD_SLEEP(ms, out_thread) {
+    THREAD_CREATE_SLEEP(ms, out_thread)
+}
+macro SCML_THREAD_DONE(thread_ref, out_done) {
+    THREAD_DONE(thread_ref, out_done)
+}
+macro SCML_THREAD_JOIN(thread_ref) {
+    THREAD_JOIN(thread_ref)
+}
+
+macro SCML_RANGE_I32(begin_value, end_value, out_range) {
+    0B14: 2 out_range
+    0B13: out_range 0 begin_value
+    0B13: out_range 1 end_value
+}
+macro SCML_RANGE_BEGIN(out_begin, range_ref) {
+    0B12: out_begin range_ref 0
+}
+macro SCML_RANGE_END(out_end, range_ref) {
+    0B12: out_end range_ref 1
+}
+macro SCML_SPACESHIP_CMP(out_cmp, a, b) {
+    0007: out_cmp a b
+}
+
+macro SCML_MODULE_EXPORT(name, value) {
+    0004: $SCML_MODULE_LAST_EXPORT name
+    0004: $SCML_MODULE_LAST_VALUE value
+}
+macro SCML_VM_TRACE(on_off) {
+    0004: $SCML_VM_TRACE on_off
+}
+macro SCML_JIT_HINT(region_name) {
+    0004: $SCML_JIT_HINT region_name
+}
