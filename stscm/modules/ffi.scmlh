@@ -32,3 +32,19 @@ macro ffi_memmove(dst_ptr, src_ptr, size, out_ok) {
     0B31: "ffi.memmove" dst_ptr src_ptr size
     0004: out_ok $RETVAL
 }
+
+macro ffi_declare_abi(function_name, return_type, arg_types, abi_name, out_ok) {
+    0B31: "ffi.declare_abi" function_name return_type arg_types abi_name
+    0004: out_ok $RETVAL
+}
+
+macro ffi_bind(handle, alias_name, symbol_name, return_type, arg_types, abi_name, out_ok) {
+    0B31: "ffi.bind" handle alias_name symbol_name return_type arg_types abi_name
+    0004: out_ok $RETVAL
+}
+
+macro ffi_resolve(function_name, out_ptr) {
+    0B31: "ffi.resolve" function_name
+    0004: out_ptr $RETVAL
+}
+

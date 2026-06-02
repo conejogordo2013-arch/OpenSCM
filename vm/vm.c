@@ -743,6 +743,20 @@ static int vm_ffi_call_pointer_args(const ScmlValue *fn_value, const ScmlValue *
     return scml_ffi_call_native_abi((void *)vm_value_to_pointer(fn_value), call_args, &signature, abi, ret);
 }
 
+static int vm_ffi_call_name_args(const ScmlValue *name_value, const ScmlValue *return_value, const ScmlValue *arg_value, const ScmlValue *call_args, size_t call_arg_count, ScmlFFIAbi abi, ScmlValue *ret) {
+    if (!name_value || name_value->type != SCML_VAL_STRING) return 0;
+    ScmlFFIType arg_types[SCML_OPERANDS_MAX];
+    ScmlFFISignature signature;
+    if (!return_value && !arg_value) {
+        const ScmlFFISignature *declared = scml_ffi_get_declared_signature(name_value->string);
+        if (!declared || declared->arg_count != call_arg_count) return 0;
+        return scml_ffi_call_native_by_name_abi(name_value->string, call_args, declared, abi, ret);
+    }
+    if (!vm_ffi_signature_from_text(return_value, arg_value, &signature, arg_types, sizeof(arg_types) / sizeof(arg_types[0]))) return 0;
+    if (signature.arg_count != call_arg_count) return 0;
+    return scml_ffi_call_native_by_name_abi(name_value->string, call_args, &signature, abi, ret);
+}
+
 static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
     if (strcmp(name, "ffi.last_error") == 0 || strcmp(name, "ffi.error") == 0) {
         if (arg_count != 0) return 0;
@@ -784,9 +798,18 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_int(ok);
         return ok;
     }
-    if (strcmp(name, "ffi.declare") == 0) {
-        if (arg_count != 3 || args[0].type != SCML_VAL_STRING || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
-        int ok = scml_ffi_declare_function_text(args[0].string, args[1].string, args[2].string);
+    if (strcmp(name, "ffi.declare") == 0 || strcmp(name, "ffi.declare_abi") == 0) {
+        if ((arg_count != 3 && arg_count != 4) || args[0].type != SCML_VAL_STRING || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
+        if (arg_count == 4 && args[3].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_declare_function_text_abi(args[0].string, args[1].string, args[2].string, arg_count == 4 ? args[3].string : "default");
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.bind") == 0 || strcmp(name, "ffi.bind_name") == 0) {
+        if ((arg_count != 5 && arg_count != 6) || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING || args[3].type != SCML_VAL_STRING || args[4].type != SCML_VAL_STRING) return 0;
+        if (arg_count == 6 && args[5].type != SCML_VAL_STRING) return 0;
+        void *handle = (void *)vm_value_to_pointer(&args[0]);
+        int ok = scml_ffi_bind_function_text(args[1].string, handle, args[2].string, args[3].string, args[4].string, arg_count == 6 ? args[5].string : "default");
         if (ret) *ret = value_int(ok);
         return ok;
     }
@@ -811,6 +834,14 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_pointer((uintptr_t)symbol);
         return 1;
     }
+    if (strcmp(name, "ffi.resolve") == 0 || strcmp(name, "ffi.find_symbol") == 0) {
+        if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
+        void *symbol = scml_ffi_get_bound_symbol(args[0].string);
+        if (!symbol) symbol = scml_ffi_find_symbol(args[0].string);
+        if (!symbol) return 0;
+        if (ret) *ret = value_pointer((uintptr_t)symbol);
+        return 1;
+    }
     if (strcmp(name, "ffi.call") == 0 || strcmp(name, "ffi.call_ptr") == 0 || strcmp(name, "ffi.call_pointer") == 0) {
         if (arg_count < 3 || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING) return 0;
         return vm_ffi_call_pointer_args(&args[0], &args[1], &args[2], args + 3, arg_count - 3, SCML_FFI_ABI_DEFAULT, ret);
@@ -819,6 +850,21 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (arg_count < 4 || args[1].type != SCML_VAL_STRING || args[2].type != SCML_VAL_STRING || args[3].type != SCML_VAL_STRING) return 0;
         ScmlFFIAbi abi = scml_ffi_parse_abi(args[1].string, SCML_FFI_ABI_DEFAULT);
         return vm_ffi_call_pointer_args(&args[0], &args[2], &args[3], args + 4, arg_count - 4, abi, ret);
+    }
+    if (strcmp(name, "ffi.call_name") == 0 || strcmp(name, "ffi.call_by_name") == 0) {
+        if (arg_count < 1 || args[0].type != SCML_VAL_STRING) return 0;
+        if (arg_count >= 3 && args[1].type == SCML_VAL_STRING && args[2].type == SCML_VAL_STRING) {
+            return vm_ffi_call_name_args(&args[0], &args[1], &args[2], args + 3, arg_count - 3, SCML_FFI_ABI_DEFAULT, ret);
+        }
+        return vm_ffi_call_name_args(&args[0], NULL, NULL, args + 1, arg_count - 1, SCML_FFI_ABI_DEFAULT, ret);
+    }
+    if (strcmp(name, "ffi.call_name_abi") == 0 || strcmp(name, "ffi.call_by_name_abi") == 0) {
+        if (arg_count < 2 || args[0].type != SCML_VAL_STRING || args[1].type != SCML_VAL_STRING) return 0;
+        ScmlFFIAbi abi = scml_ffi_parse_abi(args[1].string, SCML_FFI_ABI_DEFAULT);
+        if (arg_count >= 4 && args[2].type == SCML_VAL_STRING && args[3].type == SCML_VAL_STRING) {
+            return vm_ffi_call_name_args(&args[0], &args[2], &args[3], args + 4, arg_count - 4, abi, ret);
+        }
+        return vm_ffi_call_name_args(&args[0], NULL, NULL, args + 2, arg_count - 2, abi, ret);
     }
     if (strcmp(name, "ffi.peek_ptr") == 0 || strcmp(name, "ffi.peek_pointer") == 0) {
         if (arg_count != 2) return 0;

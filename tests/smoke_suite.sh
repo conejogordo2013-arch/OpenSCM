@@ -359,8 +359,18 @@ if pkg-config --exists libffi 2>/dev/null; then
 :MAIN
 0B31: "ffi.add_search_path" "examples"
 0B31: "ffi.load" "libscml_ffi_native"
+0004: $LIB $RETVAL
 0B31: "ffi.declare" "scml_ffi_sum15_i32" "int" "int,int,int,int,int,int,int,int,int,int,int,int,int,int,int"
 0B31: "scml_ffi_sum15_i32" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+03E5: $RETVAL
+0B31: "ffi.declare" "scml_ffi_sum7_i32" "int" "int,int,int,int,int,int,int"
+0B31: "ffi.call_name" "scml_ffi_sum7_i32" 1 2 3 4 5 6 21
+03E5: $RETVAL
+0B31: "ffi.bind" $LIB "sum_alias" "scml_ffi_add_i32" "int" "int,int" "cdecl"
+0B31: "ffi.call_name_abi" "sum_alias" "cdecl" 20 22
+03E5: $RETVAL
+0B31: "ffi.resolve" "sum_alias"
+0B31: "ffi.is_null" $RETVAL
 03E5: $RETVAL
 0001:
 SCML
@@ -368,8 +378,15 @@ SCML
   echo "[smoke] run libffi many-argument native call regression"
   bin/scml compile "$ffi_native_src" "$ffi_native_bin"
   ffi_native_output="$(bin/scml run "$ffi_native_bin")"
-  if [[ "$ffi_native_output" != "120" ]]; then
-    echo "[smoke] unexpected many-argument FFI output: $ffi_native_output" >&2
+  expected_ffi_native_output=$'120
+42
+42
+0'
+  if [[ "$ffi_native_output" != "$expected_ffi_native_output" ]]; then
+    echo "[smoke] unexpected many-argument/name-bound FFI output" >&2
+    printf 'expected: %q
+actual:   %q
+' "$expected_ffi_native_output" "$ffi_native_output" >&2
     rm -f "$ffi_native_lib"
     exit 1
   fi
