@@ -48,3 +48,28 @@ macro ffi_resolve(function_name, out_ptr) {
     0004: out_ptr $RETVAL
 }
 
+
+macro ffi_call_name(function_name, return_type, arg_types, out_value) {
+    0B31: "ffi.call_name" function_name return_type arg_types
+    0004: out_value $RETVAL
+}
+
+macro ffi_call_name1(function_name, return_type, arg_types, a0, out_value) {
+    0B31: "ffi.call_name" function_name return_type arg_types a0
+    0004: out_value $RETVAL
+}
+
+macro ffi_call_name2(function_name, return_type, arg_types, a0, a1, out_value) {
+    0B31: "ffi.call_name" function_name return_type arg_types a0 a1
+    0004: out_value $RETVAL
+}
+
+macro ffi_call_ptr(fn_ptr, return_type, arg_types, out_value) {
+    0B31: "ffi.call_ptr" fn_ptr return_type arg_types
+    0004: out_value $RETVAL
+}
+
+macro ffi_symbol_cache_count(out_count) {
+    0B31: "ffi.stats"
+    0004: out_count $RETVAL
+}

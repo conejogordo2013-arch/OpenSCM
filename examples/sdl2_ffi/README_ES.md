@@ -1,60 +1,59 @@
-# Ejemplos SDL2 + FFI para crear una ventana real
+# Ejemplos SDL2 + FFI dinámico puro
 
-Estos ejemplos ya no son solo una lista decorativa de llamadas: incluyen una librería C mínima (`scml_sdl2_window.c`) que **compila contra SDL2** y expone una función FFI real:
+Estos ejemplos muestran el cambio real del FFI: **SCML llama directamente a SDL2 por símbolo**.
+No hay wrapper C, no hay funciones `scml_lib_*`, no hay headers de SDL2 importados por SCML y no hay glue code por cada función.
 
-```c
-int32_t scml_sdl2_open_window_ms(int32_t width, int32_t height, const char *title, int32_t milliseconds);
-```
+El flujo es:
 
-El script SCML carga esa librería, declara la función por FFI y la ejecuta para abrir una ventana 640x360 durante 2 segundos.
+1. `ffi.load` carga una sola vez la librería dinámica (`libSDL2-2.0.so.0` en Linux, `SDL2.dll` en MSYS2 UCRT64).
+2. `ffi.call_name` resuelve `SDL_Init`, `SDL_CreateWindow`, `SDL_Delay`, `SDL_DestroyWindow` y `SDL_QuitSubSystem` por nombre en runtime.
+3. Cada símbolo resuelto queda en la cache global del FFI, así que llamadas posteriores no vuelven a hacer `dlsym`/`GetProcAddress`.
+4. La firma se pasa como texto en la llamada SCML; no se declara ni se envuelve en C.
 
 ## Linux
 
 Archivo SCML: [`linux_sdl2_window_ffi.scml`](linux_sdl2_window_ffi.scml)
 
-Instala las dependencias de desarrollo de SDL2:
+Instala la librería runtime de SDL2 si no está presente:
 
 ```sh
 # Debian/Ubuntu
-sudo apt install libsdl2-dev pkg-config
+sudo apt install libsdl2-2.0-0
 
 # Fedora
-sudo dnf install SDL2-devel pkgconf-pkg-config
+sudo dnf install SDL2
 
 # Arch
-sudo pacman -S sdl2 pkgconf
+sudo pacman -S sdl2
 ```
 
-Compila la librería nativa, compila el SCML y luego ejecútalo:
+Compila el script SCML y luego ejecútalo:
 
 ```sh
 examples/sdl2_ffi/build_linux.sh
 bin/scml run .scml/linux_sdl2_window_ffi.scmlbin
 ```
 
-El script genera `examples/sdl2_ffi/libscml_sdl2_window.so` y compila `linux_sdl2_window_ffi.scml`.
-
 ## MSYS2 UCRT64
 
 Archivo SCML: [`msys2_ucrt64_sdl2_window_ffi.scml`](msys2_ucrt64_sdl2_window_ffi.scml)
 
-En la terminal **MSYS2 UCRT64** instala dependencias:
+En la terminal **MSYS2 UCRT64** instala SDL2:
 
 ```sh
-pacman -S --needed mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-libffi make gcc pkgconf
+pacman -S --needed mingw-w64-ucrt-x86_64-SDL2 make gcc pkgconf
 ```
 
-Compila la DLL, compila el SCML y luego ejecútalo:
+Compila el script SCML y luego ejecútalo:
 
 ```sh
 examples/sdl2_ffi/build_msys2_ucrt64.sh
 bin/scml run .scml/msys2_ucrt64_sdl2_window_ffi.scmlbin
 ```
 
-El script genera `examples/sdl2_ffi/scml_sdl2_window.dll` y compila `msys2_ucrt64_sdl2_window_ffi.scml`.
-
 ## Notas importantes
 
 - La smoke suite compila los scripts SCML, pero no ejecuta la ventana para no exigir display gráfico en CI/headless.
-- Si no tienes entorno gráfico (`DISPLAY`, Wayland/X11, Windows desktop), la función puede devolver un código negativo aunque compile correctamente.
-- Códigos de retorno: `1` = OK, `-1` = tamaño inválido, `-2` = `SDL_InitSubSystem` falló, `-3` = `SDL_CreateWindow` falló.
+- Si no tienes entorno gráfico (`DISPLAY`, Wayland/X11 o Windows desktop), SDL2 puede fallar al crear la ventana aunque el FFI compile correctamente.
+- El ejemplo imprime `SDL2 window OK via dynamic FFI` si pudo abrir y cerrar la ventana.
+- Si falla, imprime `ffi.last_error`; cuando SDL2 devuelve error propio sin fallo de resolución de símbolo, consulta tu entorno gráfico/SDL2.

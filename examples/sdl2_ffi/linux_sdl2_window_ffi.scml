@@ -1,19 +1,23 @@
-; Linux SDL2 + SCML FFI: crear una ventana real durante 2 segundos.
-;
-; Primero compila la librería nativa SDL2 del ejemplo:
-;   examples/sdl2_ffi/build_linux.sh
-;
-; Luego ejecuta:
-;   bin/scml run .scml/linux_sdl2_window_ffi.scmlbin
-;
-; Este script sí llama FFI real: carga libscml_sdl2_window.so y ejecuta una
-; función C exportada que usa SDL_InitSubSystem + SDL_CreateWindow.
-
-use "std.scmlh";
-
 :MAIN
-0B31: "ffi.load" "examples/sdl2_ffi/libscml_sdl2_window"
-0B31: "ffi.declare" "scml_sdl2_open_window_ms" "int" "int,int,string,int"
-0B31: "scml_sdl2_open_window_ms" 640 360 "SCML + SDL2 FFI (Linux)" 2000
-PRINT($RETVAL)
+0B31: "ffi.load" "libSDL2-2.0.so.0"
+0004: $SDL2 $RETVAL
+0B31: "ffi.call_name" "SDL_Init" "int" "uint32" 32
+0004: $INIT_STATUS $RETVAL
+00D7: $INIT_STATUS 0 @SDL_FAIL
+0004: $TITLE "SCML SDL2 Linux"
+0B31: "ffi.call_name" "SDL_CreateWindow" "pointer" "string,int,int,int,int,uint32" $TITLE 805240832 805240832 640 360 4
+0004: $WINDOW $RETVAL
+0B31: "ffi.is_null" $WINDOW
+0004: $WINDOW_IS_NULL $RETVAL
+00D6: $WINDOW_IS_NULL 1 @SDL_FAIL_QUIT
+0B31: "ffi.call_name" "SDL_Delay" "void" "uint32" 2000
+0B31: "ffi.call_name" "SDL_DestroyWindow" "void" "pointer" $WINDOW
+0B31: "ffi.call_name" "SDL_QuitSubSystem" "void" "uint32" 32
+03E5: "SDL2 window OK via dynamic FFI"
+0001:
+:SDL_FAIL_QUIT
+0B31: "ffi.call_name" "SDL_QuitSubSystem" "void" "uint32" 32
+:SDL_FAIL
+0B31: "ffi.last_error"
+03E5: $RETVAL
 0001:
