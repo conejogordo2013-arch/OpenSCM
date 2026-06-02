@@ -1,0 +1,28 @@
+; ranges.scmlh - official std.ranges module.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: libraries/ranges. Depends on: heap/array primitives.
+#pragma once
+
+macro range_i32(begin_value, end_value, out_range) {
+    0B14: 2 out_range
+    0B13: out_range 0 begin_value
+    0B13: out_range 1 end_value
+}
+
+macro range_iota(begin_value, end_value, out_range) {
+    range_i32(begin_value, end_value, out_range)
+}
+
+macro range_size(out_size, range_ref) {
+    0B12: 92@ range_ref 0
+    0B12: 93@ range_ref 1
+    0007: out_size 93@ 92@
+}
+
+macro range_transform_add(range_ref, delta, out_range) {
+    0B12: 92@ range_ref 0
+    0B12: 93@ range_ref 1
+    0006: 92@ 92@ delta
+    0006: 93@ 93@ delta
+    range_i32(92@, 93@, out_range)
+}

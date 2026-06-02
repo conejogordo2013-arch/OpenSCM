@@ -1,0 +1,12 @@
+use "std.scmlh";
+use "stscm/modules/types.scmlh";
+use "stscm/modules/ranges.scmlh";
+
+:MAIN
+optional_some(7, $OPT)
+optional_has_value($HAS_VALUE, $OPT)
+optional_value($VALUE, $OPT)
+range_i32(1, 4, $RANGE)
+range_size($RANGE_SIZE, $RANGE)
+expected_ok($VALUE, $RESULT)
+0001:

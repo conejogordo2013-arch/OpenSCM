@@ -1,0 +1,25 @@
+; concurrency.scmlh - official std.concurrency module.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: runtime/concurrency. Depends on: async/thread runtime opcodes.
+#pragma once
+
+macro thread_sleep(ms, out_thread) {
+    THREAD_CREATE_SLEEP(ms, out_thread)
+}
+
+macro thread_is_done(thread_ref, out_done) {
+    THREAD_DONE(thread_ref, out_done)
+}
+
+macro thread_join_wait(thread_ref) {
+    THREAD_JOIN(thread_ref)
+}
+
+macro coro_await(task_ref, out_done) {
+    0B4A: task_ref out_done
+}
+
+macro coro_return(value) {
+    0004: $RETVAL value
+    0D02:
+}

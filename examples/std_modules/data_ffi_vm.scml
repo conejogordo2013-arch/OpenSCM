@@ -1,0 +1,12 @@
+use "std.scmlh";
+use "stscm/modules/data.scmlh";
+use "stscm/modules/ffi.scmlh";
+use "stscm/modules/vm.scmlh";
+
+:MAIN
+vm_trace_set(0)
+data_hash32("open-scm", $HASH)
+json_get_value("name=SCML;kind=demo", "kind", $KIND)
+ffi_null($PTR)
+ffi_is_null($PTR, $IS_NULL)
+0001:

@@ -147,3 +147,14 @@ Para unions:
 ## 7. Ejemplo completo mínimo
 
 Ver [`examples/universal_runtime_data.scml`](../examples/universal_runtime_data.scml) para `data`/`env` y la smoke suite para casos FFI con structs, arrays, UTF-16, punteros, vtables y bytes.
+
+## 8. Ejemplos SDL2 por FFI
+
+Hay ejemplos mínimos de creación de ventana SDL2 mediante FFI real en `examples/sdl2_ffi/`:
+
+- `scml_sdl2_window.c`: librería C pequeña que compila contra SDL2 y exporta `scml_sdl2_open_window_ms`.
+- `linux_sdl2_window_ffi.scml`: carga `examples/sdl2_ffi/libscml_sdl2_window.so`, declara la función exportada y abre una ventana en Linux.
+- `msys2_ucrt64_sdl2_window_ffi.scml`: carga `examples/sdl2_ffi/scml_sdl2_window.dll`, declara la función exportada y abre una ventana en MSYS2 UCRT64.
+- `build_linux.sh` y `build_msys2_ucrt64.sh`: compilan la librería nativa SDL2 y el script SCML correspondiente.
+
+La smoke suite compila los scripts SCML, pero no ejecuta la ventana porque SDL2 y un display gráfico no siempre existen en CI/headless.

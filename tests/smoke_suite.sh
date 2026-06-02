@@ -21,6 +21,12 @@ SAMPLES=(
   "examples/std_usage.scml"
   "examples/dynamic_arrays.scml"
   "examples/universal_runtime_data.scml"
+  "examples/std_modules/io_collections.scml"
+  "examples/std_modules/types_ranges.scml"
+  "examples/std_modules/data_ffi_vm.scml"
+  "examples/std_modules/fs_concurrency_meta.scml"
+  "examples/sdl2_ffi/linux_sdl2_window_ffi.scml"
+  "examples/sdl2_ffi/msys2_ucrt64_sdl2_window_ffi.scml"
 )
 
 for src in "${SAMPLES[@]}"; do

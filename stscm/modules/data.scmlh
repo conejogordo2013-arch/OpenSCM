@@ -1,0 +1,39 @@
+; data.scmlh - official std.data module.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: libraries/data. Depends on: runtime data/env modules.
+#pragma once
+
+macro data_hash32(value, out_hash) {
+    0B31: "data.hash32" value
+    0004: out_hash $RETVAL
+}
+
+macro data_url_encode(value, out_text) {
+    0B31: "data.url_encode" value
+    0004: out_text $RETVAL
+}
+
+macro data_url_decode(value, out_text) {
+    0B31: "data.url_decode" value
+    0004: out_text $RETVAL
+}
+
+macro data_split_at(value, delimiter, index, out_text) {
+    0B31: "data.split" value delimiter index
+    0004: out_text $RETVAL
+}
+
+macro json_get_value(json_text, key, out_value) {
+    0B31: "data.json_get" json_text key
+    0004: out_value $RETVAL
+}
+
+macro env_get_value(name, out_value) {
+    0B31: "env.get" name
+    0004: out_value $RETVAL
+}
+
+macro env_set_value(name, value, out_ok) {
+    0B31: "env.set" name value
+    0004: out_ok $RETVAL
+}

@@ -1,0 +1,19 @@
+; MSYS2 UCRT64 SDL2 + SCML FFI: crear una ventana real durante 2 segundos.
+;
+; En la terminal MSYS2 UCRT64, primero compila la librería nativa SDL2:
+;   examples/sdl2_ffi/build_msys2_ucrt64.sh
+;
+; Luego ejecuta:
+;   bin/scml run .scml/msys2_ucrt64_sdl2_window_ffi.scmlbin
+;
+; Este script sí llama FFI real: carga scml_sdl2_window.dll y ejecuta una
+; función C exportada que usa SDL_InitSubSystem + SDL_CreateWindow.
+
+use "std.scmlh";
+
+:MAIN
+0B31: "ffi.load" "examples/sdl2_ffi/scml_sdl2_window"
+0B31: "ffi.declare" "scml_sdl2_open_window_ms" "int" "int,int,string,int"
+0B31: "scml_sdl2_open_window_ms" 640 360 "SCML + SDL2 FFI (MSYS2 UCRT64)" 2000
+PRINT($RETVAL)
+0001:

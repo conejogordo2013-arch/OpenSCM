@@ -1,0 +1,24 @@
+; fs.scmlh - official std.fs module.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: libraries/filesystem. Depends on: runtime file module.
+#pragma once
+
+macro path_set(out_path, value) {
+    0B4B: out_path "str"
+    0004: out_path value
+}
+
+macro file_exists(path_value, out_exists) {
+    0B31: "file.exists" path_value
+    0004: out_exists $RETVAL
+}
+
+macro file_read_text(path_value, out_text) {
+    0B31: "file.read_txt" path_value
+    0004: out_text $RETVAL
+}
+
+macro file_write_text(path_value, text, out_ok) {
+    0B31: "file.write_txt" path_value text
+    0004: out_ok $RETVAL
+}
