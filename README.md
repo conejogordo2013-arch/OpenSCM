@@ -116,6 +116,22 @@ cmake --build build
 
 Disable optional backend auto-detection with `-DSCML_AUTODETECT_BACKENDS=OFF` when a fully headless build is desired.
 
+### OpenGL FFI rotating cube example
+
+The repository includes a pure SCML + FFI OpenGL cube demo. Instead of adding a C++ graphics host or VM-specific OpenGL wrapper, the script loads GLFW/OpenGL dynamically with `ffi.load` and calls native symbols such as `glfwCreateWindow`, `glClear`, `glRotatef`, and `glVertex3f` through `ffi.call_name`.
+
+Quick bytecode builds:
+
+```sh
+# Linux runtime with libglfw3/libGL
+examples/opengl_ffi_rotating_cube/build_linux.sh
+
+# MSYS2 UCRT64 runtime with mingw-w64-ucrt-x86_64-glfw
+examples/opengl_ffi_rotating_cube/build_msys2_ucrt64.sh
+```
+
+Run with the normal VM, for example `bin/scml run .scml/linux_opengl_ffi_rotating_cube.scmlbin`. See `examples/opengl_ffi_rotating_cube/README_ES.md` for dependency and execution details.
+
 ## Project-scale workflow
 
 SCML now supports manifest-driven projects for large codebases. A `scml.pkg` file can list many source files, package include roots, an output artifact, and a documented `jobs` setting for build orchestration metadata:

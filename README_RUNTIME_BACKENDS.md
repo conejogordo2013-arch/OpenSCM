@@ -24,13 +24,13 @@ Instalar:
 
 ```sh
 sudo apt update
-sudo apt install -y build-essential libsdl2-dev libgl1-mesa-dev libgles2-mesa-dev libvulkan-dev libx11-dev
+sudo apt install -y build-essential pkg-config libsdl2-dev libglfw3-dev libgl1-mesa-dev libgles2-mesa-dev libvulkan-dev libx11-dev
 ```
 
 ## Arch Linux
 
 ```sh
-sudo pacman -S --needed base-devel sdl2 mesa vulkan-headers vulkan-icd-loader libx11
+sudo pacman -S --needed base-devel pkgconf glfw sdl2 mesa vulkan-headers vulkan-icd-loader libx11
 ```
 
 ## macOS (Homebrew)
@@ -47,7 +47,7 @@ Notas:
 
 ```sh
 pacman -Syu
-pacman -S --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-SDL2 mingw-w64-x86_64-vulkan-headers mingw-w64-x86_64-vulkan-loader
+pacman -S --needed mingw-w64-x86_64-toolchain mingw-w64-x86_64-pkgconf mingw-w64-x86_64-glfw mingw-w64-x86_64-SDL2 mingw-w64-x86_64-vulkan-headers mingw-w64-x86_64-vulkan-loader
 ```
 
 Para D3D11/D3D12 se requiere Windows SDK (MSVC/clang-cl entorno adecuado).
@@ -69,3 +69,14 @@ Estas librerías encapsulan `CALL_NATIVE` y dejan scripts SCML limpios.
 make CFLAGS="-std=c99 -O2 -Wall -Wextra -pedantic -DSCML_USE_SDL2 -DSCML_USE_OPENGL -DSCML_USE_VULKAN"
 ```
 
+
+## Ejemplo OpenGL por FFI: cubo rotando
+
+El ejemplo `examples/opengl_ffi_rotating_cube/` demuestra una integración directa por FFI: SCML carga GLFW/OpenGL con `ffi.load` y llama símbolos nativos con `ffi.call_name`. No hay host C++ dedicado ni wrapper OpenGL específico en la VM. Para MSYS2 UCRT64 abre la shell UCRT64 y usa `mingw-w64-ucrt-x86_64-glfw`; en Linux instala `libglfw3` y `libgl1`.
+
+Comandos directos:
+
+```sh
+examples/opengl_ffi_rotating_cube/build_linux.sh
+examples/opengl_ffi_rotating_cube/build_msys2_ucrt64.sh
+```
