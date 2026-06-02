@@ -1,0 +1,22 @@
+; meta.scmlh - official std.meta module for reflection/contracts/modules.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: libraries/meta. Depends on: type contracts and module metadata helpers.
+#pragma once
+
+macro concept_assert(value, type_name, out_ok) {
+    TYPE_ASSERT(value, type_name, out_ok)
+}
+
+macro constexpr_add(out_value, a, b) {
+    CONSTEXPR_ADD(out_value, a, b)
+}
+
+macro lambda_stub(out_lambda) {
+    0B4B: out_lambda "any"
+    0004: out_lambda 0
+}
+
+macro module_export(name, value) {
+    0004: $SCML_MODULE_LAST_EXPORT name
+    0004: $SCML_MODULE_LAST_VALUE value
+}

@@ -13,8 +13,11 @@ Este documento define una arquitectura de trabajo para evolucionar SCML de un pr
    - `vm/`: ciclo de ejecución, stack, memoria y control de flujo.
    - `opcode/`: registro y despacho de opcodes.
 
-3. **Std + ISO profile**
-   - `stscm/std.scmlh`: macros de alto nivel (flujo, RTTI, clases, colecciones).
+3. **STD modular + ISO profile**
+   - `stscm/std.scmlh`: superficie global congelada y compatibilidad histórica.
+   - `stscm/modules/`: sistema oficial de módulos (`io`, `collections`, `types`, `fs`, `concurrency`, `ranges`, `data`, `ffi`, `vm`, `meta`).
+   - `stscm/compat/legacy_scml_prefix.scmlh`: helpers `SCML_*` deprecados, solo para migración.
+   - `docs/SCML_STD_MODULES_ES.md`: clasificación por dominio, naming, revisión y equivalentes modernos.
    - `scmlspec/fixtures/scml_iso_advanced_preprocessed.scmlh`: perfil ISO y capacidades declarativas.
 
 4. **Tooling y DX**
@@ -24,16 +27,17 @@ Este documento define una arquitectura de trabajo para evolucionar SCML de un pr
 
 ## 2) Principios de arquitectura
 
-- **Compatibilidad incremental:** cambios del std/ISO deben ser compatibles con VM existente cuando sea posible.
+- **Compatibilidad explícita:** la compatibilidad existe cuando es necesaria, pero no es el estándar por defecto. La STD global está congelada y las funciones nuevas deben entrar por módulo.
 - **Contratos explícitos:** cada macro o capa expone su contrato (inputs/outputs/errores).
 - **Tooling primero:** toda feature mayor debe venir con prueba y comando reproducible.
-- **Separación de responsabilidades:** no mezclar parsing, semántica y ejecución en una sola capa.
+- **Separación de responsabilidades:** no mezclar parsing, semántica y ejecución en una sola capa. VM, STD modular y librerías externas deben evolucionar por contratos separados.
 
 ## 3) Pipeline recomendado
 
 1. `make bin/scml`
 2. `tests/smoke_suite.sh`
-3. `tools/scml_doctor.sh`
+3. `tools/scml_migration_audit.sh`
+4. `tools/scml_doctor.sh`
 
 Esto garantiza compilador funcional, ejemplos clave compilables y diagnóstico del sistema.
 

@@ -1,0 +1,13 @@
+use "std.scmlh";
+use "stscm/modules/fs.scmlh";
+use "stscm/modules/concurrency.scmlh";
+use "stscm/modules/meta.scmlh";
+
+:MAIN
+path_set($PATH, "README.md")
+file_exists($PATH, $EXISTS)
+thread_sleep(1, $THREAD)
+thread_is_done($THREAD, $DONE)
+constexpr_add($SUM, 2, 3)
+module_export("demo", $SUM)
+0001:

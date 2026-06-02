@@ -1,0 +1,55 @@
+; types.scmlh - official std.types module.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: core/types + libraries/types. Depends on: RTTI and heap helpers.
+#pragma once
+
+macro optional_some(value, out_optional) {
+    OPTIONAL_T_SOME("any", value, out_optional)
+}
+
+macro optional_none(out_optional) {
+    OPTIONAL_T_NONE("any", out_optional)
+}
+
+macro optional_unwrap(out_value, optional_ref, fallback_label) {
+    OPTIONAL_T_UNWRAP("any", out_value, optional_ref, fallback_label)
+}
+
+macro optional_has_value(out_has_value, optional_ref) {
+    0B12: out_has_value optional_ref 0
+}
+
+macro optional_value(out_value, optional_ref) {
+    0B12: out_value optional_ref 2
+}
+
+macro expected_ok(value, out_expected) {
+    0B14: 2 out_expected
+    0B13: out_expected 0 1
+    0B13: out_expected 1 value
+}
+
+macro expected_err(value, out_expected) {
+    0B14: 2 out_expected
+    0B13: out_expected 0 0
+    0B13: out_expected 1 value
+}
+
+macro variant_set(out_variant, tag, value) {
+    0B14: 2 out_variant
+    0B13: out_variant 0 tag
+    0B13: out_variant 1 value
+}
+
+macro any_set(out_any, value) {
+    0B4B: out_any "any"
+    0004: out_any value
+}
+
+macro any_value(out_value, any_ref) {
+    0004: out_value any_ref
+}
+
+macro reflect_type(value, out_type) {
+    0004: out_type "any"
+}

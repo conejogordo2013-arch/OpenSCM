@@ -1,0 +1,14 @@
+use "std.scmlh";
+use "stscm/modules/io.scmlh";
+use "stscm/modules/collections.scmlh";
+
+:MAIN
+cout("std.io ready")
+vector_create(4, $VEC)
+vector_append($VEC, 10)
+vector_append($VEC, 32)
+vector_count($SIZE, $VEC)
+vector_at($FIRST, $VEC, 0)
+cout($SIZE)
+cout($FIRST)
+0001:

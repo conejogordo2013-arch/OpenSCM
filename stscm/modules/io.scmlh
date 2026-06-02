@@ -1,0 +1,24 @@
+; io.scmlh - official std.io module (console and terminal I/O).
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: libraries/io. Depends on: VM print/input opcodes and runtime console module.
+#pragma once
+
+macro cout(value) {
+    03E5: value
+}
+
+macro cin(prompt, out_value) {
+    0B21: prompt out_value
+}
+
+macro console_write_text(text) {
+    0B31: "console.write" text
+}
+
+macro console_flush_output() {
+    0B31: "console.flush" 0
+}
+
+macro console_clear_screen() {
+    0B31: "console.clear" 0
+}
