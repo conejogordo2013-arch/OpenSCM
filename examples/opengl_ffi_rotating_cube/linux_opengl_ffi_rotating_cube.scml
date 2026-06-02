@@ -1,0 +1,102 @@
+; Cubo giratorio OpenGL usando SOLO SCML + FFI dinamico.
+; Linux: requiere libglfw.so.3 y libGL.so.1 instaladas.
+
+:MAIN
+03E5: "SCML FFI OpenGL cube starting on Linux"
+0B31: "ffi.load" "libglfw.so.3" 9
+0004: $GLFW_LIB $RETVAL
+0B31: "ffi.load" "libGL.so.1" 9
+0004: $OPENGL_LIB $RETVAL
+
+0B31: "ffi.call_name" "glfwInit" "int" ""
+0004: $GLFW_OK $RETVAL
+00D6: $GLFW_OK 0 @FAIL
+
+0B31: "ffi.call_name" "glfwCreateWindow" "pointer" "int,int,string,pointer,pointer" 800 600 "SCML FFI OpenGL Cube" 0 0
+0004: $WINDOW $RETVAL
+0B31: "ffi.is_null" $WINDOW
+0004: $WINDOW_NULL $RETVAL
+00D6: $WINDOW_NULL 1 @FAIL_TERMINATE
+
+0B31: "ffi.call_name" "glfwMakeContextCurrent" "void" "pointer" $WINDOW
+0B31: "ffi.call_name" "glfwSwapInterval" "void" "int" 1
+0B31: "ffi.call_name" "glViewport" "void" "int,int,int,int" 0 0 800 600
+0B31: "ffi.call_name" "glEnable" "void" "uint32" 2929
+0004: $ANGLE 0.0
+
+:FRAME
+0B31: "ffi.call_name" "glfwWindowShouldClose" "int" "pointer" $WINDOW
+0004: $SHOULD_CLOSE $RETVAL
+00D7: $SHOULD_CLOSE 0 @CLEANUP
+
+0B31: "ffi.call_name" "glClearColor" "void" "float,float,float,float" 0.03 0.05 0.10 1.0
+0B31: "ffi.call_name" "glClear" "void" "uint32" 16640
+
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" 5889
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0B31: "ffi.call_name" "glFrustum" "void" "double,double,double,double,double,double" -0.552 0.552 -0.414 0.414 1.0 100.0
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" 5888
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0B31: "ffi.call_name" "glTranslatef" "void" "float,float,float" 0.0 0.0 -6.0
+0B31: "ffi.call_name" "glRotatef" "void" "float,float,float,float" $ANGLE 0.7 1.0 0.25
+
+0D00: @DRAW_CUBE
+
+0B31: "ffi.call_name" "glfwSwapBuffers" "void" "pointer" $WINDOW
+0B31: "ffi.call_name" "glfwPollEvents" "void" ""
+0006: $ANGLE $ANGLE 1.25
+000B: 1
+000A: @FRAME
+
+:DRAW_CUBE
+0B31: "ffi.call_name" "glBegin" "void" "uint32" 7
+; Front
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.15 0.75 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 -1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 -1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 1.0 1.0
+; Back
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.95 0.25 0.30
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 -1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 -1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 1.0 -1.0
+; Right
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.35 1.0 0.35
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 -1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 -1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 1.0 1.0
+; Left
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 1.0 0.85 0.20
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 -1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 -1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 1.0 -1.0
+; Top
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.80 0.35 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 1.0 -1.0
+; Bottom
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 1.0 0.45 0.15
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 -1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 -1.0 -1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 1.0 -1.0 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -1.0 -1.0 1.0
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:CLEANUP
+0B31: "ffi.call_name" "glfwDestroyWindow" "void" "pointer" $WINDOW
+:FAIL_TERMINATE
+0B31: "ffi.call_name" "glfwTerminate" "void" ""
+03E5: "SCML FFI OpenGL cube finished"
+0001:
+
+:FAIL
+0B31: "ffi.last_error"
+03E5: $RETVAL
+0001:

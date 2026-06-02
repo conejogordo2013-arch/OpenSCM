@@ -1215,6 +1215,14 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
     return 0;
 }
 
+static int vm_ffi_reserved_name(const char *name) {
+    if (!name) return 0;
+    if (strncmp(name, "ffi.", 4) == 0) return 1;
+    return strcmp(name, "load_library") == 0 ||
+           strcmp(name, "unload_library") == 0 ||
+           strcmp(name, "get_symbol") == 0;
+}
+
 int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
     if (!vm || !qualified_name || !qualified_name[0]) return 0;
     const char *dot = strchr(qualified_name, '.');
@@ -1229,6 +1237,7 @@ int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue 
         }
     }
     if (vm_ffi_builtin(qualified_name, args, arg_count, ret)) return 1;
+    if (vm_ffi_reserved_name(qualified_name)) return 0;
     ScmlFFIType arg_types[SCML_OPERANDS_MAX - 1];
     ScmlFFISignature signature = vm_ffi_signature(vm, arg_count, arg_types, sizeof(arg_types) / sizeof(arg_types[0]));
     return scml_ffi_call_native_by_name_ex(qualified_name, args, &signature, ret);
