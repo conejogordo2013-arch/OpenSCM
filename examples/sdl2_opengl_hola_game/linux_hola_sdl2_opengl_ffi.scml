@@ -1,0 +1,617 @@
+; Port SCML puro de hola.html: "Recolector en Terreno 3D".
+; Usa solo FFI dinamico hacia SDL2 y OpenGL fijo: sin wrappers C/C++.
+; Controles actuales: teclado solamente.
+;   W/A/S/D = mover, Flechas = camara, Espacio = saltar, R = reiniciar, Esc = salir.
+
+:MAIN
+03E5: "SCML Hola Game Port: SDL2 + OpenGL por FFI puro"
+0B31: "ffi.load" "libSDL2-2.0.so.0" 9
+0004: $SDL_LIB $RETVAL
+0B31: "ffi.load" "libGL.so.1" 9
+0004: $GL_LIB $RETVAL
+
+0004: $SDL_INIT_VIDEO 32
+0004: $SDL_WINDOW_OPENGL 2
+0004: $SDL_WINDOW_SHOWN 4
+0006: $WINDOW_FLAGS $SDL_WINDOW_OPENGL $SDL_WINDOW_SHOWN
+0004: $SDL_WINDOWPOS_CENTERED 805240832
+0004: $GL_COLOR_BUFFER_BIT 16384
+0004: $GL_DEPTH_BUFFER_BIT 256
+0006: $GL_CLEAR_MASK $GL_COLOR_BUFFER_BIT $GL_DEPTH_BUFFER_BIT
+0004: $GL_PROJECTION 5889
+0004: $GL_MODELVIEW 5888
+0004: $GL_DEPTH_TEST 2929
+0004: $GL_FOG 2912
+0004: $GL_FOG_MODE 2917
+0004: $GL_EXP2 2049
+0004: $GL_FOG_DENSITY 2914
+0004: $GL_POINTS 0
+0004: $GL_LINES 1
+0004: $GL_TRIANGLES 4
+0004: $GL_QUADS 7
+0004: $WIDTH 1024
+0004: $HEIGHT 720
+0004: $COL_COUNT 32
+0004: $ROCK_COUNT 18
+0004: $TERRAIN_HALF 160.0
+0004: $TERRAIN_CELL 20.0
+0004: $TERRAIN_LAST 15
+0004: $PLAYER_HEIGHT 5.0
+0004: $PLAYER_SPEED 1.05
+0004: $JUMP_FORCE 1.45
+0004: $GRAVITY -0.095
+0004: $YAW 0.0
+0004: $PITCH 0.0
+0004: $PLAYER_X 0.0
+0004: $PLAYER_Z 0.0
+0004: $PLAYER_Y 30.0
+0004: $VEL_Y 0.0
+0004: $GROUNDED 0
+0004: $SCORE 0
+0004: $FRAME 0.0
+0004: $SEED 1337
+0004: $STALKER_ACTIVE 0
+0004: $STALKER_X 120.0
+0004: $STALKER_Z 120.0
+0004: $MONO_ACTIVE 0
+0004: $MONO_X -110.0
+0004: $MONO_Y 160.0
+0004: $MONO_Z -130.0
+
+0B31: "ffi.call_name" "SDL_Init" "int" "uint32" $SDL_INIT_VIDEO
+0004: $SDL_OK $RETVAL
+00D7: $SDL_OK 0 @SDL_FAIL
+0B31: "ffi.call_name" "SDL_GL_SetAttribute" "int" "int,int" 5 1
+0B31: "ffi.call_name" "SDL_GL_SetAttribute" "int" "int,int" 6 1
+0B31: "ffi.call_name" "SDL_CreateWindow" "pointer" "string,int,int,int,int,uint32" "SCML Recolector 3D - teclado" $SDL_WINDOWPOS_CENTERED $SDL_WINDOWPOS_CENTERED $WIDTH $HEIGHT $WINDOW_FLAGS
+0004: $WINDOW $RETVAL
+0B31: "ffi.is_null" $WINDOW
+0004: $WINDOW_NULL $RETVAL
+00D6: $WINDOW_NULL 1 @SDL_FAIL_QUIT
+0B31: "ffi.call_name" "SDL_GL_CreateContext" "pointer" "pointer" $WINDOW
+0004: $GL_CONTEXT $RETVAL
+0B31: "ffi.is_null" $GL_CONTEXT
+0004: $CONTEXT_NULL $RETVAL
+00D6: $CONTEXT_NULL 1 @SDL_FAIL_WINDOW
+0B31: "ffi.call_name" "SDL_GL_SetSwapInterval" "int" "int" 1
+0B31: "ffi.call_name" "glViewport" "void" "int,int,int,int" 0 0 $WIDTH $HEIGHT
+0B31: "ffi.call_name" "glEnable" "void" "uint32" $GL_DEPTH_TEST
+0B31: "ffi.call_name" "glEnable" "void" "uint32" $GL_FOG
+0B31: "ffi.call_name" "glFogi" "void" "uint32,int" $GL_FOG_MODE $GL_EXP2
+0B31: "ffi.call_name" "glFogf" "void" "uint32,float" $GL_FOG_DENSITY 0.006
+
+0B31: "ffi.alloc_array" $COL_COUNT "float"
+0004: $COL_X $RETVAL
+0B31: "ffi.alloc_array" $COL_COUNT "float"
+0004: $COL_Z $RETVAL
+0B31: "ffi.alloc_array" $COL_COUNT "int"
+0004: $COL_A $RETVAL
+0B31: "ffi.alloc_array" $ROCK_COUNT "float"
+0004: $ROCK_X $RETVAL
+0B31: "ffi.alloc_array" $ROCK_COUNT "float"
+0004: $ROCK_Z $RETVAL
+0D00: @RESET_GAME
+0D00: @SETUP_KEYBOARD_STATE
+
+:FRAME_LOOP
+0B31: "ffi.call_name" "SDL_PumpEvents" "void" ""
+0B31: "ffi.call_name" "SDL_GetKeyboardState" "pointer" "pointer" 0
+0004: $KEYS $RETVAL
+0D00: @READ_KEYBOARD
+00D8: $KEY_ESCAPE 0 @CLEANUP
+00D8: $KEY_R 0 @RESET_FROM_LOOP
+0D00: @UPDATE_PLAYER
+0D00: @CHECK_COLLECTIBLES
+0D00: @UPDATE_ENTITIES
+0D00: @RENDER_FRAME
+0B31: "ffi.call_name" "SDL_GL_SwapWindow" "void" "pointer" $WINDOW
+0B31: "ffi.call_name" "SDL_Delay" "void" "uint32" 16
+0006: $FRAME $FRAME 1.0
+000A: @FRAME_LOOP
+
+:RESET_FROM_LOOP
+0D00: @RESET_GAME
+000A: @FRAME_LOOP
+
+:SETUP_KEYBOARD_STATE
+0004: $KEY_W 0
+0004: $KEY_A 0
+0004: $KEY_S 0
+0004: $KEY_D 0
+0004: $KEY_SPACE 0
+0004: $KEY_LEFT 0
+0004: $KEY_RIGHT 0
+0004: $KEY_UP 0
+0004: $KEY_DOWN 0
+0004: $KEY_R 0
+0004: $KEY_ESCAPE 0
+0D01:
+
+:READ_KEYBOARD
+0B31: "ffi.array_read" $KEYS 26 "uint8"
+0004: $KEY_W $RETVAL
+0B31: "ffi.array_read" $KEYS 4 "uint8"
+0004: $KEY_A $RETVAL
+0B31: "ffi.array_read" $KEYS 22 "uint8"
+0004: $KEY_S $RETVAL
+0B31: "ffi.array_read" $KEYS 7 "uint8"
+0004: $KEY_D $RETVAL
+0B31: "ffi.array_read" $KEYS 44 "uint8"
+0004: $KEY_SPACE $RETVAL
+0B31: "ffi.array_read" $KEYS 80 "uint8"
+0004: $KEY_LEFT $RETVAL
+0B31: "ffi.array_read" $KEYS 79 "uint8"
+0004: $KEY_RIGHT $RETVAL
+0B31: "ffi.array_read" $KEYS 82 "uint8"
+0004: $KEY_UP $RETVAL
+0B31: "ffi.array_read" $KEYS 81 "uint8"
+0004: $KEY_DOWN $RETVAL
+0B31: "ffi.array_read" $KEYS 21 "uint8"
+0004: $KEY_R $RETVAL
+0B31: "ffi.array_read" $KEYS 41 "uint8"
+0004: $KEY_ESCAPE $RETVAL
+0D01:
+
+:RESET_GAME
+0004: $PLAYER_X 0.0
+0004: $PLAYER_Z 0.0
+0004: $PLAYER_Y 30.0
+0004: $VEL_Y 0.0
+0004: $GROUNDED 0
+0004: $YAW 0.0
+0004: $PITCH 0.0
+0004: $SCORE 0
+0004: $STALKER_ACTIVE 0
+0004: $MONO_ACTIVE 0
+0004: $I 0
+:RESET_COL_LOOP
+00D8: $I 31 @RESET_ROCKS
+0D00: @NEXT_RANDOM_CENTERED
+0004: $RX $RAND_CENTERED
+0D00: @NEXT_RANDOM_CENTERED
+0004: $RZ $RAND_CENTERED
+0B31: "ffi.array_write" $COL_X $I "float" $RX
+0B31: "ffi.array_write" $COL_Z $I "float" $RZ
+0B31: "ffi.array_write" $COL_A $I "int" 1
+0006: $I $I 1
+000A: @RESET_COL_LOOP
+:RESET_ROCKS
+0004: $I 0
+:RESET_ROCK_LOOP
+00D8: $I 17 @RESET_DONE
+0D00: @NEXT_RANDOM_CENTERED
+0004: $RX $RAND_CENTERED
+0D00: @NEXT_RANDOM_CENTERED
+0004: $RZ $RAND_CENTERED
+0B31: "ffi.array_write" $ROCK_X $I "float" $RX
+0B31: "ffi.array_write" $ROCK_Z $I "float" $RZ
+0006: $I $I 1
+000A: @RESET_ROCK_LOOP
+:RESET_DONE
+0B31: "ffi.call_name" "SDL_SetWindowTitle" "void" "pointer,string" $WINDOW "SCML Recolector 3D - score 0 - teclado"
+03E5: "Partida reiniciada: 32 coleccionables, rocas, stalker, luces y monolito."
+0D01:
+
+:NEXT_RANDOM_CENTERED
+0008: $SEED $SEED 73
+0006: $SEED $SEED 41
+0B20: $SEED $SEED 10000
+0B24: $RAND_FLOAT $SEED
+0009: $RAND_FLOAT $RAND_FLOAT 10000.0
+0008: $RAND_CENTERED $RAND_FLOAT 280.0
+0007: $RAND_CENTERED $RAND_CENTERED 140.0
+0D01:
+
+:HEIGHT_AT_INPUT
+0008: $H1_ARG $HX 0.032
+0B34: $H1 $H1_ARG
+0008: $H1 $H1 9.0
+0008: $H2_ARG $HZ 0.027
+0B35: $H2 $H2_ARG
+0008: $H2 $H2 8.0
+0006: $H3_ARG $HX $HZ
+0008: $H3_ARG $H3_ARG 0.018
+0B34: $H3 $H3_ARG
+0008: $H3 $H3 5.0
+0006: $HY $H1 $H2
+0006: $HY $HY $H3
+0D01:
+
+:UPDATE_PLAYER
+00D8: $KEY_LEFT 0 @TURN_LEFT
+00D8: $KEY_RIGHT 0 @TURN_RIGHT_CHECK
+000A: @PITCH_CHECK
+:TURN_LEFT
+0006: $YAW $YAW 2.0
+:TURN_RIGHT_CHECK
+00D8: $KEY_RIGHT 0 @TURN_RIGHT
+000A: @PITCH_CHECK
+:TURN_RIGHT
+0007: $YAW $YAW 2.0
+:PITCH_CHECK
+00D8: $KEY_UP 0 @PITCH_UP
+00D8: $KEY_DOWN 0 @PITCH_DOWN_CHECK
+000A: @MOVE_PREP
+:PITCH_UP
+0006: $PITCH $PITCH 1.5
+:PITCH_DOWN_CHECK
+00D8: $KEY_DOWN 0 @PITCH_DOWN
+000A: @MOVE_PREP
+:PITCH_DOWN
+0007: $PITCH $PITCH 1.5
+:MOVE_PREP
+00D8: $PITCH 80.0 @CLAMP_PITCH_HIGH
+00D9: $PITCH -80.0 @CLAMP_PITCH_LOW
+000A: @MOVE_DO
+:CLAMP_PITCH_HIGH
+0004: $PITCH 80.0
+000A: @MOVE_DO
+:CLAMP_PITCH_LOW
+0004: $PITCH -80.0
+:MOVE_DO
+0008: $YRAD $YAW 0.0174533
+0B34: $YSIN $YRAD
+0B35: $YCOS $YRAD
+0004: $MOVE_X 0.0
+0004: $MOVE_Z 0.0
+00D8: $KEY_W 0 @MOVE_FORWARD
+000A: @MOVE_BACK_CHECK
+:MOVE_FORWARD
+0007: $MOVE_X $MOVE_X $YSIN
+0007: $MOVE_Z $MOVE_Z $YCOS
+:MOVE_BACK_CHECK
+00D8: $KEY_S 0 @MOVE_BACK
+000A: @MOVE_LEFT_CHECK
+:MOVE_BACK
+0006: $MOVE_X $MOVE_X $YSIN
+0006: $MOVE_Z $MOVE_Z $YCOS
+:MOVE_LEFT_CHECK
+00D8: $KEY_A 0 @MOVE_LEFT
+000A: @MOVE_RIGHT_CHECK
+:MOVE_LEFT
+0007: $MOVE_X $MOVE_X $YCOS
+0006: $MOVE_Z $MOVE_Z $YSIN
+:MOVE_RIGHT_CHECK
+00D8: $KEY_D 0 @MOVE_RIGHT
+000A: @APPLY_MOVE
+:MOVE_RIGHT
+0006: $MOVE_X $MOVE_X $YCOS
+0007: $MOVE_Z $MOVE_Z $YSIN
+:APPLY_MOVE
+0008: $MOVE_X $MOVE_X $PLAYER_SPEED
+0008: $MOVE_Z $MOVE_Z $PLAYER_SPEED
+0006: $PLAYER_X $PLAYER_X $MOVE_X
+0006: $PLAYER_Z $PLAYER_Z $MOVE_Z
+00D8: $KEY_SPACE 0 @TRY_JUMP
+000A: @APPLY_GRAVITY
+:TRY_JUMP
+00D6: $GROUNDED 1 @DO_JUMP
+000A: @APPLY_GRAVITY
+:DO_JUMP
+0004: $VEL_Y 1.45
+0004: $GROUNDED 0
+:APPLY_GRAVITY
+0006: $VEL_Y $VEL_Y $GRAVITY
+0006: $PLAYER_Y $PLAYER_Y $VEL_Y
+0004: $HX $PLAYER_X
+0004: $HZ $PLAYER_Z
+0D00: @HEIGHT_AT_INPUT
+0006: $GROUND_Y $HY $PLAYER_HEIGHT
+00D9: $PLAYER_Y $GROUND_Y @LAND_PLAYER
+00D6: $PLAYER_Y $GROUND_Y @LAND_PLAYER
+000A: @UPDATE_PLAYER_DONE
+:LAND_PLAYER
+0004: $PLAYER_Y $GROUND_Y
+0004: $VEL_Y 0.0
+0004: $GROUNDED 1
+:UPDATE_PLAYER_DONE
+0D01:
+
+:CHECK_COLLECTIBLES
+0004: $I 0
+:COL_CHECK_LOOP
+00D8: $I 31 @COL_CHECK_DONE
+0B31: "ffi.array_read" $COL_A $I "int"
+0004: $ACTIVE $RETVAL
+00D6: $ACTIVE 0 @COL_NEXT
+0B31: "ffi.array_read" $COL_X $I "float"
+0004: $CX $RETVAL
+0B31: "ffi.array_read" $COL_Z $I "float"
+0004: $CZ $RETVAL
+0007: $DX $PLAYER_X $CX
+0007: $DZ $PLAYER_Z $CZ
+0008: $DX2 $DX $DX
+0008: $DZ2 $DZ $DZ
+0006: $DIST2 $DX2 $DZ2
+00D9: $DIST2 49.0 @COLLECT_IT
+000A: @COL_NEXT
+:COLLECT_IT
+0B31: "ffi.array_write" $COL_A $I "int" 0
+0006: $SCORE $SCORE 1
+03E5: $SCORE
+00D6: $SCORE 6 @ACTIVATE_STALKER
+00D6: $SCORE 14 @ACTIVATE_MONOLITH
+000A: @COL_NEXT
+:ACTIVATE_STALKER
+0004: $STALKER_ACTIVE 1
+0006: $STALKER_X $PLAYER_X 130.0
+0006: $STALKER_Z $PLAYER_Z 90.0
+03E5: "Stalker activado"
+000A: @COL_NEXT
+:ACTIVATE_MONOLITH
+0004: $MONO_ACTIVE 1
+0004: $MONO_Y 170.0
+0007: $MONO_X $PLAYER_X 120.0
+0007: $MONO_Z $PLAYER_Z 120.0
+03E5: "Monolito celeste activado"
+:COL_NEXT
+0006: $I $I 1
+000A: @COL_CHECK_LOOP
+:COL_CHECK_DONE
+0D01:
+
+:UPDATE_ENTITIES
+00D6: $STALKER_ACTIVE 1 @STALKER_MOVE
+000A: @MONO_MOVE_CHECK
+:STALKER_MOVE
+0007: $SDX $PLAYER_X $STALKER_X
+0007: $SDZ $PLAYER_Z $STALKER_Z
+0008: $SDX $SDX 0.018
+0008: $SDZ $SDZ 0.018
+0006: $STALKER_X $STALKER_X $SDX
+0006: $STALKER_Z $STALKER_Z $SDZ
+0008: $SDX2 $SDX $SDX
+0008: $SDZ2 $SDZ $SDZ
+0006: $SDIST $SDX2 $SDZ2
+00D9: $SDIST 0.08 @STALKER_HIT
+000A: @MONO_MOVE_CHECK
+:STALKER_HIT
+03E5: "El stalker te alcanzo: reset"
+0D00: @RESET_GAME
+000A: @UPDATE_ENTITIES_DONE
+:MONO_MOVE_CHECK
+00D6: $MONO_ACTIVE 1 @MONO_MOVE
+000A: @UPDATE_ENTITIES_DONE
+:MONO_MOVE
+0008: $MARG $FRAME 0.055
+0B34: $MWAVE $MARG
+0008: $MWAVE $MWAVE 2.5
+0006: $MONO_Y $MONO_Y $MWAVE
+0008: $MARG2 $FRAME 0.03
+0B35: $MWAVE2 $MARG2
+0008: $MWAVE2 $MWAVE2 1.2
+0006: $MONO_X $MONO_X $MWAVE2
+00D8: $MONO_Y 260.0 @MONO_WRAP
+000A: @UPDATE_ENTITIES_DONE
+:MONO_WRAP
+0004: $MONO_Y 110.0
+:UPDATE_ENTITIES_DONE
+0D01:
+
+:RENDER_FRAME
+00D8: $PLAYER_Y 32.0 @CLEAR_SKY
+0B31: "ffi.call_name" "glClearColor" "void" "float,float,float,float" 0.10 0.14 0.18 1.0
+000A: @CLEAR_DO
+:CLEAR_SKY
+0B31: "ffi.call_name" "glClearColor" "void" "float,float,float,float" 0.45 0.65 0.85 1.0
+:CLEAR_DO
+0B31: "ffi.call_name" "glClear" "void" "uint32" $GL_CLEAR_MASK
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" $GL_PROJECTION
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0B31: "ffi.call_name" "glFrustum" "void" "double,double,double,double,double,double" -0.106 0.106 -0.074 0.074 0.10 900.0
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" $GL_MODELVIEW
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0B31: "ffi.call_name" "glRotatef" "void" "float,float,float,float" $PITCH 1.0 0.0 0.0
+0007: $NEG_YAW 0.0 $YAW
+0B31: "ffi.call_name" "glRotatef" "void" "float,float,float,float" $NEG_YAW 0.0 1.0 0.0
+0007: $NEG_X 0.0 $PLAYER_X
+0007: $NEG_Y 0.0 $PLAYER_Y
+0007: $NEG_Z 0.0 $PLAYER_Z
+0B31: "ffi.call_name" "glTranslatef" "void" "float,float,float" $NEG_X $NEG_Y $NEG_Z
+0D00: @DRAW_TERRAIN
+0D00: @DRAW_COLLECTIBLES
+0D00: @DRAW_ROCKS
+0D00: @DRAW_SHADOWS
+0D00: @DRAW_STALKER
+0D00: @DRAW_ERRATIC_LIGHTS
+0D00: @DRAW_MONOLITH
+0D01:
+
+:DRAW_TERRAIN
+0004: $TXI 0
+:TERRAIN_X_LOOP
+00D8: $TXI $TERRAIN_LAST @TERRAIN_DONE
+0004: $TZI 0
+:TERRAIN_Z_LOOP
+00D8: $TZI $TERRAIN_LAST @TERRAIN_NEXT_X
+0B24: $TXF $TXI
+0B24: $TZF $TZI
+0008: $X0 $TXF $TERRAIN_CELL
+0007: $X0 $X0 $TERRAIN_HALF
+0008: $Z0 $TZF $TERRAIN_CELL
+0007: $Z0 $Z0 $TERRAIN_HALF
+0006: $X1 $X0 $TERRAIN_CELL
+0006: $Z1 $Z0 $TERRAIN_CELL
+0004: $HX $X0
+0004: $HZ $Z0
+0D00: @HEIGHT_AT_INPUT
+0004: $Y00 $HY
+0004: $HX $X1
+0004: $HZ $Z0
+0D00: @HEIGHT_AT_INPUT
+0004: $Y10 $HY
+0004: $HX $X1
+0004: $HZ $Z1
+0D00: @HEIGHT_AT_INPUT
+0004: $Y11 $HY
+0004: $HX $X0
+0004: $HZ $Z1
+0D00: @HEIGHT_AT_INPUT
+0004: $Y01 $HY
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_QUADS
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.24 0.48 0.18
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $X0 $Y00 $Z0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $X1 $Y10 $Z0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $X1 $Y11 $Z1
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $X0 $Y01 $Z1
+0B31: "ffi.call_name" "glEnd" "void" ""
+0006: $TZI $TZI 1
+000A: @TERRAIN_Z_LOOP
+:TERRAIN_NEXT_X
+0006: $TXI $TXI 1
+000A: @TERRAIN_X_LOOP
+:TERRAIN_DONE
+0D01:
+
+:DRAW_COLLECTIBLES
+0B31: "ffi.call_name" "glPointSize" "void" "float" 8.0
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_POINTS
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 1.0 0.55 0.05
+0004: $I 0
+:DRAW_COL_LOOP
+00D8: $I 31 @DRAW_COL_END
+0B31: "ffi.array_read" $COL_A $I "int"
+0004: $ACTIVE $RETVAL
+00D6: $ACTIVE 0 @DRAW_COL_NEXT
+0B31: "ffi.array_read" $COL_X $I "float"
+0004: $CX $RETVAL
+0B31: "ffi.array_read" $COL_Z $I "float"
+0004: $CZ $RETVAL
+0004: $HX $CX
+0004: $HZ $CZ
+0D00: @HEIGHT_AT_INPUT
+0006: $CY $HY 3.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $CX $CY $CZ
+:DRAW_COL_NEXT
+0006: $I $I 1
+000A: @DRAW_COL_LOOP
+:DRAW_COL_END
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:DRAW_ROCKS
+0B31: "ffi.call_name" "glPointSize" "void" "float" 10.0
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_POINTS
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.22 0.22 0.22
+0004: $I 0
+:DRAW_ROCK_LOOP
+00D8: $I 17 @DRAW_ROCK_END
+0B31: "ffi.array_read" $ROCK_X $I "float"
+0004: $RX $RETVAL
+0B31: "ffi.array_read" $ROCK_Z $I "float"
+0004: $RZ $RETVAL
+0004: $HX $RX
+0004: $HZ $RZ
+0D00: @HEIGHT_AT_INPUT
+0006: $RY $HY 2.5
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $RX $RY $RZ
+0006: $I $I 1
+000A: @DRAW_ROCK_LOOP
+:DRAW_ROCK_END
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:DRAW_SHADOWS
+0B31: "ffi.call_name" "glLineWidth" "void" "float" 4.0
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_LINES
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.0 0.0 0.0
+0006: $SX $PLAYER_X 70.0
+0007: $SZ $PLAYER_Z 110.0
+0004: $HX $SX
+0004: $HZ $SZ
+0D00: @HEIGHT_AT_INPUT
+0006: $SY0 $HY 2.0
+0006: $SY1 $HY 38.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $SX $SY0 $SZ
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $SX $SY1 $SZ
+0007: $SX $PLAYER_X 95.0
+0006: $SZ $PLAYER_Z 55.0
+0004: $HX $SX
+0004: $HZ $SZ
+0D00: @HEIGHT_AT_INPUT
+0006: $SY0 $HY 2.0
+0006: $SY1 $HY 32.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $SX $SY0 $SZ
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $SX $SY1 $SZ
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:DRAW_STALKER
+00D6: $STALKER_ACTIVE 1 @DRAW_STALKER_ACTIVE
+0D01:
+:DRAW_STALKER_ACTIVE
+0B31: "ffi.call_name" "glPointSize" "void" "float" 16.0
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_POINTS
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.95 0.02 0.02
+0004: $HX $STALKER_X
+0004: $HZ $STALKER_Z
+0D00: @HEIGHT_AT_INPUT
+0006: $SY $HY 9.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $STALKER_X $SY $STALKER_Z
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:DRAW_ERRATIC_LIGHTS
+0B31: "ffi.call_name" "glPointSize" "void" "float" 9.0
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_POINTS
+0008: $LARG $FRAME 0.05
+0B34: $LX $LARG
+0008: $LX $LX 100.0
+0006: $LX $LX $PLAYER_X
+0B35: $LZ $LARG
+0008: $LZ $LZ 100.0
+0006: $LZ $LZ $PLAYER_Z
+0004: $HX $LX
+0004: $HZ $LZ
+0D00: @HEIGHT_AT_INPUT
+0006: $LY $HY 30.0
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.2 0.8 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $LX $LY $LZ
+0008: $LARG $FRAME 0.08
+0B35: $LX $LARG
+0008: $LX $LX -90.0
+0006: $LX $LX $PLAYER_X
+0B34: $LZ $LARG
+0008: $LZ $LZ 115.0
+0006: $LZ $LZ $PLAYER_Z
+0004: $HX $LX
+0004: $HZ $LZ
+0D00: @HEIGHT_AT_INPUT
+0006: $LY $HY 24.0
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 1.0 0.2 0.9
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $LX $LY $LZ
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:DRAW_MONOLITH
+00D6: $MONO_ACTIVE 1 @DRAW_MONO_ACTIVE
+0D01:
+:DRAW_MONO_ACTIVE
+0B31: "ffi.call_name" "glLineWidth" "void" "float" 9.0
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_LINES
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.02 0.02 0.03
+0007: $MONO_LOW $MONO_Y 45.0
+0006: $MONO_HIGH $MONO_Y 45.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $MONO_X $MONO_LOW $MONO_Z
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" $MONO_X $MONO_HIGH $MONO_Z
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:CLEANUP
+0B31: "ffi.free" $COL_X
+0B31: "ffi.free" $COL_Z
+0B31: "ffi.free" $COL_A
+0B31: "ffi.free" $ROCK_X
+0B31: "ffi.free" $ROCK_Z
+0B31: "ffi.call_name" "SDL_GL_DeleteContext" "void" "pointer" $GL_CONTEXT
+:SDL_FAIL_WINDOW
+0B31: "ffi.call_name" "SDL_DestroyWindow" "void" "pointer" $WINDOW
+:SDL_FAIL_QUIT
+0B31: "ffi.call_name" "SDL_QuitSubSystem" "void" "uint32" $SDL_INIT_VIDEO
+03E5: "SCML Hola Game Port cerrado"
+0001:
+
+:SDL_FAIL
+0B31: "ffi.last_error"
+03E5: $RETVAL
+0001:

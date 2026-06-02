@@ -195,3 +195,25 @@ Hay ejemplos mínimos de creación de ventana SDL2 mediante FFI real en `example
 - `build_linux.sh` y `build_msys2_ucrt64.sh`: compilan los scripts SCML; no compilan wrappers C porque no existen.
 
 La smoke suite compila los scripts SCML, pero no ejecuta la ventana porque SDL2 y un display gráfico no siempre existen en CI/headless. El ejemplo queda como prueba práctica de FFI dinámico puro: librería cargada una vez, símbolos por nombre, punteros cacheados y cero glue C.
+
+## 9. Game ports SDL2/OpenGL sin glue C
+
+El ejemplo [`examples/sdl2_opengl_hola_game/`](../examples/sdl2_opengl_hola_game/) demuestra un port de juego completo desde `hola.html` a SCML puro:
+
+- `linux_hola_sdl2_opengl_ffi.scml` carga `libSDL2-2.0.so.0` y `libGL.so.1` con `ffi.load`.
+- La entrada se limita a teclado mediante `SDL_PumpEvents` + `SDL_GetKeyboardState`; no hay joystick tactil ni mouse por ahora.
+- OpenGL se llama directamente con `ffi.call_name` (`glFrustum`, `glRotatef`, `glTranslatef`, `glBegin`, `glVertex3f`, `glFogf`, etc.).
+- El estado de coleccionables/rocas vive en arrays nativos creados con `ffi.alloc_array` y se limpia con `ffi.free`.
+- Para hacer ports mas robustos, la stdlib FFI expone macros `ffi_call_name3` hasta `ffi_call_name8`, utiles para APIs graficas con muchas coordenadas/flags sin escribir el opcode crudo cada vez.
+
+Compilacion recomendada:
+
+```sh
+./examples/sdl2_opengl_hola_game/build_linux.sh
+```
+
+Ejecucion en una sesion grafica:
+
+```sh
+./bin/scml run examples/sdl2_opengl_hola_game/linux_hola_sdl2_opengl_ffi.scmlbin
+```
