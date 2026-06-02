@@ -1,0 +1,38 @@
+; MSYS2 UCRT64 SDL2 + SCML FFI: crear una ventana básica durante 2 segundos.
+;
+; Requisitos en shell UCRT64:
+;   pacman -S --needed mingw-w64-ucrt-x86_64-SDL2 mingw-w64-ucrt-x86_64-libffi make gcc
+;   make bin/scml
+;
+; Ejecutar desde la raíz del repo, en la shell MSYS2 UCRT64:
+;   bin/scml compile examples/sdl2_ffi/msys2_ucrt64_sdl2_window_ffi.scml .scml/msys2_ucrt64_sdl2_window_ffi.scmlbin
+;   bin/scml run .scml/msys2_ucrt64_sdl2_window_ffi.scmlbin
+;
+; Nota: es un ejemplo mínimo de FFI directa. No implementa loop de eventos.
+
+use "std.scmlh";
+
+#define SDL_INIT_VIDEO 32
+#define SDL_WINDOWPOS_CENTERED 805240832
+#define SDL_WINDOW_SHOWN 4
+
+:MAIN
+; En MSYS2 UCRT64 el DLL normalmente está en /ucrt64/bin/SDL2-2.0-0.dll.
+; ffi.load también intenta la extensión de plataforma si se omite.
+0B31: "ffi.load" "SDL2-2.0-0"
+
+0B31: "ffi.declare" "SDL_Init" "int" "u32"
+0B31: "ffi.declare" "SDL_CreateWindow" "pointer" "string,int,int,int,int,u32"
+0B31: "ffi.declare" "SDL_Delay" "void" "u32"
+0B31: "ffi.declare" "SDL_DestroyWindow" "void" "pointer"
+0B31: "ffi.declare" "SDL_Quit" "void" ""
+
+0B31: "SDL_Init" SDL_INIT_VIDEO
+0B31: "SDL_CreateWindow" "SCML + SDL2 FFI (MSYS2 UCRT64)" SDL_WINDOWPOS_CENTERED SDL_WINDOWPOS_CENTERED 640 360 SDL_WINDOW_SHOWN
+0004: $WINDOW $RETVAL
+
+; Mantiene la ventana visible 2 segundos.
+0B31: "SDL_Delay" 2000
+0B31: "SDL_DestroyWindow" $WINDOW
+0B31: "SDL_Quit"
+0001:

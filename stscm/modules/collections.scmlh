@@ -1,0 +1,36 @@
+; collections.scmlh - official std.collections module.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: libraries/collections. Depends on: heap/array primitives.
+#pragma once
+
+macro vector_create(capacity, out_vec) {
+    vector_new(out_vec, capacity)
+}
+
+macro vector_append(vec_ref, value) {
+    vector_push(vec_ref, value)
+}
+
+macro vector_at(out_value, vec_ref, index) {
+    vector_get(out_value, vec_ref, index)
+}
+
+macro vector_count(out_size, vec_ref) {
+    vector_size(out_size, vec_ref)
+}
+
+macro list_create(capacity, out_list) {
+    vector_new(out_list, capacity)
+}
+
+macro list_append(list_ref, value) {
+    vector_push(list_ref, value)
+}
+
+macro map_create(out_map) {
+    MAP_T_NEW("any", "any", 32, out_map)
+}
+
+macro map_put_i32(map_ref, key, value) {
+    MAP_T_PUT_I32(map_ref, key, value)
+}

@@ -1,0 +1,34 @@
+; ffi.scmlh - official std.ffi module.
+; Naming: lower_snake_case, no SCML_* global prefixes.
+; Domain: external/ffi. Depends on: runtime FFI module.
+#pragma once
+
+macro ffi_null(out_ptr) {
+    0B31: "ffi.null"
+    0004: out_ptr $RETVAL
+}
+
+macro ffi_is_null(ptr_value, out_ok) {
+    0B31: "ffi.is_null" ptr_value
+    0004: out_ok $RETVAL
+}
+
+macro ffi_read_bytes(ptr_value, offset, size, out_hex) {
+    0B31: "ffi.read_bytes" ptr_value offset size
+    0004: out_hex $RETVAL
+}
+
+macro ffi_write_bytes(ptr_value, offset, hex_text, out_ok) {
+    0B31: "ffi.write_bytes" ptr_value offset hex_text
+    0004: out_ok $RETVAL
+}
+
+macro ffi_memcmp(lhs_ptr, rhs_ptr, size, out_cmp) {
+    0B31: "ffi.memcmp" lhs_ptr rhs_ptr size
+    0004: out_cmp $RETVAL
+}
+
+macro ffi_memmove(dst_ptr, src_ptr, size, out_ok) {
+    0B31: "ffi.memmove" dst_ptr src_ptr size
+    0004: out_ok $RETVAL
+}

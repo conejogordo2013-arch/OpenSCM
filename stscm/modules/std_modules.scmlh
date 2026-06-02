@@ -1,0 +1,14 @@
+; std_modules.scmlh - convenience import for the official modular STD.
+; Prefer importing only the modules you use in production code to minimize
+; cross-module coupling.
+#pragma once
+use "io.scmlh";
+use "collections.scmlh";
+use "types.scmlh";
+use "fs.scmlh";
+use "meta.scmlh";
+use "concurrency.scmlh";
+use "ranges.scmlh";
+use "data.scmlh";
+use "ffi.scmlh";
+use "vm.scmlh";
