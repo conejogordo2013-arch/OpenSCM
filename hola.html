@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recolector en Terreno 3D</title>
+    <!-- Carga de Tailwind CSS para un estilo rápido y responsive de los controles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carga de Three.js para WebGL 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* Estilos generales y de tipografía */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+        }
+
+        #game-canvas {
+            display: block;
+        }
+
+        /* Controles de superposición para móviles */
+        #controls-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Permite que el toque atraviese a menos que sea un control específico */
+            z-index: 10;
+        }
+
+        /* Estilos del Joystick */
+        #joystick-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+            background: rgba(45, 45, 45, 0.5);
+            border-radius: 50%;
+            border: 2px solid #555;
+            pointer-events: auto;
+            touch-action: none; /* Previene el comportamiento por defecto del navegador */
+        }
+
+        #joystick-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -55%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+        }
+
+        /* Estilo del Botón de Salto */
+        #jump-button {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            background: rgba(0, 150, 255, 0.7);
+            border-radius: 50%;
+            border: 3px solid #fff;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: auto;
+            user-select: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            transition: background 0.1s;
+        }
+
+        #jump-button:active {
+            background: rgba(0, 100, 200, 0.9);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Contenedor de Información */
+        #info-box {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 11;
+            text-align: center;
+        }
+
+        /* Controles de cámara táctil (lado derecho) */
+        #camera-control-area {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50%; /* Ocupa la mitad derecha de la pantalla */
+            height: 100%;
+            pointer-events: auto;
+            touch-action: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info-box">
+        PC: W/A/S/D + Ratón (Click para bloquear) | Móvil: Joystick + Tocar a la derecha | Puntuación: <span id="score">0</span>
+    </div>
+
+    <div id="controls-overlay">
+        <!-- Área de control de la cámara (lado derecho) -->
+        <div id="camera-control-area"></div>
+
+        <!-- Contenedor del Joystick (lado izquierdo) -->
+        <div id="joystick-container">
+            <div id="joystick-handle"></div>
+        </div>
+
+        <!-- Botón de Salto -->
+        <button id="jump-button">
+            SALTO
+        </button>
+    </div>
+
+    <!-- El canvas se inicializa aquí por Three.js -->
+
+    <script>
+        // --- VARIABLES GLOBALES DE THREE.JS ---
+        let scene, camera, renderer;
+        let terrainMesh, clock, raycaster;
+        let collectibles = [];
+        let score = 0;
+        let shadows = [];       
+        let stalkerEntity = null; 
+        let erraticLights = [];   
+        let fogZones = [];        
+        let monoliths = [];       // Monolitos celestes
+
+        // --- CONSTANTES DEL JUEGO ---
+        const TERRAIN_SIZE = 1024;
+        const TERRAIN_SEGMENTS = 128;
+        const MAX_HEIGHT = 50;
+        const FOG_DENSITY = 0.005; 
+        const MAX_COLLECTIBLES = 100;
+
+        // --- CONSTANTES DE NUEVOS ELEMENTOS ---
+        const STALKER_PROBABILITY = 0.000001; 
+        const STALKER_SPEED = 0.4;
+        const STALKER_COLLISION_RADIUS = 5;
+        const FOG_ZONE_PROBABILITY = 0.00001; 
+        const FOG_ZONE_RADIUS = 100;
+        const FOG_DENSITY_OVERRIDE = FOG_DENSITY * 5; 
+        const MONOLITH_PROBABILITY = 0.0000001; // Probabilidad de aparición: 1 en 10,000,000
+        const MONOLITH_SPEED = 10; // Velocidad muy alta
+        const MONOLITH_SIZE = 80;
+
+        // --- VARIABLES DE FÍSICA Y MOVIMIENTO DEL JUGADOR ---
+        const player = {
+            height: 5,
+            position: new THREE.Vector3(0, 30, 0),
+            velocity: new THREE.Vector3(),
+            speed: 0.3,
+            jumpForce: 1.5,
+            gravity: -0.05,
+            isGrounded: false,
+            rotation: new THREE.Vector2(0, 0), // X (pitch), Y (yaw)
+            // Nuevo: Estado de las teclas para PC
+            keys: { w: false, a: false, s: false, d: false, space: false },
+        };
+
+        // --- VARIABLES DE CONTROL MÓVIL ---
+        let joystick = {
+            center: new THREE.Vector2(),
+            current: new THREE.Vector2(),
+            active: false,
+            maxRadius: 60,
+        };
+
+        let isCameraDragging = false;
+        let lastTouchX, lastTouchY;
+
+        // --- FUNCIÓN DE SIMPLEX NOISE (Implementación simplificada) ---
+        // Necesaria para generar terreno montañoso procedural
+        // (Nota: Esta es una implementación muy básica para un solo archivo)
+        const SimplexNoise = (function() {
+            const F2 = 0.5 * (Math.sqrt(3.0) - 1.0);
+            const G2 = (3.0 - Math.sqrt(3.0)) / 6.0;
+
+            function grad2(i, x, y) {
+                const h = i & 15;
+                const u = h < 4 ? x : y;
+                const v = h < 4 ? y : x;
+                return ((h & 1) ? -u : u) + ((h & 2) ? -2.0 * v : 2.0 * v);
+            }
+
+            const p = new Uint8Array(512);
+            for (let i = 0; i < 256; i++) p[i] = p[i + 256] = Math.floor(Math.random() * 256);
+
+            return function(x, y) {
+                const s = (x + y) * F2;
+                const i = Math.floor(x + s);
+                const j = Math.floor(y + s);
+                const t = (i + j) * G2;
+                const X0 = i - t;
+                const Y0 = j - t;
+                const x0 = x - X0;
+                const y0 = y - Y0;
+
+                const i1 = x0 > y0 ? 1 : 0;
+                const j1 = x0 > y0 ? 0 : 1;
+
+                const x1 = x0 - i1 + G2;
+                const y1 = y0 - j1 + G2;
+                const x2 = x0 - 1.0 + 2.0 * G2;
+                const y2 = y0 - 1.0 + 2.0 * G2;
+
+                const perm = (k) => p[k & 255];
+                const ii = perm(i);
+                const jj = perm(j);
+                const gi0 = perm(ii + perm(jj)) % 16;
+                const gi1 = perm(ii + i1 + perm(jj + j1)) % 16;
+                const gi2 = perm(ii + 1 + perm(jj + 1)) % 16;
+
+                let n = 0;
+                let t0 = 0.5 - x0 * x0 - y0 * y0;
+                if (t0 >= 0) {
+                    t0 *= t0;
+                    n += t0 * t0 * grad2(gi0, x0, y0);
+                }
+                let t1 = 0.5 - x1 * x1 - y1 * y1;
+                if (t1 >= 0) {
+                    t1 *= t1;
+                    n += t1 * t1 * grad2(gi1, x1, y1);
+                }
+                let t2 = 0.5 - x2 * x2 - y2 * y2;
+                if (t2 >= 0) {
+                    t2 *= t2;
+                    n += t2 * t2 * grad2(gi2, x2, y2);
+                }
+                return 70.0 * n;
+            };
+        })();
+
+        /**
+         * Genera un valor de altura para una coordenada (x, z) usando Simplex Noise.
+         * Combina múltiples octavas para detalle.
+         * @param {number} x Coordenada X
+         * @param {number} z Coordenada Z
+         * @returns {number} Altura calculada
+         */
+        function getHeight(x, z) {
+            let total = 0;
+            let maxAmp = 0;
+            let freq = 0.005;
+            let amp = 1.0;
+            const octaves = 4;
+
+            for (let i = 0; i < octaves; i++) {
+                total += SimplexNoise(x * freq, z * freq) * amp;
+                maxAmp += amp;
+                amp *= 0.5;
+                freq *= 2;
+            }
+
+            return (total / maxAmp) * MAX_HEIGHT;
+        }
+
+        /**
+         * Reinicia el estado del juego (posición, puntuación y entidades).
+         */
+        function resetGame() {
+            // Reinicia posición y velocidad del jugador
+            player.position.set(0, 30, 0);
+            player.velocity.set(0, 0, 0);
+            
+            // Reinicia puntuación
+            score = 0;
+            document.getElementById('score').textContent = score;
+
+            // Limpia entidades dinámicas
+            shadows.forEach(s => scene.remove(s));
+            shadows = [];
+            erraticLights.forEach(l => scene.remove(l));
+            erraticLights = [];
+            fogZones.forEach(f => scene.remove(f));
+            fogZones = [];
+            monoliths.forEach(m => scene.remove(m)); // Limpia monolitos
+            monoliths = [];
+            if (stalkerEntity) {
+                scene.remove(stalkerEntity);
+                stalkerEntity = null;
+            }
+
+            // Regenera coleccionables
+            collectibles.forEach(c => scene.remove(c));
+            collectibles = [];
+            generateObjects();
+            
+            console.log("Juego Reiniciado.");
+        }
+
+
+        /**
+         * Inicializa la escena 3D, la cámara, el renderizador y las luces.
+         */
+        function init() {
+            // 1. Configuración de la Escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb); // Cielo azul claro base
+            scene.fog = new THREE.FogExp2(0x87ceeb, FOG_DENSITY);
+
+            // 2. Configuración de la Cámara
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+            camera.position.copy(player.position);
+            camera.rotation.order = 'YXZ'; // Permite un mejor control de la rotación
+
+            // 3. Configuración del Renderizador
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true; // Habilita sombras
+            document.body.appendChild(renderer.domElement);
+            renderer.domElement.id = 'game-canvas';
+
+            // 4. Luces
+            const sunLight = new THREE.DirectionalLight(0xffffff, 2);
+            sunLight.position.set(50, 200, 100);
+            sunLight.castShadow = true;
+            scene.add(sunLight);
+
+            scene.add(new THREE.AmbientLight(0x404040, 0.5)); // Luz ambiental
+
+            // 5. Creación del Terreno
+            createTerrain();
+
+            // 6. Generación de Obstáculos y Coleccionables
+            generateObjects();
+
+            // 7. Inicialización de Raycaster y Reloj
+            raycaster = new THREE.Raycaster();
+            clock = new THREE.Clock();
+
+            // 8. Eventos de Control (Móvil y PC)
+            setupJoystick();
+            setupJumpButton();
+            setupCameraDrag(); // Para móvil
+            setupKeyboardControls(); // Para PC
+            setupMouseControls();    // Para PC
+
+            // 9. Adaptación al tamaño de la ventana
+            window.addEventListener('resize', onWindowResize, false);
+            onWindowResize(); // Llama una vez al inicio
+
+            // 10. Iniciar el bucle de animación
+            animate();
+        }
+
+        /**
+         * Crea la malla del terreno usando PlaneGeometry y Simplex Noise.
+         */
+        function createTerrain() {
+            const geometry = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEGMENTS, TERRAIN_SEGMENTS);
+            geometry.rotateX(-Math.PI / 2); // Rota para que esté en el plano XZ
+
+            // Modificar vértices para crear las montañas
+            const positionAttribute = geometry.getAttribute('position');
+            for (let i = 0; i < positionAttribute.count; i++) {
+                const x = positionAttribute.getX(i);
+                const z = positionAttribute.getZ(i);
+
+                // Obtener la altura del Simplex Noise
+                const y = getHeight(x, z);
+                positionAttribute.setY(i, y);
+            }
+
+            geometry.computeVertexNormals(); // Recalcular normales para iluminación correcta
+
+            const material = new THREE.MeshLambertMaterial({
+                color: 0x669933, // Color base verde/tierra
+                wireframe: false
+            });
+
+            terrainMesh = new THREE.Mesh(geometry, material);
+            terrainMesh.receiveShadow = true; // Para recibir sombras
+            scene.add(terrainMesh);
+        }
+
+        /**
+         * Genera piedras y coleccionables en el terreno.
+         */
+        function generateObjects() {
+            // Generar Coleccionables (Esferas)
+            const collectibleGeometry = new THREE.SphereGeometry(1, 16, 16);
+            const collectibleMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 }); // Naranja brillante
+
+            for (let i = 0; i < MAX_COLLECTIBLES; i++) {
+                const x = (Math.random() * TERRAIN_SIZE) - (TERRAIN_SIZE / 2);
+                const z = (Math.random() * TERRAIN_SIZE) - (TERRAIN_SIZE / 2);
+                const y = getHeight(x, z) + 1.5; // Colocar justo sobre la superficie
+
+                const collectible = new THREE.Mesh(collectibleGeometry, collectibleMaterial);
+                collectible.position.set(x, y, z);
+                collectible.castShadow = true;
+                scene.add(collectible);
+                collectibles.push(collectible);
+            }
+
+            // Generar Piedras/Obstáculos (Conos bajos)
+            const rockGeometry = new THREE.ConeGeometry(3, 4, 6);
+            const rockMaterial = new THREE.MeshLambertMaterial({ color: 0x555555 }); // Gris oscuro
+
+            for (let i = 0; i < 50; i++) {
+                const x = (Math.random() * TERRAIN_SIZE) - (TERRAIN_SIZE / 2);
+                const z = (Math.random() * TERRAIN_SIZE) - (TERRAIN_SIZE / 2);
+                const y = getHeight(x, z) + 2;
+
+                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+                rock.position.set(x, y, z);
+                rock.castShadow = true;
+                scene.add(rock);
+            }
+        }
+
+        // --- MANEJO DE CONTROLES PC (TECLADO Y RATÓN) ---
+
+        /**
+         * Configura las entradas del teclado.
+         */
+        function setupKeyboardControls() {
+            document.addEventListener('keydown', (event) => {
+                switch (event.code) {
+                    case 'KeyW':
+                        player.keys.w = true;
+                        break;
+                    case 'KeyA':
+                        player.keys.a = true;
+                        break;
+                    case 'KeyS':
+                        player.keys.s = true;
+                        break;
+                    case 'KeyD':
+                        player.keys.d = true;
+                        break;
+                    case 'Space':
+                        if (player.isGrounded) {
+                            player.velocity.y += player.jumpForce;
+                            player.isGrounded = false;
+                        }
+                        player.keys.space = true; // Solo para seguimiento, el salto se ejecuta una vez
+                        break;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                switch (event.code) {
+                    case 'KeyW':
+                        player.keys.w = false;
+                        break;
+                    case 'KeyA':
+                        player.keys.a = false;
+                        break;
+                    case 'KeyS':
+                        player.keys.s = false;
+                        break;
+                    case 'KeyD':
+                        player.keys.d = false;
+                        break;
+                    case 'Space':
+                        player.keys.space = false;
+                        break;
+                }
+            });
+        }
+
+        /**
+         * Configura el control de la cámara con el ratón usando Pointer Lock.
+         */
+        function setupMouseControls() {
+            const canvas = renderer.domElement;
+            const sensitivity = 0.002;
+
+            // Bloqueo de puntero al hacer clic en el canvas
+            canvas.addEventListener('click', () => {
+                if (document.pointerLockElement !== canvas) {
+                    canvas.requestPointerLock();
+                }
+            });
+
+            // Manejar movimiento del ratón
+            document.addEventListener('mousemove', (event) => {
+                if (document.pointerLockElement === canvas) {
+                    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+                    const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+
+                    // Rotación Yaw (horizontal)
+                    player.rotation.y -= movementX * sensitivity;
+                    camera.rotation.y = player.rotation.y;
+
+                    // Rotación Pitch (vertical), limitada entre -PI/2 y PI/2
+                    player.rotation.x -= movementY * sensitivity;
+                    player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x));
+                    camera.rotation.x = player.rotation.x;
+                }
+            }, false);
+
+            // Quitar el bloqueo si se presiona ESC, etc.
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement !== canvas) {
+                    // El ratón ha sido desbloqueado (e.g., por la tecla ESC)
+                }
+            }, false);
+        }
+
+        // --- MANEJO DE CONTROLES MÓVILES (existente) ---
+
+        /**
+         * Configura la lógica del joystick virtual para el movimiento.
+         */
+        function setupJoystick() {
+            const container = document.getElementById('joystick-container');
+            const handle = document.getElementById('joystick-handle');
+
+            // Determinar la posición central del joystick
+            const containerRect = container.getBoundingClientRect();
+            joystick.center.set(containerRect.width / 2, containerRect.height / 2);
+            joystick.containerX = containerRect.left;
+            joystick.containerY = containerRect.top;
+
+            container.addEventListener('touchstart', (e) => {
+                // Solo activar si no estamos en un entorno donde se use el ratón/teclado primariamente
+                if (window.innerWidth > 768 && document.pointerLockElement === renderer.domElement) return;
+
+                e.preventDefault();
+                const touch = e.touches[0];
+                joystick.active = true;
+                // Mueve el centro inicial del handle a donde se toca por primera vez
+                handle.style.left = `${touch.clientX - joystick.containerX}px`;
+                handle.style.top = `${touch.clientY - joystick.containerY}px`;
+                joystick.center.set(touch.clientX - joystick.containerX, touch.clientY - joystick.containerY);
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!joystick.active) return;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                let x = touch.clientX - joystick.containerX;
+                let y = touch.clientY - joystick.containerY;
+
+                let dx = x - joystick.center.x;
+                let dy = y - joystick.center.y;
+
+                const distance = Math.min(joystick.maxRadius, Math.sqrt(dx * dx + dy * dy));
+                const angle = Math.atan2(dy, dx);
+
+                // Posición normalizada y limitada del handle
+                joystick.current.x = Math.cos(angle) * distance;
+                joystick.current.y = Math.sin(angle) * distance;
+
+                // Mover el handle visualmente
+                handle.style.left = `${joystick.center.x + joystick.current.x}px`;
+                handle.style.top = `${joystick.center.y + joystick.current.y}px`;
+            }, { passive: false });
+
+            container.addEventListener('touchend', () => {
+                joystick.active = false;
+                joystick.current.set(0, 0);
+
+                // Resetear el handle visualmente al centro del contenedor
+                handle.style.left = '50%';
+                handle.style.top = '50%';
+            });
+        }
+
+        /**
+         * Configura el botón de salto.
+         */
+        function setupJumpButton() {
+            const jumpButton = document.getElementById('jump-button');
+
+            const handleJump = (e) => {
+                e.preventDefault();
+                if (player.isGrounded) {
+                    player.velocity.y += player.jumpForce;
+                    player.isGrounded = false;
+                }
+            };
+
+            jumpButton.addEventListener('touchstart', handleJump, { passive: false });
+            jumpButton.addEventListener('mousedown', (e) => {
+                // Previene conflicto con Pointer Lock en PC si se usa el ratón
+                if (document.pointerLockElement !== renderer.domElement) {
+                    handleJump(e);
+                }
+            });
+        }
+
+        /**
+         * Configura el arrastre táctil en la mitad derecha para el movimiento de la cámara.
+         */
+        function setupCameraDrag() {
+            const cameraArea = document.getElementById('camera-control-area');
+
+            cameraArea.addEventListener('touchstart', (e) => {
+                // Ignorar si el ratón está bloqueado (PC)
+                if (document.pointerLockElement === renderer.domElement) return;
+
+                e.preventDefault();
+                isCameraDragging = true;
+                lastTouchX = e.touches[0].clientX;
+                lastTouchY = e.touches[0].clientY;
+            }, { passive: false });
+
+            cameraArea.addEventListener('touchmove', (e) => {
+                if (!isCameraDragging) return;
+                e.preventDefault();
+
+                const touch = e.touches[0];
+                const dx = touch.clientX - lastTouchX;
+                const dy = touch.clientY - lastTouchY;
+
+                // Sensibilidad de la cámara
+                const sensitivity = 0.005;
+
+                // Rotación Yaw (horizontal)
+                player.rotation.y -= dx * sensitivity;
+                camera.rotation.y = player.rotation.y;
+
+                // Rotación Pitch (vertical), limitada entre -PI/2 y PI/2
+                player.rotation.x -= dy * sensitivity;
+                player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, player.rotation.x));
+                camera.rotation.x = player.rotation.x;
+
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+            }, { passive: false });
+
+            cameraArea.addEventListener('touchend', () => {
+                isCameraDragging = false;
+            });
+        }
+
+        /**
+         * Maneja la lógica de la física (gravedad) y el movimiento.
+         * @param {number} delta El tiempo transcurrido desde el último fotograma.
+         */
+        function updatePhysics(delta) {
+            // --- 1. Determinar Movimiento Horizontal (Teclado o Joystick) ---
+
+            const isJoystickActive = joystick.current.lengthSq() > 0.01;
+            const isKeyboardActive = player.keys.w || player.keys.a || player.keys.s || player.keys.d;
+
+            const moveVector = new THREE.Vector3();
+            let forwardDirection = 0;
+            let rightDirection = 0;
+
+            if (isJoystickActive) {
+                // Prioridad 1: Joystick (Móvil)
+                forwardDirection = -joystick.current.y / joystick.maxRadius;
+                rightDirection = joystick.current.x / joystick.maxRadius;
+            } else if (isKeyboardActive) {
+                // Prioridad 2: Teclado (PC)
+                if (player.keys.w) forwardDirection += 1;
+                if (player.keys.s) forwardDirection -= 1;
+                if (player.keys.a) rightDirection -= 1;
+                if (player.keys.d) rightDirection += 1;
+            }
+
+            // Si hay alguna entrada de movimiento:
+            if (forwardDirection !== 0 || rightDirection !== 0) {
+                
+                // Crea vectores de dirección iniciales
+                const forward = new THREE.Vector3(0, 0, -1);
+                const right = new THREE.Vector3(1, 0, 0);
+
+                // Aplica SOLO la rotación Y (Yaw/Horizontal) de la cámara.
+                // Esto es crucial para que el movimiento sea relativo a donde mira el jugador
+                // en el plano XZ, sin desviarse por la inclinación de la cámara (rotation.x).
+                const yRotation = new THREE.Euler(0, camera.rotation.y, 0, 'YXZ');
+                
+                forward.applyEuler(yRotation).normalize();
+                right.applyEuler(yRotation).normalize();
+
+                // Combina los inputs (Joystick/Teclado) con los vectores de dirección
+                moveVector.addScaledVector(forward, forwardDirection);
+                moveVector.addScaledVector(right, rightDirection);
+
+                // Normaliza para velocidad constante (evita ir más rápido en diagonal)
+                moveVector.normalize();
+                
+                // Aplica la velocidad y el delta de tiempo
+                const speedFactor = player.speed * 60 * delta;
+
+                // Asigna la velocidad horizontal corregida
+                player.velocity.x = moveVector.x * speedFactor;
+                player.velocity.z = moveVector.z * speedFactor;
+                
+            } else {
+                // Desaceleración simple
+                player.velocity.x = 0;
+                player.velocity.z = 0;
+            }
+
+            // --- 2. Aplicar Gravedad y Altura del Terreno ---
+
+            // Aplica gravedad si no está en el suelo
+            if (!player.isGrounded) {
+                player.velocity.y += player.gravity * delta * 60;
+            }
+
+            // Raycasting para encontrar la altura del terreno debajo del jugador
+            const origin = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+            const direction = new THREE.Vector3(0, -1, 0);
+
+            raycaster.set(origin, direction);
+            // El array de objetos para colisionar es solo el terreno
+            const intersects = raycaster.intersectObject(terrainMesh, false);
+
+            if (intersects.length > 0) {
+                const groundHeight = intersects[0].point.y;
+                const distanceToGround = player.position.y - groundHeight;
+                const minimalDistance = player.height; // La altura del "jugador"
+
+                // Si la distancia es menor o igual a la altura del jugador...
+                if (distanceToGround <= minimalDistance + 0.1) { // Pequeña tolerancia
+                    player.position.y = groundHeight + minimalDistance;
+                    player.isGrounded = true;
+                    player.velocity.y = 0; // Detiene la caída
+                } else if (distanceToGround > minimalDistance) {
+                    player.isGrounded = false;
+                }
+            } else {
+                // Si el rayo no intersecta nada (fuera del mapa), asume caída libre
+                player.isGrounded = false;
+            }
+
+            // --- 3. Actualizar Posición Final ---
+            player.position.add(player.velocity);
+
+            // Vincula la cámara a la posición del jugador
+            camera.position.copy(player.position);
+        }
+
+        /**
+         * Comprueba si el jugador ha recogido algún objeto.
+         */
+        function checkCollectibles() {
+            // Un radio de colección simple
+            const collectionRadius = 5;
+            const playerPos = player.position;
+
+            for (let i = collectibles.length - 1; i >= 0; i--) {
+                const collectible = collectibles[i];
+                const distance = playerPos.distanceTo(collectible.position);
+
+                if (distance < collectionRadius) {
+                    // Recogido!
+                    score += 1;
+                    document.getElementById('score').textContent = score;
+
+                    scene.remove(collectible);
+                    collectibles.splice(i, 1);
+                }
+            }
+        }
+
+        /**
+         * Ajusta la densidad de la niebla y el color del cielo en función de la altura del jugador.
+         */
+        function updateFogBasedOnHeight() {
+            const maxHeight = 70; // Altura de referencia (más allá de MAX_HEIGHT para un gradiente suave)
+            const minHeight = 10;
+            const maxDensity = FOG_DENSITY * 2.0;
+            const minDensity = FOG_DENSITY * 0.5;
+
+            // Normaliza la altura del jugador entre 0 (bajo) y 1 (alto)
+            const normalizedHeight = THREE.MathUtils.clamp((player.position.y - minHeight) / (maxHeight - minHeight), 0, 1);
+            
+            // Densidad: interpola de alta (bajo) a baja (alto). 1 - normalizedHeight para invertir.
+            const currentDensity = THREE.MathUtils.lerp(maxDensity, minDensity, normalizedHeight);
+            scene.fog.density = currentDensity;
+
+            // Color de Fondo: interpola de color oscuro (bajo) a color claro (alto)
+            const colorLow = new THREE.Color(0x5a7988); // Azul grisáceo, más oscuro
+            const colorHigh = new THREE.Color(0x87ceeb); // Azul claro
+            
+            const currentColor = colorLow.clone().lerp(colorHigh, normalizedHeight);
+            scene.background.copy(currentColor);
+        }
+
+        /**
+         * Genera una sombra volátil lejos del jugador.
+         */
+        function spawnShadow() {
+            const geometry = new THREE.CylinderGeometry(1, 3, 30, 8); // Forma de poste alto
+            const material = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.8 });
+
+            const shadow = new THREE.Mesh(geometry, material);
+            
+            // Posicionar lejos (300 a 600 unidades)
+            const distance = THREE.MathUtils.randFloat(300, 600);
+            const angle = Math.random() * Math.PI * 2;
+            
+            const x = player.position.x + distance * Math.cos(angle);
+            const z = player.position.z + distance * Math.sin(angle);
+            
+            // Altura basada en el terreno + la mitad de su propia altura (15)
+            const y = getHeight(x, z) + 15;
+            shadow.position.set(x, y, z);
+            
+            scene.add(shadow);
+            shadows.push(shadow);
+
+            // Límite para evitar sobrecarga de sombras
+            if (shadows.length > 5) {
+                const oldestShadow = shadows.shift();
+                scene.remove(oldestShadow);
+            }
+        }
+
+        /**
+         * Actualiza el estado de las sombras volátiles (animación, eliminación, aparición).
+         * @param {number} delta El tiempo transcurrido desde el último fotograma.
+         */
+        function updateVolatileShadows(delta) {
+            const approachDistance = 80; // Distancia a la que desaparecen (misterio)
+            const despawnDistance = 700; // Distancia a la que se eliminan si están demasiado lejos
+
+            // 1. Verificar proximidad, animación y eliminación
+            for (let i = shadows.length - 1; i >= 0; i--) {
+                const shadow = shadows[i];
+                const distance = player.position.distanceTo(shadow.position);
+
+                // Si el jugador se acerca, desaparecen
+                if (distance < approachDistance) {
+                    scene.remove(shadow);
+                    shadows.splice(i, 1);
+                    continue;
+                }
+
+                // Si están demasiado lejos, elimínalas y permite que reaparezcan
+                if (distance > despawnDistance) {
+                    scene.remove(shadow);
+                    shadows.splice(i, 1);
+                    continue;
+                }
+                
+                // Animación simple (rotación)
+                shadow.rotation.y += delta * 0.5;
+            }
+
+            // 2. Intentar generar una nueva sombra (probabilidad de 0.00001 por frame)
+            if (Math.random() < 0.00001) {
+                spawnShadow();
+            }
+        }
+        
+        // --- Lógica de la Entidad Antagonista (Stalker) ---
+
+        function spawnStalker() {
+            if (stalkerEntity) return;
+
+            // Geometría: Cono rojo/oscuro para ser visible y amenazante
+            const geometry = new THREE.ConeGeometry(3, 15, 32);
+            const material = new THREE.MeshBasicMaterial({ color: 0xcc0000, transparent: true, opacity: 0.9 });
+            const stalker = new THREE.Mesh(geometry, material);
+
+            // Posicionar lejos (400 a 700 unidades)
+            const distance = THREE.MathUtils.randFloat(400, 700);
+            const angle = Math.random() * Math.PI * 2;
+            
+            const x = player.position.x + distance * Math.cos(angle);
+            const z = player.position.z + distance * Math.sin(angle);
+            const y = getHeight(x, z) + 7.5; // Altura del cono (15/2)
+
+            stalker.position.set(x, y, z);
+            scene.add(stalker);
+            stalkerEntity = stalker;
+            console.log("Stalker ha aparecido.");
+        }
+
+        function updateStalker(delta) {
+            // Intenta spawnear si no está presente
+            if (!stalkerEntity && Math.random() < STALKER_PROBABILITY) {
+                spawnStalker();
+                return;
+            }
+
+            if (stalkerEntity) {
+                // 1. Movimiento: Moverse hacia el jugador
+                const direction = new THREE.Vector3().subVectors(player.position, stalkerEntity.position).normalize();
+                stalkerEntity.position.addScaledVector(direction, STALKER_SPEED * delta * 60);
+
+                // 2. Orientación: Mirar al jugador
+                stalkerEntity.lookAt(player.position.clone().setY(stalkerEntity.position.y));
+
+                // 3. Colisión y Reinicio
+                const distance = player.position.distanceTo(stalkerEntity.position);
+                if (distance < STALKER_COLLISION_RADIUS + player.height) {
+                    // Colisión! Reiniciar juego.
+                    console.log("¡Entidad antagonista te ha atrapado! Reiniciando juego.");
+                    resetGame();
+                }
+
+                // 4. Mantenlo por encima del suelo
+                const stalkerGroundHeight = getHeight(stalkerEntity.position.x, stalkerEntity.position.z);
+                stalkerEntity.position.y = Math.max(stalkerEntity.position.y, stalkerGroundHeight + 7.5);
+            }
+        }
+
+        // --- Lógica de Luces Errantes ---
+
+        function spawnErraticLight() {
+            // Luz (PointLight)
+            const light = new THREE.PointLight(0xffffaa, 5, 200); // Color amarillento
+            
+            // Malla visible (Esfera brillante)
+            const meshGeometry = new THREE.SphereGeometry(1, 8, 8);
+            const meshMaterial = new THREE.MeshBasicMaterial({ color: 0xffffaa, transparent: true, opacity: 0.7 });
+            
+            const lightMesh = new THREE.Mesh(meshGeometry, meshMaterial);
+            lightMesh.add(light); // La luz sigue a la malla
+
+            // Posicionar lejos (200 a 400 unidades)
+            const distance = THREE.MathUtils.randFloat(200, 400);
+            const angle = Math.random() * Math.PI * 2;
+            
+            const x = player.position.x + distance * Math.cos(angle);
+            const z = player.position.z + distance * Math.sin(angle);
+            const y = getHeight(x, z) + THREE.MathUtils.randFloat(5, 20); // Altura variable
+
+            lightMesh.position.set(x, y, z);
+            
+            // Almacenar datos de movimiento en el objeto
+            lightMesh.userData.speed = THREE.MathUtils.randFloat(0.5, 1.5);
+            lightMesh.userData.direction = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+            
+            scene.add(lightMesh);
+            erraticLights.push(lightMesh);
+        }
+
+        function updateErraticLights(delta) {
+            // Mantener un máximo de 5 luces activas
+            if (erraticLights.length < 5 && Math.random() < 0.005) {
+                spawnErraticLight();
+            }
+
+            for (let i = erraticLights.length - 1; i >= 0; i--) {
+                const lightMesh = erraticLights[i];
+                
+                // 1. Movimiento Errático
+                // Cambia la dirección aleatoriamente de vez en cuando (0.5% de probabilidad por frame)
+                if (Math.random() < 0.005) { 
+                    lightMesh.userData.direction.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                }
+                
+                // Aplica movimiento rápido
+                lightMesh.position.addScaledVector(lightMesh.userData.direction, lightMesh.userData.speed * delta * 60);
+
+                // 2. Comprobación de Distancia (Desaparece si está demasiado cerca o demasiado lejos)
+                const distance = player.position.distanceTo(lightMesh.position);
+                if (distance < 50 || distance > 500) {
+                    scene.remove(lightMesh);
+                    erraticLights.splice(i, 1);
+                }
+            }
+        }
+        
+        // --- Lógica de Zonas de Niebla Densa ---
+
+        function spawnFogZone() {
+            // Esfera semitransparente que simula la zona de niebla
+            const geometry = new THREE.SphereGeometry(FOG_ZONE_RADIUS, 32, 32);
+            // BackSide para que la niebla se vea desde dentro
+            const material = new THREE.MeshBasicMaterial({ color: 0x101010, transparent: true, opacity: 0.1, side: THREE.BackSide }); 
+
+            const zone = new THREE.Mesh(geometry, material);
+
+            // Posicionar lejos (300 a 500 unidades)
+            const distance = THREE.MathUtils.randFloat(300, 500);
+            const angle = Math.random() * Math.PI * 2;
+            
+            const x = player.position.x + distance * Math.cos(angle);
+            const z = player.position.z + distance * Math.sin(angle);
+            // Elevar ligeramente por encima del suelo
+            const y = getHeight(x, z) + 10; 
+
+            zone.position.set(x, y, z);
+            scene.add(zone);
+            fogZones.push(zone);
+            console.log("Zona de niebla densa generada.");
+        }
+
+        function updateFogZones() {
+            // 1. Intentar generar una nueva zona de niebla
+            if (Math.random() < FOG_ZONE_PROBABILITY && fogZones.length < 2) {
+                spawnFogZone();
+            }
+
+            // 2. Aplicar efecto de niebla local
+            let fogOverride = false;
+            const playerPos = player.position;
+
+            for (let i = fogZones.length - 1; i >= 0; i--) {
+                const zone = fogZones[i];
+                const distance = playerPos.distanceTo(zone.position);
+
+                if (distance < FOG_ZONE_RADIUS) {
+                    // El jugador está dentro: aplicar niebla densa
+                    scene.fog.density = FOG_DENSITY_OVERRIDE;
+                    fogOverride = true;
+                }
+
+                // Desaparecer zonas de niebla que están muy lejos
+                if (distance > 700) {
+                    scene.remove(zone);
+                    fogZones.splice(i, 1);
+                }
+            }
+
+            // 3. Si no hay override, vuelve al ajuste de niebla por altura
+            if (!fogOverride) {
+                updateFogBasedOnHeight();
+            }
+        }
+
+        // --- Lógica del Monolito Celeste (Actualizada) ---
+
+        function spawnMonolith() {
+            // Permitir un máximo de 1 monolito activo por si el anterior no ha desaparecido
+            if (monoliths.length >= 1) return; 
+
+            // Geometría: Prisma rectangular, grande y negro
+            const geometry = new THREE.BoxGeometry(MONOLITH_SIZE / 8, MONOLITH_SIZE, MONOLITH_SIZE / 8);
+            const material = new THREE.MeshLambertMaterial({ color: 0x111111 }); 
+            const monolith = new THREE.Mesh(geometry, material);
+
+            // 1. Posicionar muy alto (400 a 800 unidades) y lejos (400 a 700 unidades)
+            const distance = THREE.MathUtils.randFloat(400, 700);
+            const angle = Math.random() * Math.PI * 2;
+            
+            const x = player.position.x + distance * Math.cos(angle);
+            const z = player.position.z + distance * Math.sin(angle);
+            const y = THREE.MathUtils.randFloat(400, 800); 
+
+            monolith.position.set(x, y, z);
+            
+            // 2. Almacenar datos de movimiento errático (como las luces, pero más rápido)
+            monolith.userData.speed = MONOLITH_SPEED;
+            monolith.userData.direction = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+
+            scene.add(monolith);
+            monoliths.push(monolith);
+            console.log("¡Monolito Celeste ha aparecido desde el cielo! Velocidad:", MONOLITH_SPEED);
+        }
+
+        function updateMonoliths(delta) {
+            // 1. Intenta spawnear si la probabilidad lo permite
+            if (Math.random() < MONOLITH_PROBABILITY) {
+                spawnMonolith();
+            }
+
+            // 2. Actualiza monolitos existentes
+            for (let i = monoliths.length - 1; i >= 0; i--) {
+                const monolith = monoliths[i];
+                
+                // Movimiento Errático: Puede cambiar de dirección aleatoriamente
+                if (Math.random() < 0.01) { 
+                    // Cambia la dirección tridimensional
+                    monolith.userData.direction.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+                }
+
+                // Aplica movimiento rápido
+                monolith.position.addScaledVector(monolith.userData.direction, monolith.userData.speed * delta * 60);
+
+                // Rotación dramática continua
+                monolith.rotation.x += 0.05 * delta * 60;
+                monolith.rotation.y += 0.03 * delta * 60;
+                
+                // 3. Eliminación: Desaparece si está demasiado cerca o demasiado lejos
+                const distance = player.position.distanceTo(monolith.position);
+                if (distance < 100) { // Distancia de desaparición al acercarse (fuga)
+                    scene.remove(monolith);
+                    monoliths.splice(i, 1);
+                    console.log("Monolito Celeste se ha fugado al ser detectado.");
+                    continue;
+                }
+
+                if (distance > 1000) { // Distancia máxima para eliminar de la memoria
+                    scene.remove(monolith);
+                    monoliths.splice(i, 1);
+                    console.log("Monolito Celeste ha viajado demasiado lejos.");
+                    continue;
+                }
+            }
+        }
+
+
+        /**
+         * Bucle principal de animación.
+         */
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta(); // Obtener el delta de tiempo una vez por frame
+            
+            updatePhysics(delta);
+            checkCollectibles();
+            updateVolatileShadows(delta); // Manejar aparición y desaparición de sombras
+            updateStalker(delta);         // Manejar lógica del Stalker
+            updateErraticLights(delta);   // Manejar luces errantes
+            updateFogZones();             // Manejar zonas de niebla y ajuste de niebla por altura
+            updateMonoliths(delta);       // Manejar movimiento errático del Monolito Celeste
+
+            // Rotar ligeramente los coleccionables restantes
+            collectibles.forEach(c => c.rotation.y += 0.01);
+
+            renderer.render(scene, camera);
+        }
+
+        /**
+         * Maneja el cambio de tamaño de la ventana (responsive).
+         */
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Re-evaluar la posición del joystick en caso de redimensionamiento
+            const container = document.getElementById('joystick-container');
+            const containerRect = container.getBoundingClientRect();
+            joystick.containerX = containerRect.left;
+            joystick.containerY = containerRect.top;
+        }
+
+        // --- INICIO DEL JUEGO AL CARGAR LA VENTANA ---
+        window.onload = init;
+    </script>
+</body>
+</html>
