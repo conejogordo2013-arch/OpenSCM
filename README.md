@@ -8,6 +8,7 @@ SCML (Scripting Control Markup Language) is a compact, SCM-looking embedded scri
 Se añadió una guía didáctica completa para aprender SCML desde cero hasta uso avanzado, incluyendo sintaxis, opcodes, macros, memoria, eventos, async, terminal rendering, integración nativa y una valoración práctica del lenguaje:
 
 - [`docs/SCML_COMPLETE_COURSE_ES.md`](docs/SCML_COMPLETE_COURSE_ES.md)
+- [`docs/SCML_FFI_RUNTIME_GUIDE_ES.md`](docs/SCML_FFI_RUNTIME_GUIDE_ES.md)
 
 ## Language shape
 
@@ -70,7 +71,7 @@ Supported source concepts include:
 - Advanced surface-only metadata blocks for `CLASS`, `INTERFACE`, `NAMESPACE`, `MODULE`, `TMPL`, `concept`, `enum class`, access sections (`PUBLIC:`, `PRIVATE:`, `PROTECTED:`), virtual/inline member declarations, lightweight exceptions (`try`/`catch`/`finally` blocks plus `throw` state), lambda stubs, and structured bindings such as `AUTO [x, y] = point;`.
 - Modern calls such as `print(value);`, `log(value);`, `wait(ms);`, and native module calls like `runtime.get_ticks() -> $TICKS;`.
 - Modern package imports through `use "std.scmlh";`, `use <mathkit.scmlh>;`, or namespace-style `use vendor.mathkit;`.
-- Advanced std helpers in `std.scmlh` / `stscm/std.scmlh` for `SCML_VECTOR_*`, `SCML_LIST_*`, `SCML_MAP_*`, `SCML_UNORDERED_MAP_NEW`, `SCML_OPTIONAL_*`, `SCML_EXPECTED_*`, `SCML_VARIANT_SET`, `SCML_ANY_SET`, `SCML_FILESYS_*`, stream-style `SCML_COUT`/`SCML_CIN`, reference/const/move/smart-pointer markers, reflection/RTTI helpers, concepts/constexpr helpers, thread wrappers, ranges, three-way comparison, VM trace flags, and JIT-hint metadata.
+- Advanced std helpers in `std.scmlh` / `stscm/std.scmlh` for `SCML_VECTOR_*`, `SCML_LIST_*`, `SCML_MAP_*`, `SCML_UNORDERED_MAP_NEW`, `SCML_OPTIONAL_*`, `SCML_EXPECTED_*`, `SCML_VARIANT_SET`, `SCML_ANY_SET`, `SCML_FILESYS_*`, `SCML_DATA_*`, `SCML_JSON_GET`, `SCML_ENV_*`, `SCML_FFI_*`, stream-style `SCML_COUT`/`SCML_CIN`, reference/const/move/smart-pointer markers, reflection/RTTI helpers, concepts/constexpr helpers, thread wrappers, ranges, three-way comparison, VM trace flags, and JIT-hint metadata.
 - C++17 superset pack: `[[...]]` attributes, inline/constexpr/static declarations, executable structured bindings for SCML aggregates, C++17-style `if (init; condition)`, literal `if constexpr` branch erasure, `fold_add`/`fold_mul`/`fold_any`/`fold_all` lowering, host-backed filesystem exists, and optional/variant/any accessors. See [`docs/SCML_CPP17_SUPERSET_ES.md`](docs/SCML_CPP17_SUPERSET_ES.md) and [`examples/cpp17_superiority.scml`](examples/cpp17_superiority.scml).
 - C++20 domination pack: executable range-for over SCML ranges, ranges/views helpers, `requires(value, type) -> out` concepts contracts, `co_await`/`co_return` coroutine lowering, `consteval_*` arithmetic helpers, and `import module.name;` metadata. See [`docs/SCML_CPP20_DOMINATION_PACK_ES.md`](docs/SCML_CPP20_DOMINATION_PACK_ES.md) and [`examples/cpp20_domination.scml`](examples/cpp20_domination.scml).
 
@@ -93,7 +94,7 @@ Supported source concepts include:
 - Array/block memory opcodes: `0B10 ALLOC`, `0B11 FREE`, `0B12 READ`, `0B13 WRITE`, and `0B14 ARRAY_CREATE`.
 - Debug tracing with source line mapping, `scml_vm_step`, and a memory inspector (`scml_vm_dump_memory`).
 - Multi-script compilation for shared global symbols and cross-script calls.
-- Hostless application helpers through the default runtime module registry for files, console, timing, input, network, audio, windows, and graphics when available.
+- Hostless application helpers through the default runtime module registry for files, console, timing, input, network, audio, windows, graphics when available, data transformations (`data.hash32`, URL encode/decode, split, flat `json_get`), environment variables (`env.get`/`env.set`), and advanced FFI memory/pointer helpers (`ffi.read_bytes`, `ffi.write_bytes`, `ffi.memcmp`, `ffi.memmove`, `ffi.is_null`).
 - Cooperative async tasks with `ASYNC_SPAWN`, `ASYNC_DONE`, and polling/await macros on top of the VM event queue.
 - Compile-time checked `TYPE_DECL` / `LET_I32` / `LET_F32` / `LET_STR` declarations plus runtime `TYPE_ASSERT` for advanced static-typing style contracts.
 

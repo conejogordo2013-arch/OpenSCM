@@ -139,6 +139,9 @@ int scml_ffi_array_read(void *base, size_t index, ScmlFFIType type, ScmlValue *r
 int scml_ffi_array_write(void *base, size_t index, ScmlFFIType type, const ScmlValue *value);
 int scml_ffi_memory_copy(void *dst, const void *src, size_t size);
 int scml_ffi_memory_set(void *dst, int value, size_t size);
+int scml_ffi_memory_compare(const void *lhs, const void *rhs, size_t size, int *out_cmp);
+char *scml_ffi_read_bytes_hex(const void *base, size_t offset, size_t size);
+int scml_ffi_write_bytes_hex(void *base, size_t offset, const char *hex_text);
 size_t scml_ffi_memory_block_size(void *ptr);
 int scml_ffi_struct_begin(const char *struct_name);
 int scml_ffi_union_begin(const char *union_name);

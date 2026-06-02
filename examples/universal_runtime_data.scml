@@ -1,0 +1,17 @@
+use "../std.scmlh"
+:MAIN
+SCML_DATA_URL_ENCODE("SCML hace de todo", $ENCODED)
+SCML_DATA_URL_DECODE($ENCODED, $DECODED)
+SCML_JSON_GET("{\"name\":\"SCML\",\"level\":9000,\"advanced\":true}", "name", $NAME)
+SCML_JSON_GET("{\"name\":\"SCML\",\"level\":9000,\"advanced\":true}", "level", $LEVEL)
+SCML_DATA_SPLIT("gpu,audio,data,env", ",", 2, $MODULE)
+SCML_ENV_SET("SCML_UNIVERSAL_TEST", "ok", $ENV_OK)
+SCML_ENV_GET("SCML_UNIVERSAL_TEST", $ENV_VALUE)
+03E5: $ENCODED
+03E5: $DECODED
+03E5: $NAME
+03E5: $LEVEL
+03E5: $MODULE
+03E5: $ENV_OK
+03E5: $ENV_VALUE
+0001:

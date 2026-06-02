@@ -1963,3 +1963,57 @@ macro SCML_VM_TRACE(on_off) {
 macro SCML_JIT_HINT(region_name) {
     0004: $SCML_JIT_HINT region_name
 }
+
+macro SCML_DATA_HASH32(value, out_hash) {
+    0B31: "data.hash32" value
+    0004: out_hash $RETVAL
+}
+macro SCML_DATA_URL_ENCODE(value, out_text) {
+    0B31: "data.url_encode" value
+    0004: out_text $RETVAL
+}
+macro SCML_DATA_URL_DECODE(value, out_text) {
+    0B31: "data.url_decode" value
+    0004: out_text $RETVAL
+}
+macro SCML_DATA_SPLIT(value, delimiter, index, out_text) {
+    0B31: "data.split" value delimiter index
+    0004: out_text $RETVAL
+}
+macro SCML_JSON_GET(json_text, key, out_value) {
+    0B31: "data.json_get" json_text key
+    0004: out_value $RETVAL
+}
+macro SCML_ENV_GET(name, out_value) {
+    0B31: "env.get" name
+    0004: out_value $RETVAL
+}
+macro SCML_ENV_SET(name, value, out_ok) {
+    0B31: "env.set" name value
+    0004: out_ok $RETVAL
+}
+
+macro SCML_FFI_NULL(out_ptr) {
+    0B31: "ffi.null"
+    0004: out_ptr $RETVAL
+}
+macro SCML_FFI_IS_NULL(ptr_value, out_ok) {
+    0B31: "ffi.is_null" ptr_value
+    0004: out_ok $RETVAL
+}
+macro SCML_FFI_READ_BYTES(ptr_value, offset, size, out_hex) {
+    0B31: "ffi.read_bytes" ptr_value offset size
+    0004: out_hex $RETVAL
+}
+macro SCML_FFI_WRITE_BYTES(ptr_value, offset, hex_text, out_ok) {
+    0B31: "ffi.write_bytes" ptr_value offset hex_text
+    0004: out_ok $RETVAL
+}
+macro SCML_FFI_MEMCMP(lhs_ptr, rhs_ptr, size, out_cmp) {
+    0B31: "ffi.memcmp" lhs_ptr rhs_ptr size
+    0004: out_cmp $RETVAL
+}
+macro SCML_FFI_MEMMOVE(dst_ptr, src_ptr, size, out_ok) {
+    0B31: "ffi.memmove" dst_ptr src_ptr size
+    0004: out_ok $RETVAL
+}

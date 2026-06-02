@@ -942,6 +942,26 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_pointer((uintptr_t)diff);
         return 1;
     }
+    if (strcmp(name, "ffi.null") == 0) {
+        if (arg_count != 0) return 0;
+        if (ret) *ret = value_pointer(0);
+        return 1;
+    }
+    if (strcmp(name, "ffi.is_null") == 0) {
+        if (arg_count != 1) return 0;
+        if (ret) *ret = value_int(vm_value_to_pointer(&args[0]) == 0 ? 1 : 0);
+        return 1;
+    }
+    if (strcmp(name, "ffi.ptr_to_int") == 0 || strcmp(name, "ffi.pointer_to_int") == 0) {
+        if (arg_count != 1) return 0;
+        if (ret) *ret = value_pointer(vm_value_to_pointer(&args[0]));
+        return 1;
+    }
+    if (strcmp(name, "ffi.int_to_ptr") == 0 || strcmp(name, "ffi.pointer_from_int") == 0) {
+        if (arg_count != 1) return 0;
+        if (ret) *ret = value_pointer(vm_value_to_pointer(&args[0]));
+        return 1;
+    }
     if (strcmp(name, "ffi.sizeof") == 0) {
         if (arg_count != 1 || args[0].type != SCML_VAL_STRING) return 0;
         if (ret) *ret = value_int((int32_t)scml_ffi_type_size(scml_ffi_parse_type(args[0].string, SCML_FFI_TYPE_INT32)));
@@ -986,9 +1006,30 @@ static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_co
         if (ret) *ret = value_int(ok);
         return ok;
     }
-    if (strcmp(name, "ffi.memcpy") == 0) {
+    if (strcmp(name, "ffi.memcpy") == 0 || strcmp(name, "ffi.memmove") == 0) {
         if (arg_count != 3) return 0;
         int ok = scml_ffi_memory_copy((void *)vm_value_to_pointer(&args[0]), (const void *)vm_value_to_pointer(&args[1]), (size_t)value_to_int(&args[2]));
+        if (ret) *ret = value_int(ok);
+        return ok;
+    }
+    if (strcmp(name, "ffi.memcmp") == 0) {
+        if (arg_count != 3) return 0;
+        int cmp = 0;
+        int ok = scml_ffi_memory_compare((const void *)vm_value_to_pointer(&args[0]), (const void *)vm_value_to_pointer(&args[1]), (size_t)value_to_int(&args[2]), &cmp);
+        if (ret) *ret = value_int(cmp);
+        return ok;
+    }
+    if (strcmp(name, "ffi.read_bytes") == 0 || strcmp(name, "ffi.read_hex") == 0) {
+        if (arg_count != 3) return 0;
+        char *hex = scml_ffi_read_bytes_hex((const void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), (size_t)value_to_int(&args[2]));
+        if (!hex) return 0;
+        if (ret) *ret = value_str(hex);
+        free(hex);
+        return 1;
+    }
+    if (strcmp(name, "ffi.write_bytes") == 0 || strcmp(name, "ffi.write_hex") == 0) {
+        if (arg_count != 3 || args[2].type != SCML_VAL_STRING) return 0;
+        int ok = scml_ffi_write_bytes_hex((void *)vm_value_to_pointer(&args[0]), (size_t)value_to_int(&args[1]), args[2].string);
         if (ret) *ret = value_int(ok);
         return ok;
     }

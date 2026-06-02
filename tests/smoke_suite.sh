@@ -20,6 +20,7 @@ SAMPLES=(
   "examples/functions.scml"
   "examples/std_usage.scml"
   "examples/dynamic_arrays.scml"
+  "examples/universal_runtime_data.scml"
 )
 
 for src in "${SAMPLES[@]}"; do
@@ -557,6 +558,52 @@ actual:   %q
   exit 1
 fi
 
+ffi_memory_bytes_src=".scml/ffi_memory_bytes.scml"
+ffi_memory_bytes_bin=".scml/ffi_memory_bytes.scmlbin"
+cat >"$ffi_memory_bytes_src" <<'SCML'
+use "../std.scmlh"
+:MAIN
+0B31: "ffi.alloc" 8
+0004: $BUF $RETVAL
+SCML_FFI_WRITE_BYTES($BUF, 0, "DE AD BE EF", $OK)
+03E5: $OK
+SCML_FFI_READ_BYTES($BUF, 0, 4, $HEX)
+03E5: $HEX
+0B31: "ffi.ptr_add" $BUF 2
+0004: $P2 $RETVAL
+0B31: "ffi.ptr_diff" $P2 $BUF
+03E5: $RETVAL
+SCML_FFI_NULL($NULL)
+SCML_FFI_IS_NULL($NULL, $IS_NULL)
+03E5: $IS_NULL
+0B31: "ffi.alloc" 8
+0004: $OTHER $RETVAL
+SCML_FFI_MEMMOVE($OTHER, $BUF, 4, $MOVE_OK)
+03E5: $MOVE_OK
+SCML_FFI_MEMCMP($BUF, $OTHER, 4, $CMP)
+03E5: $CMP
+0B31: "ffi.free" $OTHER
+0B31: "ffi.free" $BUF
+0001:
+SCML
+
+echo "[smoke] run FFI byte/pointer helper regression"
+bin/scml compile "$ffi_memory_bytes_src" "$ffi_memory_bytes_bin"
+ffi_memory_bytes_output="$(bin/scml run "$ffi_memory_bytes_bin")"
+expected_ffi_memory_bytes_output=$'1
+DEADBEEF
+0x2
+1
+1
+0'
+if [[ "$ffi_memory_bytes_output" != "$expected_ffi_memory_bytes_output" ]]; then
+  echo "[smoke] unexpected FFI byte/pointer helper output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_ffi_memory_bytes_output" "$ffi_memory_bytes_output" >&2
+  exit 1
+fi
+
 span_bad_src=".scml/span_bad_write.scml"
 span_bad_bin=".scml/span_bad_write.scmlbin"
 cat >"$span_bad_src" <<'SCML'
@@ -818,6 +865,17 @@ backend_output="$(bin/scml run "$backend_bin")"
 if [[ "$backend_output" != module=gpu\ active=*backends=*compiled=*$'\n0\n1' ]]; then
   echo "[smoke] unexpected backend registry output" >&2
   printf 'actual: %q\n' "$backend_output" >&2
+  exit 1
+fi
+
+universal_data_bin=".scml/universal_runtime_data.scmlbin"
+echo "[smoke] run universal data/env runtime regression"
+bin/scml compile "examples/universal_runtime_data.scml" "$universal_data_bin"
+universal_data_output="$(bin/scml run "$universal_data_bin")"
+expected_universal_data_output=$'SCML%20hace%20de%20todo\nSCML hace de todo\nSCML\n9000\ndata\n1\nok'
+if [[ "$universal_data_output" != "$expected_universal_data_output" ]]; then
+  echo "[smoke] unexpected universal data/env output" >&2
+  printf 'expected: %q\nactual:   %q\n' "$expected_universal_data_output" "$universal_data_output" >&2
   exit 1
 fi
 
