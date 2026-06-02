@@ -354,6 +354,14 @@ void *scml_ffi_load_library_ex(const char *path, unsigned int flags) {
     char *owned_path = NULL;
     void *handle = ffi_load_with_search_paths(path, flags, &owned_path);
     if (!handle) return NULL;
+    for (size_t i = 0; i < g_library_count; i++) {
+        if (g_libraries[i].path && owned_path && strcmp(g_libraries[i].path, owned_path) == 0) {
+            g_libraries[i].ref_count++;
+            ffi_platform_unload(handle);
+            free(owned_path);
+            return g_libraries[i].handle;
+        }
+    }
     g_libraries[g_library_count].path = owned_path;
     g_libraries[g_library_count].handle = handle;
     g_libraries[g_library_count].flags = flags;
@@ -397,6 +405,9 @@ static void *ffi_symbol_cache_find(void *library_handle, const char *function_na
 
 static int ffi_symbol_cache_add(void *library_handle, const char *function_name, void *function_ptr) {
     if (!function_ptr) return 1;
+    if (!function_name || !function_name[0]) { ffi_set_error("symbol cache failed", "empty symbol name"); return 0; }
+    void *cached = ffi_symbol_cache_find(library_handle, function_name);
+    if (cached) return cached == function_ptr;
     if (!ffi_ensure_symbol_capacity(g_symbol_count + 1)) return 0;
     char *owned_name = ffi_strdup(function_name);
     if (!owned_name) { ffi_set_error("symbol cache failed", "out of memory"); return 0; }

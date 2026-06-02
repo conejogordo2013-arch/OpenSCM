@@ -58,43 +58,55 @@ SCML_ENV_GET("SCML_MODE", $MODE)
 
 ## 5. FFI avanzado
 
-### 5.1 Cargar librerías y declarar funciones
+### 5.1 Reglas de diseño: FFI dinámico por símbolo
+
+El FFI estable de SCML no requiere wrappers manuales:
+
+- No se crean funciones C tipo `scml_lib_*` para cada API externa.
+- No se escriben bindings uno por uno ni glue code por función de la librería.
+- SCML no incluye headers nativos y solo ve nombres de símbolos y firmas textuales.
+- Una librería dinámica se carga una vez con `ffi.load`; los símbolos se resuelven por nombre en runtime.
+- Cada símbolo resuelto queda en cache, por lo que las siguientes llamadas reutilizan el puntero de función.
 
 ```scml
-0B31: "ffi.add_search_path" "examples"
 0B31: "ffi.load" "libscml_ffi_native"
-0B31: "ffi.declare" "scml_ffi_sum15_i32" "int" "int,int,int,int,int,int,int,int,int,int,int,int,int,int,int"
-0B31: "scml_ffi_sum15_i32" 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+
+; Llamada dinámica explícita: nombre exportado + retorno + tipos de argumentos + valores.
+0B31: "ffi.call_name" "scml_ffi_add_i32" "int" "int,int" 20 22
+03E5: $RETVAL
+
+; También se puede resolver el puntero cacheado y llamarlo directamente.
+0B31: "ffi.resolve" "scml_ffi_add_i32"
+0004: $ADD_PTR $RETVAL
+0B31: "ffi.call_ptr" $ADD_PTR "int" "int,int" 100 23
 03E5: $RETVAL
 ```
 
 Tipos soportados en firmas y memoria: `bool`, `int8`, `uint8`, `int16`, `uint16`, `int`, `int32`, `uint32`, `int64`, `uint64`, `size`, `float`, `double`, `pointer`, `string`, `void`.
 
-### 5.2 Llamadas dinámicas por nombre y aliases avanzados
+### 5.2 Llamadas dinámicas por nombre, ABI y aliases opcionales
 
-Además de llamar directamente a `0B31: "nombre_exportado"`, el FFI permite invocación explícita por nombre y enlaces alias→símbolo para escenarios complejos como plugins, tablas generadas o APIs donde el nombre SCML no coincide con el export C:
+La forma recomendada es `ffi.call_name name ret arg_spec ...`, porque no registra una función estática ni exige glue C. Para casos donde necesitas forzar ABI o guardar un alias SCML estable hacia un símbolo externo, el runtime también conserva APIs explícitas:
 
 ```scml
 0B31: "ffi.load" "libscml_ffi_native"
 0004: $LIB $RETVAL
-0B31: "ffi.declare_abi" "scml_ffi_add_i32" "int" "int,int" "cdecl"
-0B31: "ffi.call_name" "scml_ffi_add_i32" 20 22
+
+0B31: "ffi.call_name_abi" "scml_ffi_add_i32" "cdecl" "int" "int,int" 20 22
 03E5: $RETVAL
 
-; Alias SCML estable hacia un símbolo nativo concreto.
+; Alias opcional: no envuelve C, solo cachea alias -> símbolo nativo resuelto.
 0B31: "ffi.bind" $LIB "math.add" "scml_ffi_add_i32" "int" "int,int" "cdecl"
-0B31: "ffi.resolve" "math.add"
-0004: $ADD_PTR $RETVAL
 0B31: "ffi.call_name_abi" "math.add" "cdecl" 100 23
 03E5: $RETVAL
 ```
 
-- `ffi.declare_abi name ret arg_spec abi` guarda firma y ABI para una exportación.
-- `ffi.call_name name ...` usa la firma declarada si no se pasa firma explícita.
-- `ffi.call_name name ret arg_spec ...` fuerza una firma ad hoc sin tocar el registro.
-- `ffi.call_name_abi name abi ...` fuerza ABI en la llamada.
-- `ffi.bind handle alias symbol ret arg_spec abi` resuelve `symbol`, lo cachea y permite llamar al alias.
-- `ffi.resolve name` devuelve el puntero de un alias enlazado o de un símbolo cargado.
+- `ffi.call_name name ret arg_spec ...` resuelve `name`, cachea el puntero y llama con la firma textual indicada.
+- `ffi.call_name_abi name abi ret arg_spec ...` hace lo mismo, fijando ABI.
+- `ffi.resolve name` devuelve el puntero cacheado o resuelve el símbolo si todavía no estaba en cache.
+- `ffi.call_ptr ptr ret arg_spec ...` llama directamente a un puntero de función.
+- `ffi.bind handle alias symbol ret arg_spec abi` es opcional y solo guarda un alias SCML hacia un símbolo nativo; no genera C ni wrappers.
+- `ffi.stats` devuelve el número de símbolos cacheados para verificar que el runtime no repite búsquedas por llamada.
 
 ### 5.3 Punteros y memoria
 
@@ -178,9 +190,8 @@ Ver [`examples/universal_runtime_data.scml`](../examples/universal_runtime_data.
 
 Hay ejemplos mínimos de creación de ventana SDL2 mediante FFI real en `examples/sdl2_ffi/`:
 
-- `scml_sdl2_window.c`: librería C pequeña que compila contra SDL2 y exporta `scml_sdl2_open_window_ms`.
-- `linux_sdl2_window_ffi.scml`: carga `examples/sdl2_ffi/libscml_sdl2_window.so`, declara la función exportada y abre una ventana en Linux.
-- `msys2_ucrt64_sdl2_window_ffi.scml`: carga `examples/sdl2_ffi/scml_sdl2_window.dll`, declara la función exportada y abre una ventana en MSYS2 UCRT64.
-- `build_linux.sh` y `build_msys2_ucrt64.sh`: compilan la librería nativa SDL2 y el script SCML correspondiente.
+- `linux_sdl2_window_ffi.scml`: carga `libSDL2-2.0.so.0` y llama directamente a `SDL_Init`, `SDL_CreateWindow`, `SDL_Delay`, `SDL_DestroyWindow` y `SDL_QuitSubSystem`.
+- `msys2_ucrt64_sdl2_window_ffi.scml`: carga `SDL2.dll` y llama a los mismos símbolos directamente.
+- `build_linux.sh` y `build_msys2_ucrt64.sh`: compilan los scripts SCML; no compilan wrappers C porque no existen.
 
-La smoke suite compila los scripts SCML, pero no ejecuta la ventana porque SDL2 y un display gráfico no siempre existen en CI/headless.
+La smoke suite compila los scripts SCML, pero no ejecuta la ventana porque SDL2 y un display gráfico no siempre existen en CI/headless. El ejemplo queda como prueba práctica de FFI dinámico puro: librería cargada una vez, símbolos por nombre, punteros cacheados y cero glue C.
