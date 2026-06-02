@@ -98,6 +98,16 @@ static int equals_ci(const char *a, const char *b){
     return *a==0 && *b==0;
 }
 static void strip_statement_tail(char *s){ char *t=trim(s); size_t n=strlen(t); while(n>0 && isspace((unsigned char)t[n-1])) t[--n]=0; if(n>0 && t[n-1]==';') t[--n]=0; while(n>0 && isspace((unsigned char)t[n-1])) t[--n]=0; }
+static char *strip_modern_attributes(char *s){
+    char *t=trim(s);
+    while(starts(t,"[[")){
+        char *end=strstr(t,"]] ");
+        if(!end) end=strstr(t,"]]");
+        if(!end) break;
+        t=trim(end+2);
+    }
+    return t;
+}
 static void sanitize_label_name(char *s){ for(size_t i=0;s[i];i++){ if(!isalnum((unsigned char)s[i]) && s[i]!='_') s[i]='_'; } }
 static char *read_modern_ident(char *s, char *out, size_t out_size){ s=trim(s); size_t i=0; while(s[i] && (isalnum((unsigned char)s[i]) || s[i]=='_' || s[i]=='.' || s[i]==':' || s[i]=='$')){ if(i+1<out_size) out[i]=s[i]; i++; } if(out_size) out[i<out_size?i:out_size-1]=0; return s+i; }
 static char *find_unquoted_binary_op(char *s, const char *op){
@@ -108,6 +118,16 @@ static char *find_unquoted_binary_op(char *s, const char *op){
         else if(!quoted && (*p=='(' || *p=='[' || *p=='{')) depth++;
         else if(!quoted && (*p==')' || *p==']' || *p=='}') && depth>0) depth--;
         else if(!quoted && depth==0 && strncmp(p,op,n)==0) return p;
+    }
+    return NULL;
+}
+static char *find_top_level_char(char *s, char needle){
+    int quoted=0, depth=0;
+    for(char *p=s; *p; p++){
+        if(*p=='"' && (p==s || p[-1]!='\\')) quoted=!quoted;
+        else if(!quoted && (*p=='(' || *p=='[' || *p=='{')) depth++;
+        else if(!quoted && (*p==')' || *p==']' || *p=='}') && depth>0) depth--;
+        else if(!quoted && depth==0 && *p==needle) return p;
     }
     return NULL;
 }
@@ -126,6 +146,42 @@ static int modern_emit_value_assignment(const char *name, char *value, char **ou
         char scratch[768]; snprintf(scratch,sizeof(scratch),"%s",val);
         char *p=find_unquoted_binary_op(scratch,ops[i].op);
         if(p && p!=scratch){ *p=0; char *lhs=trim(scratch); char *rhs=trim(p+strlen(ops[i].op)); if(*lhs && *rhs){ snprintf(outl,sizeof(outl),"%s: %s %s %s",ops[i].code,name,lhs,rhs); append_line(out,olen,ocap,outl); return 1; } }
+    }
+    if((starts(val,"fold_add(") || starts(val,"fold_mul(") || starts(val,"fold_any(") || starts(val,"fold_all(")) && val[strlen(val)-1]==')'){
+        int is_mul=starts(val,"fold_mul(");
+        int is_any=starts(val,"fold_any(");
+        int is_all=starts(val,"fold_all(");
+        char argsbuf[768];
+        const char *lp=strchr(val,'(');
+        snprintf(argsbuf,sizeof(argsbuf),"%.*s",(int)(strlen(lp+1)-1),lp+1);
+        size_t argc=0; char **args=split_args(argsbuf,&argc);
+        if(argc==0){ snprintf(outl,sizeof(outl),"0004: %s %d",name,is_mul||is_all?1:0); append_line(out,olen,ocap,outl); }
+        else {
+            snprintf(outl,sizeof(outl),"0004: %s %s",name,trim(args[0])); append_line(out,olen,ocap,outl);
+            for(size_t i=1;i<argc;i++){
+                const char *code=is_mul?"0008":(is_any?"0B28":(is_all?"0B27":"0006"));
+                snprintf(outl,sizeof(outl),"%s: %s %s %s",code,name,name,trim(args[i])); append_line(out,olen,ocap,outl);
+            }
+        }
+        for(size_t i=0;i<argc;i++) free(args[i]);
+        free(args);
+        return 1;
+    }
+    if((starts(val,"consteval_add(") || starts(val,"consteval_sub(") || starts(val,"consteval_mul(") || starts(val,"consteval_div(")) && val[strlen(val)-1]==')'){
+        char argsbuf[768]; const char *lp=strchr(val,'(');
+        snprintf(argsbuf,sizeof(argsbuf),"%.*s",(int)(strlen(lp+1)-1),lp+1);
+        size_t argc=0; char **args=split_args(argsbuf,&argc);
+        if(argc!=2){ for(size_t i=0;i<argc;i++){ free(args[i]); } free(args); snprintf(outl,sizeof(outl),"0004: %s 0",name); append_line(out,olen,ocap,outl); return 1; }
+        const char *code=starts(val,"consteval_sub(")?"0007":(starts(val,"consteval_mul(")?"0008":(starts(val,"consteval_div(")?"0009":"0006"));
+        snprintf(outl,sizeof(outl),"%s: %s %s %s",code,name,trim(args[0]),trim(args[1])); append_line(out,olen,ocap,outl);
+        for(size_t i=0;i<argc;i++){ free(args[i]); } free(args); return 1;
+    }
+    if(starts(val,"range_size(") && val[strlen(val)-1]==')'){
+        char ref[256]; const char *lp=strchr(val,'('); snprintf(ref,sizeof(ref),"%.*s",(int)(strlen(lp+1)-1),lp+1);
+        snprintf(outl,sizeof(outl),"0B12: 98@ %s 0",trim(ref)); append_line(out,olen,ocap,outl);
+        snprintf(outl,sizeof(outl),"0B12: 99@ %s 1",trim(ref)); append_line(out,olen,ocap,outl);
+        snprintf(outl,sizeof(outl),"0007: %s 99@ 98@",name); append_line(out,olen,ocap,outl);
+        return 1;
     }
     snprintf(outl,sizeof(outl),"0004: %s %s",name,val);
     append_line(out,olen,ocap,outl);
@@ -154,10 +210,17 @@ static int modern_emit_auto_declaration(char *decl, char **out, size_t *olen, si
         if(!rb || !eq){ snprintf(err,err_size,"modern structured binding expects AUTO [a, b] = value"); return 0; }
         *rb=0;
         char *items=p+1;
+        char *source=trim(eq+1);
         size_t argc=0; char **names=split_args(items,&argc);
         for(size_t i=0;i<argc;i++){
             char *name=trim(names[i]);
-            if(*name){ char outl[256]; snprintf(outl,sizeof(outl),"0B4B: %s \"any\"",name); append_line(out,olen,ocap,outl); snprintf(outl,sizeof(outl),"0004: %s 0",name); append_line(out,olen,ocap,outl); }
+            if(*name){
+                char outl[256];
+                snprintf(outl,sizeof(outl),"0B4B: %s \"any\"",name); append_line(out,olen,ocap,outl);
+                if(source[0]=='$' || strchr(source,'@')) snprintf(outl,sizeof(outl),"0B12: %s %s %zu",name,source,i);
+                else snprintf(outl,sizeof(outl),"0004: %s 0",name);
+                append_line(out,olen,ocap,outl);
+            }
             free(names[i]);
         }
         free(names);
@@ -181,6 +244,7 @@ static int modern_type_keyword_len(const char *t){
     for(size_t i=0;i<sizeof(kw)/sizeof(kw[0]);i++) if(starts_keyword_ci(t,kw[i])) return (int)strlen(kw[i]);
     return 0;
 }
+static int find_condition_op(char *expr, char **lhs, char **rhs, const char **opcode);
 static int split_for_clauses(char *header, char **init, char **cond, char **post){
     int quoted=0;
     int depth=0;
@@ -201,6 +265,43 @@ static int split_for_clauses(char *header, char **init, char **cond, char **post
     *init=trim(parts[0]);
     *cond=trim(parts[1]);
     *post=trim(parts[2]);
+    return 1;
+}
+static int split_condition_initializer(char *condition, char **init, char **cond){
+    int quoted=0;
+    int depth=0;
+    *init=NULL;
+    *cond=trim(condition);
+    for(char *c=condition; *c; c++){
+        if(*c=='"' && (c==condition || c[-1]!='\\')) quoted=!quoted;
+        else if(!quoted && (*c=='(' || *c=='[' || *c=='{')) depth++;
+        else if(!quoted && (*c==')' || *c==']' || *c=='}') && depth>0) depth--;
+        else if(!quoted && depth==0 && *c==';'){
+            *c=0;
+            *init=trim(condition);
+            *cond=trim(c+1);
+            return **init && **cond;
+        }
+    }
+    return 1;
+}
+
+static int modern_eval_const_condition(char *expr, int *out_value){
+    char tmp[512];
+    snprintf(tmp,sizeof(tmp),"%s",trim(expr));
+    if(strcmp(tmp,"true")==0 || strcmp(tmp,"TRUE")==0 || strcmp(tmp,"1")==0){ *out_value=1; return 1; }
+    if(strcmp(tmp,"false")==0 || strcmp(tmp,"FALSE")==0 || strcmp(tmp,"0")==0){ *out_value=0; return 1; }
+    char *lhs=NULL,*rhs=NULL; const char *opcode=NULL;
+    if(!find_condition_op(tmp,&lhs,&rhs,&opcode)) return 0;
+    char *end=NULL; long a=strtol(lhs,&end,0); if(end==lhs || *trim(end)) return 0;
+    end=NULL; long b=strtol(rhs,&end,0); if(end==rhs || *trim(end)) return 0;
+    if(strcmp(opcode,"00D6")==0) *out_value=(a==b);
+    else if(strcmp(opcode,"00D7")==0) *out_value=(a!=b);
+    else if(strcmp(opcode,"0B25")==0) *out_value=(a>=b);
+    else if(strcmp(opcode,"0B26")==0) *out_value=(a<=b);
+    else if(strcmp(opcode,"00D8")==0) *out_value=(a>b);
+    else if(strcmp(opcode,"00D9")==0) *out_value=(a<b);
+    else return 0;
     return 1;
 }
 static const char *compound_assignment_opcode(const char *op){
@@ -266,7 +367,7 @@ static ModernBlock *modern_find_loop(ModernBlock *blocks, int block_top){
 }
 
 static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_top, int *modern_id, char **out, size_t *olen, size_t *ocap, char *err, size_t err_size){
-    char *t=trim(lineout);
+    char *t=strip_modern_attributes(lineout);
     strip_statement_tail(t);
     if(!*t || t[0]==';'){ append_line(out,olen,ocap,t); return 1; }
     if(*block_top>0 && blocks[*block_top-1].kind==MODERN_BLOCK_SKIP){
@@ -303,8 +404,10 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
             char *lp=strchr(else_tail,'('), *rp=strrchr(else_tail,')');
             if(!lp || !rp || rp<=lp){snprintf(err,err_size,"modern else if expects condition in parentheses");return 0;}
             char cond[512]; snprintf(cond,sizeof(cond),"%.*s",(int)(rp-lp-1),lp+1);
+            char *init=NULL,*real_cond=NULL; if(!split_condition_initializer(cond,&init,&real_cond)){snprintf(err,err_size,"modern else if initializer expects init; condition");return 0;}
+            if(init && *init && !modern_emit_inline_statement(init,blocks,block_top,modern_id,out,olen,ocap,err,err_size)) return 0;
             char *lhs=NULL,*rhs=NULL; const char *code=NULL;
-            if(!find_condition_op(cond,&lhs,&rhs,&code)){snprintf(err,err_size,"modern else if condition expects == != > < >= <=");return 0;}
+            if(!find_condition_op(real_cond,&lhs,&rhs,&code)){snprintf(err,err_size,"modern else if condition expects == != > < >= <=");return 0;}
             int id=++(*modern_id);
             ModernBlock next={MODERN_BLOCK_ELSEIF,{0},{0},{0},{0},{0}};
             snprintf(next.start_label,sizeof(next.start_label),"__SCMLM_ELSEIF_TRUE_%d",id);
@@ -333,6 +436,7 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
         if(strchr(t,'{')){ if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=(ModernBlock){MODERN_BLOCK_SCRIPT,{0},{0},{0},{0},{0}}; }
         return 1;
     }
+    if(starts_keyword_ci(t,"import")) return 1;
     if(starts_keyword_ci(t,"module") || starts_keyword_ci(t,"namespace") || starts_keyword_ci(t,"class") || starts_keyword_ci(t,"interface") || starts_keyword_ci(t,"struct")){
         if(strchr(t,'{')){ if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=(ModernBlock){MODERN_BLOCK_SCOPE,{0},{0},{0},{0},{0}}; }
         return 1;
@@ -348,7 +452,20 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
         return 1;
     }
     if(starts_keyword_ci(t,"if")){
-        char *lp=strchr(t,'('), *rp=strrchr(t,')'); if(!lp || !rp || rp<=lp){snprintf(err,err_size,"modern if expects condition in parentheses");return 0;} char cond[512]; snprintf(cond,sizeof(cond),"%.*s",(int)(rp-lp-1),lp+1); char *lhs=NULL,*rhs=NULL; const char *code=NULL; if(!find_condition_op(cond,&lhs,&rhs,&code)){snprintf(err,err_size,"modern if condition expects == != > < >= <=");return 0;}
+        int is_constexpr=0;
+        char *head=trim(t+2);
+        if(starts_keyword_ci(head,"constexpr")){ is_constexpr=1; head=trim(head+9); }
+        char *lp=strchr(head,'('), *rp=strrchr(head,')'); if(!lp || !rp || rp<=lp){snprintf(err,err_size,"modern if expects condition in parentheses");return 0;} char cond[512]; snprintf(cond,sizeof(cond),"%.*s",(int)(rp-lp-1),lp+1);
+        char *init=NULL,*real_cond=NULL; if(!split_condition_initializer(cond,&init,&real_cond)){snprintf(err,err_size,"modern if initializer expects init; condition");return 0;}
+        if(init && *init && !modern_emit_inline_statement(init,blocks,block_top,modern_id,out,olen,ocap,err,err_size)) return 0;
+        if(is_constexpr){
+            int keep=0; char constexpr_cond[512]; snprintf(constexpr_cond,sizeof(constexpr_cond),"%s",real_cond);
+            if(!modern_eval_const_condition(constexpr_cond,&keep)){snprintf(err,err_size,"modern if constexpr expects literal true/false or integer comparison");return 0;}
+            if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;}
+            blocks[(*block_top)++]=(ModernBlock){keep?MODERN_BLOCK_SCOPE:MODERN_BLOCK_SKIP,{0},{0},{0},{0},{0}};
+            return 1;
+        }
+        char *lhs=NULL,*rhs=NULL; const char *code=NULL; if(!find_condition_op(real_cond,&lhs,&rhs,&code)){snprintf(err,err_size,"modern if condition expects == != > < >= <=");return 0;}
         int id=++(*modern_id); ModernBlock b={MODERN_BLOCK_IF,{0},{0},{0},{0},{0}}; snprintf(b.start_label,sizeof(b.start_label),"__SCMLM_IF_TRUE_%d",id); snprintf(b.false_label,sizeof(b.false_label),"__SCMLM_IF_FALSE_%d",id); snprintf(b.end_label,sizeof(b.end_label),"__SCMLM_IF_END_%d",id);
         char outl[256]; snprintf(outl,sizeof(outl),"%s: %s %s @%s",code,lhs,rhs,b.start_label); append_line(out,olen,ocap,outl); snprintf(outl,sizeof(outl),"000A: @%s",b.false_label); append_line(out,olen,ocap,outl); snprintf(outl,sizeof(outl),":%s",b.start_label); append_line(out,olen,ocap,outl);
         if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=b; return 1;
@@ -361,8 +478,35 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
     }
     if(starts_keyword_ci(t,"for")){
         char *lp=strchr(t,'('), *rp=strrchr(t,')');
-        if(!lp || !rp || rp<=lp){snprintf(err,err_size,"modern for expects for(init; condition; post)");return 0;}
+        if(!lp || !rp || rp<=lp){snprintf(err,err_size,"modern for expects for(init; condition; post) or for(AUTO item : range)");return 0;}
         char header[1024]; snprintf(header,sizeof(header),"%.*s",(int)(rp-lp-1),lp+1);
+        char range_header[1024]; snprintf(range_header,sizeof(range_header),"%s",header);
+        char *colon=find_top_level_char(range_header,':');
+        char *semicolon=find_top_level_char(range_header,';');
+        if(colon && !semicolon){
+            *colon=0; char *decl=trim(range_header); char *range_ref=trim(colon+1);
+            if(!*decl || !*range_ref){snprintf(err,err_size,"modern range-for expects for(AUTO item : range)");return 0;}
+            if(starts_keyword_ci(decl,"AUTO")) decl=trim(decl+4);
+            else { int tk=modern_type_keyword_len(decl); if(tk>0) decl=trim(decl+tk); }
+            while(*decl=='&' || *decl=='*'){ decl++; } decl=trim(decl);
+            if(!*decl){snprintf(err,err_size,"modern range-for missing loop variable");return 0;}
+            int id=++(*modern_id); ModernBlock b={MODERN_BLOCK_FOR,{0},{0},{0},{0},{0}};
+            snprintf(b.start_label,sizeof(b.start_label),"__SCMLM_RANGE_START_%d",id);
+            snprintf(b.false_label,sizeof(b.false_label),"__SCMLM_RANGE_BODY_%d",id);
+            snprintf(b.end_label,sizeof(b.end_label),"__SCMLM_RANGE_END_%d",id);
+            snprintf(b.continue_label,sizeof(b.continue_label),"__SCMLM_RANGE_CONTINUE_%d",id);
+            snprintf(b.post,sizeof(b.post),"0006: __SCMLM_RANGE_IT_%d __SCMLM_RANGE_IT_%d 1",id,id);
+            char outl[512];
+            snprintf(outl,sizeof(outl),"0B12: __SCMLM_RANGE_IT_%d %s 0",id,range_ref); append_line(out,olen,ocap,outl);
+            snprintf(outl,sizeof(outl),"0B12: __SCMLM_RANGE_ENDVAL_%d %s 1",id,range_ref); append_line(out,olen,ocap,outl);
+            snprintf(outl,sizeof(outl),":%s",b.start_label); append_line(out,olen,ocap,outl);
+            snprintf(outl,sizeof(outl),"00D9: __SCMLM_RANGE_IT_%d __SCMLM_RANGE_ENDVAL_%d @%s",id,id,b.false_label); append_line(out,olen,ocap,outl);
+            snprintf(outl,sizeof(outl),"000A: @%s",b.end_label); append_line(out,olen,ocap,outl);
+            snprintf(outl,sizeof(outl),":%s",b.false_label); append_line(out,olen,ocap,outl);
+            snprintf(outl,sizeof(outl),"0B4B: %s \"any\"",decl); append_line(out,olen,ocap,outl);
+            snprintf(outl,sizeof(outl),"0004: %s __SCMLM_RANGE_IT_%d",decl,id); append_line(out,olen,ocap,outl);
+            if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=b; return 1;
+        }
         char *init=NULL,*cond=NULL,*post=NULL;
         if(!split_for_clauses(header,&init,&cond,&post)){snprintf(err,err_size,"modern for expects exactly three ';'-separated clauses");return 0;}
         if(*init && !modern_emit_inline_statement(init,blocks,block_top,modern_id,out,olen,ocap,err,err_size)) return 0;
@@ -393,8 +537,16 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
     }
     {
         char *decl_start=t;
-        if(starts_keyword_ci(decl_start,"const")) decl_start=trim(decl_start+5);
-        if(starts_keyword_ci(decl_start,"constexpr")) decl_start=trim(decl_start+9);
+        int advanced_decl=1;
+        while(advanced_decl){
+            advanced_decl=0;
+            if(starts_keyword_ci(decl_start,"inline")){ decl_start=trim(decl_start+6); advanced_decl=1; }
+            if(starts_keyword_ci(decl_start,"static")){ decl_start=trim(decl_start+6); advanced_decl=1; }
+            if(starts_keyword_ci(decl_start,"constinit")){ decl_start=trim(decl_start+9); advanced_decl=1; }
+            if(starts_keyword_ci(decl_start,"consteval")){ decl_start=trim(decl_start+9); advanced_decl=1; }
+            if(starts_keyword_ci(decl_start,"const")){ decl_start=trim(decl_start+5); advanced_decl=1; }
+            if(starts_keyword_ci(decl_start,"constexpr")){ decl_start=trim(decl_start+9); advanced_decl=1; }
+        }
         int tklen=modern_type_keyword_len(decl_start);
         if(tklen>0){
             char *after=decl_start+tklen;
@@ -422,6 +574,21 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
             append_line(out,olen,ocap,outl);
             return 1;
         }
+    }
+    if(starts_keyword_ci(t,"requires")){
+        char *lp=strchr(t,'('), *rp=strrchr(t,')'); char *arrow=strstr(t,"->");
+        if(!lp || !rp || rp<=lp || !arrow){snprintf(err,err_size,"modern requires expects requires(value, type) -> out_ok");return 0;}
+        char argsbuf[512]; snprintf(argsbuf,sizeof(argsbuf),"%.*s",(int)(rp-lp-1),lp+1);
+        size_t argc=0; char **args=split_args(argsbuf,&argc);
+        if(argc<2){ for(size_t i=0;i<argc;i++){ free(args[i]); } free(args); snprintf(err,err_size,"modern requires expects value and type"); return 0; }
+        char *outvar=trim(arrow+2); char outl[640]; snprintf(outl,sizeof(outl),"0B4C: %s %s %s",trim(args[0]),trim(args[1]),outvar); append_line(out,olen,ocap,outl);
+        for(size_t i=0;i<argc;i++){ free(args[i]); } free(args); return 1;
+    }
+    if(starts_keyword_ci(t,"co_await")){
+        char *p=trim(t+8); char *arrow=strstr(p,"->"); if(!arrow){snprintf(err,err_size,"modern co_await expects task -> out_done");return 0;} *arrow=0; char *outvar=trim(arrow+2); char outl[256]; snprintf(outl,sizeof(outl),"0B4A: %s %s",trim(p),outvar); append_line(out,olen,ocap,outl); return 1;
+    }
+    if(starts_keyword_ci(t,"co_return")){
+        char *p=trim(t+9); if(*p) modern_emit_value_assignment("$RETVAL",p,out,olen,ocap); append_line(out,olen,ocap,"0D02:"); return 1;
     }
     if(starts_keyword(t,"spawn")){
         char *p=trim(t+5); char *arrow=strstr(p,"->"); if(!arrow){snprintf(err,err_size,"modern spawn expects -> out_task");return 0;} *arrow=0; char target[96]; snprintf(target,sizeof(target),"%s",trim(p)); sanitize_label_name(target); char *outvar=trim(arrow+2); char outl[256]; snprintf(outl,sizeof(outl),"0B49: @%s %s",target,outvar); append_line(out,olen,ocap,outl); return 1;

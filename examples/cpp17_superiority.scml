@@ -1,0 +1,48 @@
+use "../std.scmlh";
+
+MODULE scml.cpp17.superiority;
+
+[[nodiscard]] inline constexpr INT cpp17_score = 17;
+
+script MAIN {
+    ; std::tuple-like aggregate decomposition, now lowered to indexed reads.
+    array_new($tuple, 3);
+    array_set($tuple, 0, 17);
+    array_set($tuple, 1, 20);
+    array_set($tuple, 2, 23);
+    AUTO [a, b, c] = $tuple;
+
+    ; C++17-style if initializer plus condition.
+    if (let $probe: i32 = 17; $probe == a) {
+        print("if-init ok");
+    }
+
+    ; C++17-style fold helpers lower to bytecode arithmetic/bitwise reductions.
+    AUTO total = fold_add(a, b, c, 60);
+    AUTO product = fold_mul(2, 3, 4);
+    print(total);
+    print(product);
+
+    ; constexpr branch selection: the false branch is erased by preprocessing.
+    if constexpr (17 >= 17) {
+        print("constexpr ok");
+    }
+    if constexpr (0) {
+        print("constexpr failed");
+    }
+
+    SCML_OPTIONAL_SOME(total, $opt);
+    SCML_OPTIONAL_HAS_VALUE($has, $opt);
+    SCML_OPTIONAL_VALUE($value, $opt);
+    print($has);
+    print($value);
+
+    SCML_VARIANT_SET($variant, 17, product);
+    SCML_VARIANT_TAG($tag, $variant);
+    SCML_VARIANT_VALUE($payload, $variant);
+    print($tag);
+    print($payload);
+
+    SCML_FILESYS_EXISTS("std.scmlh", $std_exists);
+    print($std_exists);
+}

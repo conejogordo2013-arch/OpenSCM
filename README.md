@@ -71,6 +71,8 @@ Supported source concepts include:
 - Modern calls such as `print(value);`, `log(value);`, `wait(ms);`, and native module calls like `runtime.get_ticks() -> $TICKS;`.
 - Modern package imports through `use "std.scmlh";`, `use <mathkit.scmlh>;`, or namespace-style `use vendor.mathkit;`.
 - Advanced std helpers in `std.scmlh` / `stscm/std.scmlh` for `SCML_VECTOR_*`, `SCML_LIST_*`, `SCML_MAP_*`, `SCML_UNORDERED_MAP_NEW`, `SCML_OPTIONAL_*`, `SCML_EXPECTED_*`, `SCML_VARIANT_SET`, `SCML_ANY_SET`, `SCML_FILESYS_*`, stream-style `SCML_COUT`/`SCML_CIN`, reference/const/move/smart-pointer markers, reflection/RTTI helpers, concepts/constexpr helpers, thread wrappers, ranges, three-way comparison, VM trace flags, and JIT-hint metadata.
+- C++17 superset pack: `[[...]]` attributes, inline/constexpr/static declarations, executable structured bindings for SCML aggregates, C++17-style `if (init; condition)`, literal `if constexpr` branch erasure, `fold_add`/`fold_mul`/`fold_any`/`fold_all` lowering, host-backed filesystem exists, and optional/variant/any accessors. See [`docs/SCML_CPP17_SUPERSET_ES.md`](docs/SCML_CPP17_SUPERSET_ES.md) and [`examples/cpp17_superiority.scml`](examples/cpp17_superiority.scml).
+- C++20 domination pack: executable range-for over SCML ranges, ranges/views helpers, `requires(value, type) -> out` concepts contracts, `co_await`/`co_return` coroutine lowering, `consteval_*` arithmetic helpers, and `import module.name;` metadata. See [`docs/SCML_CPP20_DOMINATION_PACK_ES.md`](docs/SCML_CPP20_DOMINATION_PACK_ES.md) and [`examples/cpp20_domination.scml`](examples/cpp20_domination.scml).
 
 ## Architecture
 
