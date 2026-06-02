@@ -37,8 +37,12 @@ typedef struct ScmlFFISymbol {
 
 typedef struct ScmlFFISignatureEntry {
     char *name;
+    char *symbol_name;
+    void *library_handle;
+    void *function_ptr;
     ScmlFFISignature signature;
     ScmlFFIType *arg_types;
+    ScmlFFIAbi abi;
 } ScmlFFISignatureEntry;
 
 typedef struct ScmlFFISearchPath {
@@ -487,7 +491,7 @@ int scml_ffi_abi_supported(ScmlFFIAbi abi) {
 char *scml_ffi_capabilities(void) {
     char buf[512];
     snprintf(buf, sizeof(buf),
-             "libffi=%d fallback_max_args=%d abi={default:%d,cdecl:%d,stdcall:%d,fastcall:%d,thiscall:%d} features={call_ptr:1,vtable:1,peek_poke_ptr:1,utf16:1,union:1,struct_arrays:1}",
+             "libffi=%d fallback_max_args=%d abi={default:%d,cdecl:%d,stdcall:%d,fastcall:%d,thiscall:%d} features={call_ptr:1,call_name:1,bind_alias:1,vtable:1,peek_poke_ptr:1,utf16:1,union:1,struct_arrays:1}",
 #if defined(SCML_USE_LIBFFI)
              1,
 #else
@@ -544,8 +548,9 @@ static ScmlFFISignatureEntry *ffi_signature_entry_find(const char *function_name
     return NULL;
 }
 
-int scml_ffi_declare_function(const char *function_name, ScmlFFIReturnType return_type, const ScmlFFIType *arg_types, size_t arg_count) {
+int scml_ffi_declare_function_abi(const char *function_name, ScmlFFIReturnType return_type, const ScmlFFIType *arg_types, size_t arg_count, ScmlFFIAbi abi) {
     if (!function_name || !function_name[0]) { ffi_set_error("declare_function failed", "empty function name"); return 0; }
+    if (!scml_ffi_abi_supported(abi)) { ffi_set_error("declare_function failed", "ABI is not supported"); return 0; }
     if (arg_count > 0 && !arg_types) { ffi_set_error("declare_function failed", "missing argument types"); return 0; }
     ScmlFFISignatureEntry *entry = ffi_signature_entry_find(function_name);
     if (!entry) {
@@ -554,10 +559,14 @@ int scml_ffi_declare_function(const char *function_name, ScmlFFIReturnType retur
         if (!owned_name) { ffi_set_error("declare_function failed", "out of memory"); return 0; }
         entry = &g_signatures[g_signature_count++];
         entry->name = owned_name;
+        entry->symbol_name = NULL;
+        entry->library_handle = NULL;
+        entry->function_ptr = NULL;
         entry->arg_types = NULL;
         entry->signature.arg_types = NULL;
         entry->signature.arg_count = 0;
         entry->signature.return_type = SCML_FFI_TYPE_INT32;
+        entry->abi = SCML_FFI_ABI_DEFAULT;
     }
     ScmlFFIType *owned_args = NULL;
     if (arg_count > 0) {
@@ -570,10 +579,15 @@ int scml_ffi_declare_function(const char *function_name, ScmlFFIReturnType retur
     entry->signature.return_type = return_type;
     entry->signature.arg_types = entry->arg_types;
     entry->signature.arg_count = arg_count;
+    entry->abi = abi;
     return 1;
 }
 
-int scml_ffi_declare_function_text(const char *function_name, const char *return_type, const char *arg_types) {
+int scml_ffi_declare_function(const char *function_name, ScmlFFIReturnType return_type, const ScmlFFIType *arg_types, size_t arg_count) {
+    return scml_ffi_declare_function_abi(function_name, return_type, arg_types, arg_count, SCML_FFI_ABI_DEFAULT);
+}
+
+int scml_ffi_declare_function_text_abi(const char *function_name, const char *return_type, const char *arg_types, const char *abi_name) {
     ScmlFFIType parsed_return = scml_ffi_parse_return_type(return_type, SCML_FFI_TYPE_INT32);
     ScmlFFIType *parsed_args = NULL;
     size_t count = 0;
@@ -584,7 +598,46 @@ int scml_ffi_declare_function_text(const char *function_name, const char *return
         if (!parsed_args) { ffi_set_error("declare_function failed", "out of memory"); return 0; }
         count = scml_ffi_parse_arg_types(arg_types, parsed_args, count);
     }
-    int ok = scml_ffi_declare_function(function_name, parsed_return, parsed_args, count);
+    ScmlFFIAbi abi = scml_ffi_parse_abi(abi_name, SCML_FFI_ABI_DEFAULT);
+    int ok = scml_ffi_declare_function_abi(function_name, parsed_return, parsed_args, count, abi);
+    free(parsed_args);
+    return ok;
+}
+
+int scml_ffi_declare_function_text(const char *function_name, const char *return_type, const char *arg_types) {
+    return scml_ffi_declare_function_text_abi(function_name, return_type, arg_types, "default");
+}
+
+int scml_ffi_bind_function(const char *alias, void *library_handle, const char *symbol_name, ScmlFFIReturnType return_type, const ScmlFFIType *arg_types, size_t arg_count, ScmlFFIAbi abi) {
+    const char *lookup = (symbol_name && symbol_name[0]) ? symbol_name : alias;
+    if (!alias || !alias[0] || !lookup || !lookup[0]) { ffi_set_error("bind_function failed", "empty alias or symbol name"); return 0; }
+    void *symbol = library_handle ? scml_ffi_get_symbol(library_handle, lookup) : scml_ffi_find_symbol(lookup);
+    if (!symbol) return 0;
+    if (!scml_ffi_declare_function_abi(alias, return_type, arg_types, arg_count, abi)) return 0;
+    ScmlFFISignatureEntry *entry = ffi_signature_entry_find(alias);
+    if (!entry) { ffi_set_error("bind_function failed", "signature registry failed"); return 0; }
+    char *owned_symbol = ffi_strdup(lookup);
+    if (!owned_symbol) { ffi_set_error("bind_function failed", "out of memory"); return 0; }
+    free(entry->symbol_name);
+    entry->symbol_name = owned_symbol;
+    entry->library_handle = library_handle;
+    entry->function_ptr = symbol;
+    return 1;
+}
+
+int scml_ffi_bind_function_text(const char *alias, void *library_handle, const char *symbol_name, const char *return_type, const char *arg_types, const char *abi_name) {
+    ScmlFFIType parsed_return = scml_ffi_parse_return_type(return_type, SCML_FFI_TYPE_INT32);
+    ScmlFFIType *parsed_args = NULL;
+    size_t count = 0;
+    if (arg_types && arg_types[0]) {
+        count = 1;
+        for (const char *p = arg_types; *p; p++) if (*p == ',') count++;
+        parsed_args = (ScmlFFIType *)calloc(count, sizeof(*parsed_args));
+        if (!parsed_args) { ffi_set_error("bind_function failed", "out of memory"); return 0; }
+        count = scml_ffi_parse_arg_types(arg_types, parsed_args, count);
+    }
+    ScmlFFIAbi abi = scml_ffi_parse_abi(abi_name, SCML_FFI_ABI_DEFAULT);
+    int ok = scml_ffi_bind_function(alias, library_handle, symbol_name, parsed_return, parsed_args, count, abi);
     free(parsed_args);
     return ok;
 }
@@ -594,6 +647,7 @@ int scml_ffi_undeclare_function(const char *function_name) {
     for (size_t i = 0; i < g_signature_count; i++) {
         if (strcmp(g_signatures[i].name, function_name) == 0) {
             free(g_signatures[i].name);
+            free(g_signatures[i].symbol_name);
             free(g_signatures[i].arg_types);
             if (i + 1 < g_signature_count) memmove(&g_signatures[i], &g_signatures[i + 1], (g_signature_count - i - 1) * sizeof(g_signatures[0]));
             g_signature_count--;
@@ -607,6 +661,16 @@ int scml_ffi_undeclare_function(const char *function_name) {
 const ScmlFFISignature *scml_ffi_get_declared_signature(const char *function_name) {
     ScmlFFISignatureEntry *entry = ffi_signature_entry_find(function_name);
     return entry ? &entry->signature : NULL;
+}
+
+ScmlFFIAbi scml_ffi_get_declared_abi(const char *function_name) {
+    ScmlFFISignatureEntry *entry = ffi_signature_entry_find(function_name);
+    return entry ? entry->abi : SCML_FFI_ABI_DEFAULT;
+}
+
+void *scml_ffi_get_bound_symbol(const char *function_name) {
+    ScmlFFISignatureEntry *entry = ffi_signature_entry_find(function_name);
+    return entry ? entry->function_ptr : NULL;
 }
 
 #if defined(SCML_USE_LIBFFI)
@@ -922,12 +986,21 @@ int scml_ffi_call_native_by_name(const char *function_name, const ScmlValue *arg
     return scml_ffi_call_native_by_name_ex(function_name, args, &signature, ret);
 }
 
-int scml_ffi_call_native_by_name_ex(const char *function_name, const ScmlValue *args, const ScmlFFISignature *signature, ScmlValue *ret) {
-    void *symbol = scml_ffi_find_symbol(function_name);
+int scml_ffi_call_native_by_name_abi(const char *function_name, const ScmlValue *args, const ScmlFFISignature *signature, ScmlFFIAbi abi, ScmlValue *ret) {
+    if (!function_name || !function_name[0]) { ffi_set_error("call_native_by_name failed", "empty function name"); return 0; }
+    ScmlFFISignatureEntry *entry = ffi_signature_entry_find(function_name);
+    const char *lookup_name = entry && entry->symbol_name ? entry->symbol_name : function_name;
+    void *symbol = entry && entry->function_ptr ? entry->function_ptr : scml_ffi_find_symbol(lookup_name);
     if (!symbol) return 0;
-    const ScmlFFISignature *declared = scml_ffi_get_declared_signature(function_name);
+    if (entry && !entry->function_ptr) entry->function_ptr = symbol;
+    const ScmlFFISignature *declared = entry ? &entry->signature : NULL;
     if (declared && (!signature || !signature->arg_types)) signature = declared;
-    return scml_ffi_call_native_ex(symbol, args, signature, ret);
+    ScmlFFIAbi effective_abi = abi == SCML_FFI_ABI_DEFAULT && entry ? entry->abi : abi;
+    return scml_ffi_call_native_abi(symbol, args, signature, effective_abi, ret);
+}
+
+int scml_ffi_call_native_by_name_ex(const char *function_name, const ScmlValue *args, const ScmlFFISignature *signature, ScmlValue *ret) {
+    return scml_ffi_call_native_by_name_abi(function_name, args, signature, SCML_FFI_ABI_DEFAULT, ret);
 }
 
 
@@ -1705,7 +1778,7 @@ void scml_ffi_shutdown(void) {
     g_symbols = NULL;
     g_symbol_count = 0;
     g_symbol_capacity = 0;
-    for (size_t i = 0; i < g_signature_count; i++) { free(g_signatures[i].name); free(g_signatures[i].arg_types); }
+    for (size_t i = 0; i < g_signature_count; i++) { free(g_signatures[i].name); free(g_signatures[i].symbol_name); free(g_signatures[i].arg_types); }
     free(g_signatures);
     g_signatures = NULL;
     g_signature_count = 0;

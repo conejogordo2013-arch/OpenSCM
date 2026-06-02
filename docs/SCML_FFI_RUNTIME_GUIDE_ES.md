@@ -70,7 +70,33 @@ SCML_ENV_GET("SCML_MODE", $MODE)
 
 Tipos soportados en firmas y memoria: `bool`, `int8`, `uint8`, `int16`, `uint16`, `int`, `int32`, `uint32`, `int64`, `uint64`, `size`, `float`, `double`, `pointer`, `string`, `void`.
 
-### 5.2 Punteros y memoria
+### 5.2 Llamadas dinámicas por nombre y aliases avanzados
+
+Además de llamar directamente a `0B31: "nombre_exportado"`, el FFI permite invocación explícita por nombre y enlaces alias→símbolo para escenarios complejos como plugins, tablas generadas o APIs donde el nombre SCML no coincide con el export C:
+
+```scml
+0B31: "ffi.load" "libscml_ffi_native"
+0004: $LIB $RETVAL
+0B31: "ffi.declare_abi" "scml_ffi_add_i32" "int" "int,int" "cdecl"
+0B31: "ffi.call_name" "scml_ffi_add_i32" 20 22
+03E5: $RETVAL
+
+; Alias SCML estable hacia un símbolo nativo concreto.
+0B31: "ffi.bind" $LIB "math.add" "scml_ffi_add_i32" "int" "int,int" "cdecl"
+0B31: "ffi.resolve" "math.add"
+0004: $ADD_PTR $RETVAL
+0B31: "ffi.call_name_abi" "math.add" "cdecl" 100 23
+03E5: $RETVAL
+```
+
+- `ffi.declare_abi name ret arg_spec abi` guarda firma y ABI para una exportación.
+- `ffi.call_name name ...` usa la firma declarada si no se pasa firma explícita.
+- `ffi.call_name name ret arg_spec ...` fuerza una firma ad hoc sin tocar el registro.
+- `ffi.call_name_abi name abi ...` fuerza ABI en la llamada.
+- `ffi.bind handle alias symbol ret arg_spec abi` resuelve `symbol`, lo cachea y permite llamar al alias.
+- `ffi.resolve name` devuelve el puntero de un alias enlazado o de un símbolo cargado.
+
+### 5.3 Punteros y memoria
 
 Funciones principales:
 
@@ -93,7 +119,7 @@ SCML_FFI_NULL($NULL)
 SCML_FFI_IS_NULL($NULL, $IS_NULL)
 ```
 
-### 5.3 Strings C y UTF-16
+### 5.4 Strings C y UTF-16
 
 - `ffi.cstring "texto"` reserva un `char*` terminado en NUL.
 - `ffi.read_cstring ptr` lee hasta NUL con límite de seguridad.
@@ -101,7 +127,7 @@ SCML_FFI_IS_NULL($NULL, $IS_NULL)
 - `ffi.utf16 "texto"` reserva UTF-16 little-endian portable para APIs estilo Windows.
 - `ffi.read_utf16 ptr [max_units]` convierte UTF-16 a UTF-8 SCML.
 
-### 5.4 Structs, arrays de structs y unions
+### 5.5 Structs, arrays de structs y unions
 
 ```scml
 0B31: "ffi.struct_define" "Packet" "uint32:id,uint16:flags,uint8:kind"
@@ -127,7 +153,7 @@ Para unions:
 0B31: "ffi.struct_finish" "NumberBits"
 ```
 
-### 5.5 VTables y ABIs
+### 5.6 VTables y ABIs
 
 - `ffi.abi_supported "cdecl"` comprueba soporte.
 - `ffi.call_ptr ptr ret args...` llama a un puntero de función.

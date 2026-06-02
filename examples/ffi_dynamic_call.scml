@@ -8,6 +8,7 @@
 
 0B31: "ffi.add_search_path" "examples"
 0B31: "ffi.load" "libscml_ffi_native"
+0004: $NATIVE_LIB $RETVAL
 
 0B31: "ffi.declare" "scml_ffi_add_i32" "int" "int,int"
 0B31: "ffi.declare" "scml_ffi_mul_f32" "float" "float,float"
@@ -17,6 +18,19 @@
 0B31: "ffi.declare" "scml_ffi_echo_string" "pointer" "string"
 
 0B31: "scml_ffi_add_i32" 40 2
+03E5: $RETVAL
+
+; Explicit dynamic call by name using the declared signature.
+0B31: "ffi.call_name" "scml_ffi_add_i32" 21 21
+03E5: $RETVAL
+
+; Bind an arbitrary SCML alias to a native symbol, pin an ABI, resolve it,
+; and call through the alias by name. This is useful for plugin systems and
+; generated bindings where SCML names do not have to match C exports.
+0B31: "ffi.bind" $NATIVE_LIB "math.add" "scml_ffi_add_i32" "int" "int,int" "cdecl"
+0B31: "ffi.resolve" "math.add"
+0004: $ADD_ALIAS_PTR $RETVAL
+0B31: "ffi.call_name_abi" "math.add" "cdecl" 100 23
 03E5: $RETVAL
 
 0B31: "scml_ffi_mul_f32" 6.0 7.0
