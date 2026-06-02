@@ -501,3 +501,5 @@ bin/scml run /tmp/ffi_dynamic_call.scmlbin
 
 The FFI layer is intentionally API-agnostic: it does not embed SDL, OpenGL,
 Vulkan, audio, filesystem modules, or any other external library-specific logic.
+
+The `examples/sdl2_opengl_hola_game/` port demonstrates a larger pure-SCML game conversion from `hola.html`: Linux and MSYS2 UCRT64/MinGW64 variants load SDL2/OpenGL dynamically, drive keyboard plus relative mouse input through FFI, render procedural terrain/collectibles/entities with immediate OpenGL, and clean up every native buffer/context/window on exit.
