@@ -76,6 +76,45 @@ actual:   %q
   exit 1
 fi
 
+cpp17_bin=".scml/cpp17_superiority.scmlbin"
+echo "[smoke] run SCML C++17 superset regression"
+bin/scml compile "examples/cpp17_superiority.scml" "$cpp17_bin"
+cpp17_output="$(bin/scml run "$cpp17_bin")"
+expected_cpp17_output=$'if-init ok
+120
+24
+constexpr ok
+1
+120
+17
+24
+1'
+if [[ "$cpp17_output" != "$expected_cpp17_output" ]]; then
+  echo "[smoke] unexpected C++17 superset output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_cpp17_output" "$cpp17_output" >&2
+  exit 1
+fi
+
+cpp20_bin=".scml/cpp20_domination.scmlbin"
+echo "[smoke] run SCML C++20 domination regression"
+bin/scml compile "examples/cpp20_domination.scml" "$cpp20_bin"
+cpp20_output="$(bin/scml run "$cpp20_bin")"
+expected_cpp20_output=$'5
+10
+33
+45
+1
+42'
+if [[ "$cpp20_output" != "$expected_cpp20_output" ]]; then
+  echo "[smoke] unexpected C++20 domination output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_cpp20_output" "$cpp20_output" >&2
+  exit 1
+fi
+
 else_if_src=".scml/else_if_control.scml"
 else_if_bin=".scml/else_if_control.scmlbin"
 cat >"$else_if_src" <<'SCML'

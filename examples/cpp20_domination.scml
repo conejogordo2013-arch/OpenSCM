@@ -1,0 +1,49 @@
+use "../std.scmlh";
+import scml.cpp20.domination;
+
+MODULE scml.cpp20.domination;
+
+concept Integral = SCML::is_integral_v<T>;
+
+script MAIN {
+    SCML_RANGES_IOTA(0, 5, $range);
+    AUTO count = range_size($range);
+    print(count);
+
+    AUTO sum = 0;
+    for (AUTO value : $range) {
+        sum += value;
+    }
+    print(sum);
+
+    SCML_RANGES_TRANSFORM_ADD($range, 10, $shifted);
+    SCML_RANGES_TAKE($shifted, 3, $top3);
+    AUTO shifted_sum = 0;
+    for (AUTO item : $top3) {
+        shifted_sum += item;
+    }
+    print(shifted_sum);
+
+    AUTO folded = fold_add(1, 2, 3, 4, 5);
+    AUTO multiplied = fold_mul(2, 5, 3);
+    AUTO ce = consteval_add(folded, multiplied);
+    print(ce);
+
+    requires(ce, "i32") -> $concept_ok;
+    print($concept_ok);
+
+    spawn ASYNC_CPP20 -> $task;
+    :WAIT_CPP20
+    co_await $task -> $done;
+    00D6: $done 1 @CPP20_DONE
+    wait(1);
+    goto WAIT_CPP20;
+    :CPP20_DONE
+    print($CPP20_ASYNC_VALUE);
+}
+
+task ASYNC_CPP20 {
+    AUTO local = consteval_mul(7, 6);
+    0004: $CPP20_ASYNC_VALUE local
+    co_return local;
+}

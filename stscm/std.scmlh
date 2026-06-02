@@ -1828,8 +1828,26 @@ macro SCML_FILESYS_PATH_SET(out_path, value) {
     0B4B: out_path "str"
     0004: out_path value
 }
+
+macro SCML_OPTIONAL_HAS_VALUE(out_has_value, optional_ref) {
+    0B12: out_has_value optional_ref 0
+}
+macro SCML_OPTIONAL_VALUE(out_value, optional_ref) {
+    0B12: out_value optional_ref 2
+}
+macro SCML_VARIANT_TAG(out_tag, variant_ref) {
+    0B12: out_tag variant_ref 0
+}
+macro SCML_VARIANT_VALUE(out_value, variant_ref) {
+    0B12: out_value variant_ref 1
+}
+macro SCML_ANY_VALUE(out_value, any_ref) {
+    0004: out_value any_ref
+}
+
 macro SCML_FILESYS_EXISTS(path_value, out_exists) {
-    0004: out_exists 0
+    0B31: "file.exists" path_value
+    0004: out_exists $RETVAL
 }
 
 macro SCML_REF_BIND(out_ref, value) {
@@ -1885,6 +1903,45 @@ macro SCML_RANGE_I32(begin_value, end_value, out_range) {
     0B14: 2 out_range
     0B13: out_range 0 begin_value
     0B13: out_range 1 end_value
+}
+macro SCML_RANGES_IOTA(begin_value, end_value, out_range) {
+    SCML_RANGE_I32(begin_value, end_value, out_range)
+}
+macro SCML_RANGES_SIZE(out_size, range_ref) {
+    0B12: 92@ range_ref 0
+    0B12: 93@ range_ref 1
+    0007: out_size 93@ 92@
+}
+macro SCML_RANGES_TRANSFORM_ADD(range_ref, delta, out_range) {
+    0B12: 92@ range_ref 0
+    0B12: 93@ range_ref 1
+    0006: 92@ 92@ delta
+    0006: 93@ 93@ delta
+    SCML_RANGE_I32(92@, 93@, out_range)
+}
+macro SCML_RANGES_TAKE(range_ref, count, out_range) {
+    0B12: 92@ range_ref 0
+    0006: 93@ 92@ count
+    SCML_RANGE_I32(92@, 93@, out_range)
+}
+macro SCML_RANGES_DROP(range_ref, count, out_range) {
+    0B12: 92@ range_ref 0
+    0B12: 93@ range_ref 1
+    0006: 92@ 92@ count
+    SCML_RANGE_I32(92@, 93@, out_range)
+}
+macro SCML_CONCEPT_SATISFIES(value, type_name, out_ok) {
+    TYPE_ASSERT(value, type_name, out_ok)
+}
+macro SCML_REQUIRES(value, type_name, out_ok) {
+    TYPE_ASSERT(value, type_name, out_ok)
+}
+macro SCML_CORO_AWAIT(task_ref, out_done) {
+    0B4A: task_ref out_done
+}
+macro SCML_CORO_RETURN(value) {
+    0004: $RETVAL value
+    0D02:
 }
 macro SCML_RANGE_BEGIN(out_begin, range_ref) {
     0B12: out_begin range_ref 0
