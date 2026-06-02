@@ -27,6 +27,7 @@ SAMPLES=(
   "examples/std_modules/fs_concurrency_meta.scml"
   "examples/sdl2_ffi/linux_sdl2_window_ffi.scml"
   "examples/sdl2_ffi/msys2_ucrt64_sdl2_window_ffi.scml"
+  "examples/sdl2_opengl_hola_game/linux_hola_sdl2_opengl_ffi.scml"
 )
 
 for src in "${SAMPLES[@]}"; do
