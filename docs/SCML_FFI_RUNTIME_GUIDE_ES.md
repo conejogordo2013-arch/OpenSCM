@@ -150,9 +150,11 @@ Ver [`examples/universal_runtime_data.scml`](../examples/universal_runtime_data.
 
 ## 8. Ejemplos SDL2 por FFI
 
-Hay ejemplos mínimos de creación de ventana SDL2 mediante FFI directa en `examples/sdl2_ffi/`:
+Hay ejemplos mínimos de creación de ventana SDL2 mediante FFI real en `examples/sdl2_ffi/`:
 
-- `linux_sdl2_window_ffi.scml`: carga `libSDL2-2.0.so.0` y abre una ventana en Linux.
-- `msys2_ucrt64_sdl2_window_ffi.scml`: carga `SDL2-2.0-0` desde MSYS2 UCRT64.
+- `scml_sdl2_window.c`: librería C pequeña que compila contra SDL2 y exporta `scml_sdl2_open_window_ms`.
+- `linux_sdl2_window_ffi.scml`: carga `examples/sdl2_ffi/libscml_sdl2_window.so`, declara la función exportada y abre una ventana en Linux.
+- `msys2_ucrt64_sdl2_window_ffi.scml`: carga `examples/sdl2_ffi/scml_sdl2_window.dll`, declara la función exportada y abre una ventana en MSYS2 UCRT64.
+- `build_linux.sh` y `build_msys2_ucrt64.sh`: compilan la librería nativa SDL2 y el script SCML correspondiente.
 
-Estos ejemplos solo declaran `SDL_Init`, `SDL_CreateWindow`, `SDL_Delay`, `SDL_DestroyWindow` y `SDL_Quit`; son demostraciones básicas y no reemplazan un loop SDL2 completo.
+La smoke suite compila los scripts SCML, pero no ejecuta la ventana porque SDL2 y un display gráfico no siempre existen en CI/headless.
