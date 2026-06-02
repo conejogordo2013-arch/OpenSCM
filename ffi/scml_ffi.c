@@ -1342,6 +1342,58 @@ int scml_ffi_memory_set(void *dst, int value, size_t size) {
     return 1;
 }
 
+int scml_ffi_memory_compare(const void *lhs, const void *rhs, size_t size, int *out_cmp) {
+    if (!out_cmp) { ffi_set_error("memcmp failed", "missing output"); return 0; }
+    if (!ffi_memory_check_access(lhs, size) || !ffi_memory_check_access(rhs, size)) return 0;
+    int cmp = memcmp(lhs, rhs, size);
+    *out_cmp = (cmp > 0) - (cmp < 0);
+    return 1;
+}
+
+static int ffi_hex_nibble(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+char *scml_ffi_read_bytes_hex(const void *base, size_t offset, size_t size) {
+    if (!base) { ffi_set_error("read_bytes failed", "null pointer"); return NULL; }
+    if (size > (((size_t)-1) - 1) / 2) { ffi_set_error("read_bytes failed", "size overflow"); return NULL; }
+    const unsigned char *addr = (const unsigned char *)base + offset;
+    if (!ffi_memory_check_access(addr, size)) return NULL;
+    char *out = (char *)malloc(size * 2 + 1);
+    if (!out) { ffi_set_error("read_bytes failed", "out of memory"); return NULL; }
+    static const char hex[] = "0123456789ABCDEF";
+    for (size_t i = 0; i < size; i++) {
+        out[i * 2] = hex[addr[i] >> 4];
+        out[i * 2 + 1] = hex[addr[i] & 15];
+    }
+    out[size * 2] = '\0';
+    return out;
+}
+
+int scml_ffi_write_bytes_hex(void *base, size_t offset, const char *hex_text) {
+    if (!base) { ffi_set_error("write_bytes failed", "null pointer"); return 0; }
+    if (!hex_text) { ffi_set_error("write_bytes failed", "missing hex text"); return 0; }
+    size_t digits = 0;
+    for (const char *p = hex_text; *p; p++) if (!isspace((unsigned char)*p)) digits++;
+    if (digits % 2 != 0) { ffi_set_error("write_bytes failed", "hex text must contain an even number of digits"); return 0; }
+    size_t size = digits / 2;
+    unsigned char *addr = (unsigned char *)base + offset;
+    if (!ffi_memory_check_access(addr, size)) return 0;
+    int high = -1;
+    size_t j = 0;
+    for (const char *p = hex_text; *p; p++) {
+        if (isspace((unsigned char)*p)) continue;
+        int v = ffi_hex_nibble(*p);
+        if (v < 0) { ffi_set_error("write_bytes failed", "invalid hex digit"); return 0; }
+        if (high < 0) high = v;
+        else { addr[j++] = (unsigned char)((high << 4) | v); high = -1; }
+    }
+    return 1;
+}
+
 size_t scml_ffi_memory_block_size(void *ptr) {
     ScmlFFIMemoryBlock *block = ffi_memory_find(ptr);
     return block ? block->size : 0;

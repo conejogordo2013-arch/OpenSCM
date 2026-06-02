@@ -1,7 +1,8 @@
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200809L
 #include "scml_runtime_modules.h"
 
 #include <errno.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -287,6 +288,171 @@ static void scml_runtime_sleep_us(unsigned int usec) {
     ts.tv_nsec = (long)(usec % 1000000u) * 1000L;
     nanosleep(&ts, NULL);
 #endif
+}
+
+static int is_unreserved_url_char(unsigned char c) {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~';
+}
+
+static int hex_value(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+static int rt_data_hash32(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    char buf[256];
+    const unsigned char *p = (const unsigned char *)arg_to_cstr(&args[0], buf, sizeof(buf));
+    uint32_t hash = 2166136261u;
+    while (*p) { hash ^= (uint32_t)*p++; hash *= 16777619u; }
+    *ret = scml_value_int((int32_t)(hash & 0x7fffffffu));
+    return 1;
+}
+
+static int rt_data_url_encode(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    char buf[512];
+    const unsigned char *src = (const unsigned char *)arg_to_cstr(&args[0], buf, sizeof(buf));
+    size_t len = strlen((const char *)src);
+    char *out = (char *)malloc(len * 3 + 1);
+    if (!out) return 0;
+    size_t j = 0;
+    static const char hex[] = "0123456789ABCDEF";
+    for (size_t i = 0; src[i]; i++) {
+        if (is_unreserved_url_char(src[i])) out[j++] = (char)src[i];
+        else { out[j++] = '%'; out[j++] = hex[src[i] >> 4]; out[j++] = hex[src[i] & 15]; }
+    }
+    out[j] = '\0';
+    *ret = scml_value_string(out);
+    free(out);
+    return 1;
+}
+
+static int rt_data_url_decode(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    char buf[512];
+    const char *src = arg_to_cstr(&args[0], buf, sizeof(buf));
+    char *out = (char *)malloc(strlen(src) + 1);
+    if (!out) return 0;
+    size_t j = 0;
+    for (size_t i = 0; src[i]; i++) {
+        if (src[i] == '%' && isxdigit((unsigned char)src[i + 1]) && isxdigit((unsigned char)src[i + 2])) {
+            out[j++] = (char)((hex_value(src[i + 1]) << 4) | hex_value(src[i + 2]));
+            i += 2;
+        } else if (src[i] == '+') out[j++] = ' ';
+        else out[j++] = src[i];
+    }
+    out[j] = '\0';
+    *ret = scml_value_string(out);
+    free(out);
+    return 1;
+}
+
+static int rt_data_split(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 3) return 0;
+    char sbuf[1024], dbuf[64];
+    const char *src = arg_to_cstr(&args[0], sbuf, sizeof(sbuf));
+    const char *delim = arg_to_cstr(&args[1], dbuf, sizeof(dbuf));
+    int wanted = args[2].type == SCML_VAL_FLOAT ? (int)args[2].real : args[2].integer;
+    if (!*delim || wanted < 0) return 0;
+    size_t dlen = strlen(delim);
+    const char *start = src;
+    int index = 0;
+    while (1) {
+        const char *next = strstr(start, delim);
+        if (index == wanted) {
+            size_t n = next ? (size_t)(next - start) : strlen(start);
+            char *piece = (char *)malloc(n + 1);
+            if (!piece) return 0;
+            memcpy(piece, start, n); piece[n] = '\0';
+            *ret = scml_value_string(piece);
+            free(piece);
+            return 1;
+        }
+        if (!next) break;
+        start = next + dlen;
+        index++;
+    }
+    *ret = scml_value_string("");
+    return 1;
+}
+
+static const char *json_find_key_value(const char *json, const char *key) {
+    size_t klen = strlen(key);
+    for (const char *p = json; (p = strchr(p, '"')) != NULL; p++) {
+        p++;
+        if (strncmp(p, key, klen) != 0 || p[klen] != '"') continue;
+        p += klen + 1;
+        while (*p && isspace((unsigned char)*p)) p++;
+        if (*p != ':') continue;
+        p++;
+        while (*p && isspace((unsigned char)*p)) p++;
+        return p;
+    }
+    return NULL;
+}
+
+static int rt_data_json_get(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 2) return 0;
+    char jbuf[2048], kbuf[256];
+    const char *json = arg_to_cstr(&args[0], jbuf, sizeof(jbuf));
+    const char *key = arg_to_cstr(&args[1], kbuf, sizeof(kbuf));
+    const char *v = json_find_key_value(json, key);
+    if (!v) { *ret = scml_value_string(""); return 1; }
+    if (*v == '"') {
+        v++;
+        char out[1024]; size_t j = 0;
+        while (*v && *v != '"' && j + 1 < sizeof(out)) {
+            if (*v == '\\' && v[1]) v++;
+            out[j++] = *v++;
+        }
+        out[j] = '\0';
+        *ret = scml_value_string(out);
+        return 1;
+    }
+    if (strncmp(v, "true", 4) == 0) { *ret = scml_value_int(1); return 1; }
+    if (strncmp(v, "false", 5) == 0 || strncmp(v, "null", 4) == 0) { *ret = scml_value_int(0); return 1; }
+    char *end = NULL;
+    double number = strtod(v, &end);
+    if (end != v) {
+        if (strchr(v, '.') || strchr(v, 'e') || strchr(v, 'E')) *ret = scml_value_float((float)number);
+        else *ret = scml_value_int((int32_t)number);
+        return 1;
+    }
+    *ret = scml_value_string("");
+    return 1;
+}
+
+static int rt_env_get(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 1) return 0;
+    char nbuf[256];
+    const char *name = arg_to_cstr(&args[0], nbuf, sizeof(nbuf));
+    const char *value = getenv(name);
+    *ret = scml_value_string(value ? value : "");
+    return 1;
+}
+
+static int rt_env_set(ScmlVM *vm, const ScmlValue *args, size_t arg_count, ScmlValue *ret, void *user_data) {
+    (void)vm; (void)user_data;
+    if (arg_count < 2) return 0;
+    char nbuf[256], vbuf[512];
+    const char *name = arg_to_cstr(&args[0], nbuf, sizeof(nbuf));
+    const char *value = arg_to_cstr(&args[1], vbuf, sizeof(vbuf));
+#if defined(_WIN32)
+    int ok = _putenv_s(name, value) == 0;
+#else
+    int ok = setenv(name, value, 1) == 0;
+#endif
+    *ret = scml_value_int(ok ? 1 : 0);
+    return 1;
 }
 
 
@@ -1051,6 +1217,13 @@ static const ScmlRuntimeFunctionEntry k_runtime[] = {
     {"wait", rt_runtime_sleep_ms}, {"get_time_ms", rt_runtime_get_time_ms}, {"get_time_us", rt_runtime_get_time_us}, {"get_ticks", rt_runtime_get_ticks},
     {"select_backend", rt_runtime_select_backend}, {"backend_info", rt_capability_info}, {"capability_info", rt_capability_info}
 };
+static const ScmlRuntimeFunctionEntry k_data[] = {
+    {"hash32", rt_data_hash32}, {"url_encode", rt_data_url_encode}, {"url_decode", rt_data_url_decode},
+    {"split", rt_data_split}, {"json_get", rt_data_json_get}, {"backend_info", rt_capability_info}
+};
+static const ScmlRuntimeFunctionEntry k_env[] = {
+    {"get", rt_env_get}, {"set", rt_env_set}, {"backend_info", rt_capability_info}
+};
 static const ScmlRuntimeFunctionEntry k_system[] = {
     {"get_platform", rt_system_get_platform}, {"get_cpu_count", rt_system_get_cpu_count}, {"get_memory_info", rt_system_get_memory_info},
     {"get_working_directory", rt_system_get_working_directory}, {"backend_info", rt_capability_info}
@@ -1102,6 +1275,8 @@ int scml_runtime_install_builtin_module_registry(ScmlVM *vm) {
 #endif
     ok = ok && scml_runtime_register_builtin_backend(vm, "console", "default", k_console, sizeof(k_console) / sizeof(k_console[0]));
     ok = ok && scml_runtime_register_builtin_backend(vm, "runtime", "default", k_runtime, sizeof(k_runtime) / sizeof(k_runtime[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "data", "default", k_data, sizeof(k_data) / sizeof(k_data[0]));
+    ok = ok && scml_runtime_register_builtin_backend(vm, "env", "default", k_env, sizeof(k_env) / sizeof(k_env[0]));
     ok = ok && scml_runtime_register_builtin_backend(vm, "system", "default", k_system, sizeof(k_system) / sizeof(k_system[0]));
     ok = ok && scml_runtime_register_builtin_backend(vm, "thread", "default", k_thread, sizeof(k_thread) / sizeof(k_thread[0]));
     ok = ok && scml_runtime_register_builtin_backend(vm, "window", "default", k_window, sizeof(k_window) / sizeof(k_window[0]));
@@ -1122,6 +1297,8 @@ int scml_runtime_install_builtin_module_registry(ScmlVM *vm) {
     ok = ok && scml_runtime_select_backend(vm, "input", "default");
     ok = ok && scml_runtime_select_backend(vm, "console", "default");
     ok = ok && scml_runtime_select_backend(vm, "runtime", "default");
+    ok = ok && scml_runtime_select_backend(vm, "data", "default");
+    ok = ok && scml_runtime_select_backend(vm, "env", "default");
     ok = ok && scml_runtime_select_backend(vm, "system", "default");
     ok = ok && scml_runtime_select_backend(vm, "thread", "default");
     ok = ok && scml_runtime_select_backend(vm, "window", "default");
