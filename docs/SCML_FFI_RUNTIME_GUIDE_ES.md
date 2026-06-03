@@ -18,7 +18,7 @@ Los módulos hostless se llaman con `0B31: "modulo.funcion" ...` o mediante macr
 - `runtime.*`: tiempo, ticks, espera y backend info.
 - `file.*`: existencia, lectura/escritura, directorios.
 - `console.*`: salida, color, cursor y limpieza.
-- `input.*`, `window.*`, `gpu.*`, `audio.*`, `net.*`: APIs portables con backend `default` y backends acelerados si se compila con SDL/OpenGL/etc.
+- `input.*`, `window.*`, `gpu.*`, `net.*`: APIs portables con backend `default` y backends acelerados solo cuando hay handlers reales compilados (SDL2/OpenGL). Audio, imagen y APIs graficas grandes se cargan por FFI o módulos host explícitos, no como placeholders.
 - `data.*`: transformación de datos sin host glue.
 - `env.*`: variables de entorno del proceso.
 - `ffi.*`: carga de librerías nativas, símbolos, memoria, structs, unions, arrays, punteros, vtables y llamadas ABI.
