@@ -10,7 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SCML_BUILD_EMBED_EXAMPLES "Build C++ embedding examples" ON)
 option(SCML_BUILD_EDITOR "Build the lightweight SCML editor sample" ON)
-option(SCML_AUTODETECT_BACKENDS "Detect and enable installed runtime backends such as SDL2, OpenGL, and Vulkan" ON)
+option(SCML_AUTODETECT_BACKENDS "Detect and enable installed runtime backends such as SDL2 and OpenGL" ON)
 
 set(SCML_CORE_SOURCES
     vm/vm.c
@@ -69,24 +69,6 @@ if(SCML_AUTODETECT_BACKENDS)
         endif()
     endif()
 
-    find_package(Vulkan QUIET)
-    if(Vulkan_FOUND)
-        target_compile_definitions(scml_core PUBLIC SCML_USE_VULKAN=1)
-        target_link_libraries(scml_core PUBLIC Vulkan::Vulkan)
-    endif()
-
-    if(WIN32)
-        target_compile_definitions(scml_core PUBLIC SCML_USE_D3D11=1 SCML_USE_D3D12=1)
-        target_link_libraries(scml_core PUBLIC d3d11 d3d12 dxgi)
-    endif()
-
-    if(APPLE)
-        find_library(METAL_FRAMEWORK Metal)
-        if(METAL_FRAMEWORK)
-            target_compile_definitions(scml_core PUBLIC SCML_USE_METAL=1)
-            target_link_libraries(scml_core PUBLIC ${METAL_FRAMEWORK})
-        endif()
-    endif()
 endif()
 if(UNIX AND NOT APPLE)
     target_link_libraries(scml_core PUBLIC m)

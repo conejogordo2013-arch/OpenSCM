@@ -94,7 +94,7 @@ Supported source concepts include:
 - Array/block memory opcodes: `0B10 ALLOC`, `0B11 FREE`, `0B12 READ`, `0B13 WRITE`, and `0B14 ARRAY_CREATE`.
 - Debug tracing with source line mapping, `scml_vm_step`, and a memory inspector (`scml_vm_dump_memory`).
 - Multi-script compilation for shared global symbols and cross-script calls.
-- Hostless application helpers through the default runtime module registry for files, console, timing, input, network, audio, windows, graphics when available, data transformations (`data.hash32`, URL encode/decode, split, flat `json_get`), environment variables (`env.get`/`env.set`), and advanced FFI memory/pointer helpers (`ffi.read_bytes`, `ffi.write_bytes`, `ffi.memcmp`, `ffi.memmove`, `ffi.is_null`).
+- Hostless application helpers through the default runtime module registry for files, console, timing, input, network, windows, and graphics when available, data transformations (`data.hash32`, URL encode/decode, split, flat `json_get`), environment variables (`env.get`/`env.set`), and advanced FFI memory/pointer helpers (`ffi.read_bytes`, `ffi.write_bytes`, `ffi.memcmp`, `ffi.memmove`, `ffi.is_null`).
 - Cooperative async tasks with `ASYNC_SPAWN`, `ASYNC_DONE`, and polling/await macros on top of the VM event queue.
 - Compile-time checked `TYPE_DECL` / `LET_I32` / `LET_F32` / `LET_STR` declarations plus runtime `TYPE_ASSERT` for advanced static-typing style contracts.
 
@@ -107,7 +107,7 @@ make
 make bin/scml_gameplay_example bin/scml_editor
 ```
 
-For IDEs and platforms where Make variables or shell utilities differ, use the portable CMake project instead. CMake auto-detects installed optional runtime backends such as SDL2, OpenGL, Vulkan, Direct3D, and Metal when available, and only registers compiled-in optional backends at runtime:
+For IDEs and platforms where Make variables or shell utilities differ, use the portable CMake project instead. CMake auto-detects only the optional runtime backends this file actually uses directly (SDL2 and OpenGL), avoiding placeholder imports for unrelated graphics/audio APIs:
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -367,7 +367,6 @@ The VM core is now designed to delegate host/platform behavior via native module
 
 Example targets:
 - `gpu.drawTriangle`
-- `audio.play`
 - `file.read`
 - `net.request`
 
@@ -378,11 +377,11 @@ Example targets:
 SCML now ships a runtime-side modular standard-library registry outside VM core:
 
 - Runtime API: `register_module(name, function_table)`, `resolve_module(name)`, `call_module(module.function, args...)`.
-- Reference modules: `gpu`, `audio`, `file`, `net`, `input` (plus `runtime.wait`).
+- Reference modules: `gpu`, `file`, `net`, `input`, `window`, `console`, `data`, `env`, `system`, and `thread` (plus `runtime.wait`).
 - VM remains bytecode/memory/call-dispatch only; host features are plugin modules.
-- Backends are replaceable (e.g., SDL/OpenGL/Vulkan/sockets) without changing VM bytecode.
+- Backends are replaceable (e.g., SDL2/OpenGL/sockets) without changing VM bytecode.
 
-The default CLI installs a builtin module registry with null backends as placeholders. Production hosts should register real backend function tables from C/C++.
+The default CLI installs only builtin handlers implemented in `runtime/scml_runtime_modules.c`; larger native APIs should be loaded explicitly with FFI or registered by a production host.
 
 
 ### Multi-backend native modules
@@ -397,16 +396,15 @@ The default CLI installs a builtin module registry with null backends as placeho
 
 Builtin abstract modules and function families:
 
-- `gpu`: `create_window`, `begin_frame`, `draw_triangle`, `draw_mesh`, `present` (+ `load_texture`)
-- `audio`: `play_sound`, `stop_sound`, `set_volume`, `stream_audio`
+- `gpu`: `create_context`, `begin_frame`, `draw_triangle`, `draw_mesh`, `present`, `create_texture2d`
 - `input`: `get_keyboard_state`, `get_mouse_position`, `poll_events`
-- `file`: `open_file`, `read_file`, `write_file`, `list_directory`
+- `window`: `create`, `destroy`, `show`, `hide`, `resize`, `set_title`
+- `file`: `read_file`, `write_file`, `list_directory`, `exists`
 - `net`: `open_socket`, `send_data`, `receive_data`
 
-Builtin backend names are pre-registered as placeholders (null backend callbacks) for portability: 
-`gpu`: `opengl`, `vulkan`, `directx12`, `metal`, `opengles`; `audio`: `sdl_audio`, `openal`; others default-only by design.
+Builtin backend names are registered only when their handlers are compiled in: `gpu.opengl` requires `SCML_USE_OPENGL`, and `input.sdl2`/`window.sdl2` require `SCML_USE_SDL2`. There are no pre-registered placeholder backends for Vulkan, DirectX, Metal, OpenAL, or image codecs.
 
-This keeps VM core OS/hardware agnostic while allowing host runtime backends to be swapped without bytecode changes.
+This keeps VM core OS/hardware agnostic while avoiding dead native-library imports and fake backend callbacks.
 
 
 Use `--no-builtin-modules` to run with **zero optional capabilities** installed; in this mode `CALL_NATIVE` fails in a controlled way for missing modules.
@@ -420,8 +418,7 @@ That means you can add new host/runtime capabilities by installing modules/backe
 
 ```scml
 gpu.draw_triangle 0 0 1 0 0 1
-audio.play_sound "explosion.wav"
-file.open_file "data.txt"
+file.read_file "data.txt"
 gpu.draw_triangle: 0 0 1 0 0 1  ; SCM-style colon also works
 ```
 
@@ -431,15 +428,9 @@ This keeps the VM core stable while enabling complex SCML libraries layered over
 SCML-style uppercase wrappers are also available in `stscm/std.scmlh` (`DRAW_TRIANGLE`, `PLAY_SOUND`, `OPEN_FILE`, `READ_FILE`, `CONNECT_SOCKET`) to keep a classic SCML visual style while still using `CALL_NATIVE`.
 
 
-Default runtime module catalog now also includes optional `image.*` and extended `file.*` TXT/image-oriented entries (all placeholder backends by default). They are intended to be consumed through SCML libraries/macros over `CALL_NATIVE`, keeping VM/core unchanged while API surface expands.
+`runtime/scml_runtime_modules.c` now limits direct optional imports to SDL2/OpenGL and keeps concrete TXT read/write runtime handlers by default (`file.read_txt`, `file.write_txt`). Bigger native APIs such as audio engines, image codecs, Vulkan/DirectX/Metal, and full game renderers should use the generic FFI layer or host-registered modules instead of builtin placeholders.
 
-
-`runtime/scml_runtime_modules.c` now includes optional real backend imports behind compile flags (`SCML_USE_SDL2`, `SCML_USE_OPENGL`, `SCML_USE_OPENGLES`) and implements real TXT read/write runtime handlers by default (`file.read_txt`, `file.write_txt`).
-
-
-The runtime module layer now declares broader backend hooks (Vulkan, DirectX, Metal, SDL2, OpenGL, OpenGL ES) behind compile flags and exposes `*.backend_info` endpoints so SCML libraries can introspect active compile-time backend capabilities via `CALL_NATIVE`.
-
-For practical per-OS installation/build requirements (MSYS2/Linux/macOS, X11, Vulkan, SDL2, etc.), see `README_RUNTIME_BACKENDS.md`.
+For practical per-OS installation/build requirements (MSYS2/Linux/macOS, SDL2, OpenGL, etc.), see `README_RUNTIME_BACKENDS.md`.
 
 
 Runtime defaults now include additional concrete handlers (`runtime.wait` sleep behavior and baseline `net.open_socket`/`net.send_data` responses) so SCML libraries can prototype richer systems with less boilerplate while still using the native-module boundary.
@@ -500,4 +491,6 @@ bin/scml run /tmp/ffi_dynamic_call.scmlbin
 ```
 
 The FFI layer is intentionally API-agnostic: it does not embed SDL, OpenGL,
-Vulkan, audio, filesystem modules, or any other external library-specific logic.
+Vulkan, DirectX, Metal, audio, image codecs, or other external library-specific logic.
+
+The `examples/sdl2_opengl_hola_game/` port demonstrates a larger pure-SCML game conversion from `hola.html`: Linux and MSYS2 UCRT64/MinGW64 variants load SDL2/OpenGL dynamically, drive keyboard plus relative mouse input through FFI, render procedural terrain/collectibles/entities with immediate OpenGL, and clean up every native buffer/context/window on exit.

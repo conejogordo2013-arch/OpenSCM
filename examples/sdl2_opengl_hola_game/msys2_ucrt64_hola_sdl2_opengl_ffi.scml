@@ -1,13 +1,13 @@
 ; Port SCML puro de hola.html: "Recolector en Terreno 3D".
-; Usa solo FFI dinamico hacia SDL2 y OpenGL fijo: sin wrappers C/C++.
+; MSYS2 UCRT64/MinGW64: carga SDL2.dll y opengl32.dll por FFI dinamico, sin wrappers C/C++.
 ; Controles actuales: teclado + mouse opcional.
 ;   W/A/S/D = mover, Flechas o Mouse = camara, Espacio = saltar, R = reiniciar, Esc = salir.
 
 :MAIN
-03E5: "SCML Hola Game Port: SDL2 + OpenGL por FFI puro"
-0B31: "ffi.load" "libSDL2-2.0.so.0" 9
+03E5: "SCML Hola Game Port: SDL2 + OpenGL por FFI puro (MSYS2 UCRT64)"
+0B31: "ffi.load" "SDL2" 9
 0004: $SDL_LIB $RETVAL
-0B31: "ffi.load" "libGL.so.1" 9
+0B31: "ffi.load" "opengl32" 9
 0004: $GL_LIB $RETVAL
 
 0004: $SDL_INIT_VIDEO 32

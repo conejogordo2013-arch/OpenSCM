@@ -18,7 +18,7 @@ Los módulos hostless se llaman con `0B31: "modulo.funcion" ...` o mediante macr
 - `runtime.*`: tiempo, ticks, espera y backend info.
 - `file.*`: existencia, lectura/escritura, directorios.
 - `console.*`: salida, color, cursor y limpieza.
-- `input.*`, `window.*`, `gpu.*`, `audio.*`, `net.*`: APIs portables con backend `default` y backends acelerados si se compila con SDL/OpenGL/etc.
+- `input.*`, `window.*`, `gpu.*`, `net.*`: APIs portables con backend `default` y backends acelerados solo cuando hay handlers reales compilados (SDL2/OpenGL). Audio, imagen y APIs graficas grandes se cargan por FFI o módulos host explícitos, no como placeholders.
 - `data.*`: transformación de datos sin host glue.
 - `env.*`: variables de entorno del proceso.
 - `ffi.*`: carga de librerías nativas, símbolos, memoria, structs, unions, arrays, punteros, vtables y llamadas ABI.
@@ -201,9 +201,10 @@ La smoke suite compila los scripts SCML, pero no ejecuta la ventana porque SDL2 
 El ejemplo [`examples/sdl2_opengl_hola_game/`](../examples/sdl2_opengl_hola_game/) demuestra un port de juego completo desde `hola.html` a SCML puro:
 
 - `linux_hola_sdl2_opengl_ffi.scml` carga `libSDL2-2.0.so.0` y `libGL.so.1` con `ffi.load`.
-- La entrada se limita a teclado mediante `SDL_PumpEvents` + `SDL_GetKeyboardState`; no hay joystick tactil ni mouse por ahora.
+- `msys2_ucrt64_hola_sdl2_opengl_ffi.scml` carga `SDL2` y `opengl32`, que el loader de Windows resuelve como DLLs en MSYS2 UCRT64/MinGW64.
+- La entrada usa `SDL_PumpEvents` + `SDL_GetKeyboardState` para teclado y `SDL_GetRelativeMouseState` con buffers `int*` reservados por FFI para cámara con mouse.
 - OpenGL se llama directamente con `ffi.call_name` (`glFrustum`, `glRotatef`, `glTranslatef`, `glBegin`, `glVertex3f`, `glFogf`, etc.).
-- El estado de coleccionables/rocas vive en arrays nativos creados con `ffi.alloc_array` y se limpia con `ffi.free`.
+- El estado de coleccionables/rocas y los buffers de mouse viven en memoria nativa creada con `ffi.alloc_array` y se limpian con `ffi.free`.
 - Para hacer ports mas robustos, la stdlib FFI expone macros `ffi_call_name3` hasta `ffi_call_name8`, utiles para APIs graficas con muchas coordenadas/flags sin escribir el opcode crudo cada vez.
 
 Compilacion recomendada:
