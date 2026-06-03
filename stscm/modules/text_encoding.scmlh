@@ -1,0 +1,20 @@
+; text_encoding.scmlh - SCML::TEXT_ENCODING helpers.
+#pragma once
+
+macro text_encoding_utf8(out_name) {
+    0004: out_name "utf-8"
+}
+
+macro text_encoding_ascii(out_name) {
+    0004: out_name "ascii"
+}
+
+macro text_encoding_validate(text, encoding, out_ok) {
+    0B31: "text.validate" text encoding
+    0004: out_ok $RETVAL
+}
+
+macro text_encoding_transcode(text, from_encoding, to_encoding, out_text) {
+    0B31: "text.transcode" text from_encoding to_encoding
+    0004: out_text $RETVAL
+}

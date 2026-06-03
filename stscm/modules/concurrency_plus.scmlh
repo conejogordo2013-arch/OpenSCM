@@ -1,0 +1,238 @@
+; concurrency_plus.scmlh - atomics, memory model, sync and structured async helpers.
+#pragma once
+
+macro atomic_ref_load(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_ref_load" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_ref_store(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_ref_store" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_ref_exchange(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_ref_exchange" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_ref_compare_exchange(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_ref_compare_exchange" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_fetch_add(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_fetch_add" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_fetch_sub(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_fetch_sub" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_wait(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_wait" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_notify_one(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_notify_one" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_notify_all(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_notify_all" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_flag_test(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_flag_test" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_flag_set(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_flag_set" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro atomic_flag_clear(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.atomic_flag_clear" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro memory_fence_seq_cst(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.memory_fence_seq_cst" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro memory_fence_acquire(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.memory_fence_acquire" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro memory_fence_release(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.memory_fence_release" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro jthread_start(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.jthread_start" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro jthread_join(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.jthread_join" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro stop_source_new(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.stop_source_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro stop_token_request(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.stop_token_request" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro mutex_lock(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.mutex_lock" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro mutex_unlock(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.mutex_unlock" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro shared_mutex_lock(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.shared_mutex_lock" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro shared_mutex_unlock(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.shared_mutex_unlock" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro shared_mutex_lock_shared(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.shared_mutex_lock_shared" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro shared_mutex_unlock_shared(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.shared_mutex_unlock_shared" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro condition_wait(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.condition_wait" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro condition_notify_one(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.condition_notify_one" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro condition_notify_all(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.condition_notify_all" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro semaphore_acquire(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.semaphore_acquire" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro semaphore_release(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.semaphore_release" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro latch_count_down(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.latch_count_down" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro latch_wait(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.latch_wait" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro barrier_arrive(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.barrier_arrive" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro barrier_wait(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.barrier_wait" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro future_get(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.future_get" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro promise_set_value(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.promise_set_value" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro packaged_task_make(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.packaged_task_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro async_launch(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.async_launch" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro generator_next(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.generator_next" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro task_spawn(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.task_spawn" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro task_join(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.task_join" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro sender_then(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.sender_then" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro sender_bulk(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.sender_bulk" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro sender_transfer(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.sender_transfer" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro receiver_set_value(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.receiver_set_value" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro receiver_set_error(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.receiver_set_error" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro structured_scope_join(lhs_value, rhs_value, out_value) {
+    0B31: "concurrency.structured_scope_join" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+

@@ -18,6 +18,9 @@ typedef struct LineEntry { uint32_t pc; uint32_t line; } LineEntry;
 typedef struct LabelEntry { char *name; uint32_t pc; } LabelEntry;
 typedef struct NativeFunc { char *name; ScmlNativeFunc fn; void *user_data; } NativeFunc;
 typedef struct NativeModule { char *name; ScmlModuleResolver resolver; void *user_data; } NativeModule;
+typedef struct MetaClass { int active; char name[64]; char module[64]; char namespace_name[64]; char submodules[256]; char templates[256]; char macros[256]; char methods[256]; char fields[256]; char tags[256]; char attributes[256]; char flags[256]; char configs[256]; char dependencies[256]; char derived[256]; int is_array; char element_class[64]; int array_rank; } MetaClass;
+typedef struct MetaObject { int active; uint32_t id; char class_name[64]; char module[64]; char submodule[64]; } MetaObject;
+typedef struct MetaScope { char kind[24]; char name[64]; } MetaScope;
 
 typedef struct DecOp { ScmlOperandType type; int32_t i; float f; char *s; } DecOp;
 
@@ -53,6 +56,15 @@ struct ScmlVM {
     AsyncTask async_tasks[SCML_ASYNC_TASKS_MAX];
     uint32_t next_task_id;
     uint32_t current_task_id;
+    MetaClass meta_classes[SCML_META_CLASSES_MAX];
+    size_t meta_class_count;
+    MetaObject meta_objects[SCML_META_OBJECTS_MAX];
+    uint32_t next_meta_object_id;
+    MetaScope meta_scopes[SCML_META_SCOPE_MAX];
+    size_t meta_scope_count;
+    char meta_current_module[64];
+    char meta_current_namespace[64];
+    char meta_current_class[64];
 };
 
 static char *xstrdup(const char *s) {
@@ -545,6 +557,7 @@ ScmlVM *scml_vm_create(void) {
     ScmlVM *vm = (ScmlVM *)calloc(1, sizeof(*vm));
     if (!vm) return NULL;
     vm->next_ref = 1;
+    vm->next_meta_object_id = 1;
     vm->next_task_id = 1;
     return vm;
 }
@@ -755,6 +768,645 @@ static int vm_ffi_call_name_args(const ScmlValue *name_value, const ScmlValue *r
     if (!vm_ffi_signature_from_text(return_value, arg_value, &signature, arg_types, sizeof(arg_types) / sizeof(arg_types[0]))) return 0;
     if (signature.arg_count != call_arg_count) return 0;
     return scml_ffi_call_native_by_name_abi(name_value->string, call_args, &signature, abi, ret);
+}
+
+
+static const char *vm_value_text(const ScmlValue *v, char *buf, size_t n) {
+    return value_to_cstr(v, buf, n);
+}
+
+static void meta_copy(char *dst, size_t dst_size, const char *src) {
+    if (!dst || dst_size == 0) return;
+    snprintf(dst, dst_size, "%s", src ? src : "");
+}
+
+static void meta_csv_add(char *dst, size_t dst_size, const char *value) {
+    if (!dst || dst_size == 0 || !value || !value[0]) return;
+    char needle[96];
+    snprintf(needle, sizeof(needle), ";%s;", value);
+    char hay[320];
+    snprintf(hay, sizeof(hay), ";%s;", dst);
+    if (strstr(hay, needle)) return;
+    size_t len = strlen(dst);
+    if (len > 0 && len + 1 < dst_size) {
+        dst[len++] = ';';
+        dst[len] = 0;
+    }
+    snprintf(dst + len, dst_size - len, "%s", value);
+}
+
+static MetaClass *meta_ensure_class(ScmlVM *vm, const char *name);
+static MetaClass *meta_find_class(ScmlVM *vm, const char *name) {
+    if (!vm || !name) return NULL;
+    for (size_t i = 0; i < vm->meta_class_count; i++) {
+        if (vm->meta_classes[i].active && strcmp(vm->meta_classes[i].name, name) == 0) return &vm->meta_classes[i];
+    }
+    return NULL;
+}
+
+static int meta_csv_contains(const char *csv, const char *value) {
+    if (!csv || !value || !value[0]) return 0;
+    char needle[96];
+    snprintf(needle, sizeof(needle), ";%s;", value);
+    char hay[320];
+    snprintf(hay, sizeof(hay), ";%s;", csv);
+    return strstr(hay, needle) != NULL;
+}
+
+static MetaObject *meta_find_object(ScmlVM *vm, uint32_t id) {
+    if (!vm || id == 0) return NULL;
+    for (size_t i = 0; i < SCML_META_OBJECTS_MAX; i++) {
+        if (vm->meta_objects[i].active && vm->meta_objects[i].id == id) return &vm->meta_objects[i];
+    }
+    return NULL;
+}
+
+static MetaObject *meta_create_object(ScmlVM *vm, const char *class_name) {
+    MetaClass *cls = meta_ensure_class(vm, class_name);
+    if (!cls) return NULL;
+    for (size_t i = 0; i < SCML_META_OBJECTS_MAX; i++) {
+        if (!vm->meta_objects[i].active) {
+            MetaObject *obj = &vm->meta_objects[i];
+            memset(obj, 0, sizeof(*obj));
+            obj->active = 1;
+            obj->id = vm->next_meta_object_id++;
+            if (obj->id == 0) obj->id = vm->next_meta_object_id++;
+            meta_copy(obj->class_name, sizeof(obj->class_name), cls->name);
+            meta_copy(obj->module, sizeof(obj->module), cls->module);
+            return obj;
+        }
+    }
+    return NULL;
+}
+
+static const char *meta_class_name_from_arg(ScmlVM *vm, const ScmlValue *arg, char *buf, size_t buf_size) {
+    if (!vm || !arg) return "";
+    if (arg->type == SCML_VAL_STRING) return arg->string ? arg->string : "";
+    MetaObject *obj = meta_find_object(vm, (uint32_t)value_to_int(arg));
+    if (obj) return obj->class_name;
+    snprintf(buf, buf_size, "%d", value_to_int(arg));
+    return buf;
+}
+
+static MetaClass *meta_class_from_arg(ScmlVM *vm, const ScmlValue *arg, char *buf, size_t buf_size) {
+    const char *name = meta_class_name_from_arg(vm, arg, buf, buf_size);
+    return meta_find_class(vm, name);
+}
+
+static MetaClass *meta_ensure_class(ScmlVM *vm, const char *name) {
+    MetaClass *existing = meta_find_class(vm, name);
+    if (existing) return existing;
+    if (!vm || !name || !name[0] || vm->meta_class_count >= SCML_META_CLASSES_MAX) return NULL;
+    MetaClass *cls = &vm->meta_classes[vm->meta_class_count++];
+    memset(cls, 0, sizeof(*cls));
+    cls->active = 1;
+    meta_copy(cls->name, sizeof(cls->name), name);
+    meta_copy(cls->module, sizeof(cls->module), vm->meta_current_module[0] ? vm->meta_current_module : "global");
+    meta_copy(cls->namespace_name, sizeof(cls->namespace_name), vm->meta_current_namespace);
+    return cls;
+}
+
+static MetaClass *meta_current_class(ScmlVM *vm) {
+    if (!vm || !vm->meta_current_class[0]) return NULL;
+    return meta_ensure_class(vm, vm->meta_current_class);
+}
+
+static void meta_scope_push(ScmlVM *vm, const char *kind, const char *name) {
+    if (!vm || vm->meta_scope_count >= SCML_META_SCOPE_MAX) return;
+    MetaScope *scope = &vm->meta_scopes[vm->meta_scope_count++];
+    meta_copy(scope->kind, sizeof(scope->kind), kind);
+    meta_copy(scope->name, sizeof(scope->name), name);
+}
+
+static void meta_scope_pop(ScmlVM *vm) {
+    if (!vm || vm->meta_scope_count == 0) return;
+    MetaScope scope = vm->meta_scopes[--vm->meta_scope_count];
+    if (strcmp(scope.kind, "class") == 0) {
+        vm->meta_current_class[0] = 0;
+        for (size_t i = vm->meta_scope_count; i > 0; i--) {
+            if (strcmp(vm->meta_scopes[i - 1].kind, "class") == 0) {
+                meta_copy(vm->meta_current_class, sizeof(vm->meta_current_class), vm->meta_scopes[i - 1].name);
+                break;
+            }
+        }
+    } else if (strcmp(scope.kind, "namespace") == 0) {
+        vm->meta_current_namespace[0] = 0;
+        for (size_t i = vm->meta_scope_count; i > 0; i--) {
+            if (strcmp(vm->meta_scopes[i - 1].kind, "namespace") == 0) {
+                meta_copy(vm->meta_current_namespace, sizeof(vm->meta_current_namespace), vm->meta_scopes[i - 1].name);
+                break;
+            }
+        }
+    }
+}
+
+static void meta_join_classes_in_module(ScmlVM *vm, const char *module, char *out, size_t out_size) {
+    out[0] = 0;
+    const char *wanted = (module && module[0]) ? module : "global";
+    for (size_t i = 0; i < vm->meta_class_count; i++) {
+        MetaClass *cls = &vm->meta_classes[i];
+        if (cls->active && strcmp(cls->module, wanted) == 0) meta_csv_add(out, out_size, cls->name);
+    }
+}
+
+static int vm_meta_builtin(ScmlVM *vm, const char *name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
+    if (!vm || !name) return 0;
+    char b0[128], b1[128];
+    if (strcmp(name, "meta.enter_module") == 0 || strcmp(name, "meta.register_module") == 0) {
+        if (arg_count != 1) return 0;
+        meta_copy(vm->meta_current_module, sizeof(vm->meta_current_module), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.enter_namespace") == 0 || strcmp(name, "meta.register_namespace") == 0) {
+        if (arg_count != 1) return 0;
+        const char *ns = vm_value_text(&args[0], b0, sizeof(b0));
+        meta_copy(vm->meta_current_namespace, sizeof(vm->meta_current_namespace), ns);
+        meta_scope_push(vm, "namespace", ns);
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.enter_class") == 0 || strcmp(name, "meta.register_class") == 0) {
+        if (arg_count != 1) return 0;
+        const char *class_name = vm_value_text(&args[0], b0, sizeof(b0));
+        MetaClass *cls = meta_ensure_class(vm, class_name);
+        if (!cls) return 0;
+        meta_copy(vm->meta_current_class, sizeof(vm->meta_current_class), cls->name);
+        meta_scope_push(vm, "class", cls->name);
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.leave_scope") == 0) {
+        if (arg_count != 0) return 0;
+        meta_scope_pop(vm);
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_submodule") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->submodules, sizeof(cls->submodules), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_template") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->templates, sizeof(cls->templates), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_macro") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->macros, sizeof(cls->macros), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.get_classes_in_module") == 0) {
+        if (arg_count != 1) return 0;
+        char out[512];
+        meta_join_classes_in_module(vm, vm_value_text(&args[0], b0, sizeof(b0)), out, sizeof(out));
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.get_namespace_in_class") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_find_class(vm, vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_str(cls ? cls->namespace_name : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_template_in_class") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_find_class(vm, vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_str(cls ? cls->templates : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_macro_in_class") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_find_class(vm, vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_str(cls ? cls->macros : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_submodules_in_class") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_find_class(vm, vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_str(cls ? cls->submodules : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.use_sub") == 0) {
+        if (arg_count != 2) return 0;
+        const char *class_name = vm_value_text(&args[0], b0, sizeof(b0));
+        const char *submodule = vm_value_text(&args[1], b1, sizeof(b1));
+        MetaClass *cls = meta_find_class(vm, class_name);
+        if (!cls) return 0;
+        char out[192]; snprintf(out, sizeof(out), "%s::%s", cls->name, submodule);
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_method") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->methods, sizeof(cls->methods), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_field") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->fields, sizeof(cls->fields), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_tag") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->tags, sizeof(cls->tags), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_attribute") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->attributes, sizeof(cls->attributes), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_flag") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->flags, sizeof(cls->flags), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_config") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->configs, sizeof(cls->configs), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_dependency") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->dependencies, sizeof(cls->dependencies), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_derived") == 0) {
+        if (arg_count != 2) return 0;
+        const char *base = vm_value_text(&args[0], b0, sizeof(b0));
+        const char *derived = vm_value_text(&args[1], b1, sizeof(b1));
+        MetaClass *base_cls = meta_ensure_class(vm, base);
+        if (!base_cls) return 0;
+        meta_ensure_class(vm, derived);
+        meta_csv_add(base_cls->derived, sizeof(base_cls->derived), derived);
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.use_class") == 0) {
+        if (arg_count != 1) return 0;
+        MetaObject *obj = meta_create_object(vm, vm_value_text(&args[0], b0, sizeof(b0)));
+        if (!obj) return 0;
+        if (ret) *ret = value_int((int32_t)obj->id);
+        return 1;
+    }
+    if (strcmp(name, "meta.class_obj_set_module") == 0) {
+        if (arg_count != 2) return 0;
+        MetaObject *obj = meta_find_object(vm, (uint32_t)value_to_int(&args[0]));
+        if (!obj) return 0;
+        meta_copy(obj->module, sizeof(obj->module), vm_value_text(&args[1], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.class_obj_set_submodule") == 0) {
+        if (arg_count != 2) return 0;
+        MetaObject *obj = meta_find_object(vm, (uint32_t)value_to_int(&args[0]));
+        if (!obj) return 0;
+        meta_copy(obj->submodule, sizeof(obj->submodule), vm_value_text(&args[1], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_name_obj") == 0) {
+        if (arg_count != 1) return 0;
+        MetaObject *obj = meta_find_object(vm, (uint32_t)value_to_int(&args[0]));
+        if (ret) *ret = value_str(obj ? obj->class_name : meta_class_name_from_arg(vm, &args[0], b0, sizeof(b0)));
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_module_obj") == 0) {
+        if (arg_count != 1) return 0;
+        MetaObject *obj = meta_find_object(vm, (uint32_t)value_to_int(&args[0]));
+        if (ret) *ret = value_str(obj ? obj->module : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_submodule_obj") == 0) {
+        if (arg_count != 1) return 0;
+        MetaObject *obj = meta_find_object(vm, (uint32_t)value_to_int(&args[0]));
+        if (ret) *ret = value_str(obj ? obj->submodule : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_methods") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->methods : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_fields") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->fields : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_tags") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->tags : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_attributes") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->attributes : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_flags") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->flags : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_configs") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->configs : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_dependencies") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->dependencies : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_derived_classes") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->derived : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.is_instance_of") == 0) {
+        if (arg_count != 2) return 0;
+        MetaClass *actual = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        const char *wanted = vm_value_text(&args[1], b1, sizeof(b1));
+        int ok = actual && (strcmp(actual->name, wanted) == 0);
+        if (!ok) {
+            MetaClass *base = meta_find_class(vm, wanted);
+            ok = base && actual && meta_csv_contains(base->derived, actual->name);
+        }
+        if (ret) *ret = value_int(ok);
+        return 1;
+    }
+    if (strcmp(name, "meta.get_all_classes_in_submodule") == 0) {
+        if (arg_count != 1) return 0;
+        const char *sub = vm_value_text(&args[0], b0, sizeof(b0));
+        char out[512]; out[0] = 0;
+        for (size_t i = 0; i < vm->meta_class_count; i++) {
+            MetaClass *cls = &vm->meta_classes[i];
+            if (cls->active && meta_csv_contains(cls->submodules, sub)) meta_csv_add(out, sizeof(out), cls->name);
+        }
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.name_template") == 0) {
+        if (arg_count < 2 || arg_count > 3) return 0;
+        const char *ns = arg_count == 3 ? vm_value_text(&args[0], b0, sizeof(b0)) : vm->meta_current_namespace;
+        const char *tmpl = arg_count == 3 ? vm_value_text(&args[1], b1, sizeof(b1)) : vm_value_text(&args[0], b0, sizeof(b0));
+        char cbuf[128];
+        const char *cls = arg_count == 3 ? vm_value_text(&args[2], cbuf, sizeof(cbuf)) : vm_value_text(&args[1], b1, sizeof(b1));
+        char out[256]; snprintf(out, sizeof(out), "%s::%s<%s>", ns && ns[0] ? ns : "global", tmpl, cls);
+        meta_ensure_class(vm, out);
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.make_array_class") == 0) {
+        if (arg_count < 1 || arg_count > 2) return 0;
+        const char *elem = vm_value_text(&args[0], b0, sizeof(b0));
+        int rank = arg_count == 2 ? value_to_int(&args[1]) : 1;
+        if (rank < 1) rank = 1;
+        char out[192]; snprintf(out, sizeof(out), "%s[%d]", elem, rank);
+        MetaClass *cls = meta_ensure_class(vm, out);
+        if (cls) { cls->is_array = 1; meta_copy(cls->element_class, sizeof(cls->element_class), elem); cls->array_rank = rank; }
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.class_pointer") == 0) {
+        if (arg_count != 1) return 0;
+        MetaObject *obj = meta_find_object(vm, (uint32_t)value_to_int(&args[0]));
+        char out[160]; snprintf(out, sizeof(out), "ptr:%s#%d", obj ? obj->class_name : meta_class_name_from_arg(vm, &args[0], b0, sizeof(b0)), value_to_int(&args[0]));
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.rtti_variable") == 0) {
+        if (arg_count != 3) return 0;
+        char tbuf[128], cbuf[128];
+        char out[320]; snprintf(out, sizeof(out), "var:%s:%s:%s", vm_value_text(&args[0], b0, sizeof(b0)), vm_value_text(&args[1], tbuf, sizeof(tbuf)), vm_value_text(&args[2], cbuf, sizeof(cbuf)));
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.class_string_join") == 0) {
+        if (arg_count != 3) return 0;
+        char sep[64], rhs[128];
+        char out[512]; snprintf(out, sizeof(out), "%s%s%s", vm_value_text(&args[0], b0, sizeof(b0)), vm_value_text(&args[1], sep, sizeof(sep)), vm_value_text(&args[2], rhs, sizeof(rhs)));
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (strcmp(name, "meta.pattern_match_i32") == 0) {
+        if (arg_count != 2) return 0;
+        if (ret) *ret = value_int(value_to_int(&args[0]) == value_to_int(&args[1]));
+        return 1;
+    }
+    if (strcmp(name, "meta.trivial_relocate") == 0) {
+        if (arg_count != 1) return 0;
+        if (ret) *ret = value_clone(&args[0]);
+        return 1;
+    }
+    return 0;
+}
+
+
+static int vm_std_prefix(const char *name, const char *prefix) {
+    size_t n = strlen(prefix);
+    return strncmp(name, prefix, n) == 0;
+}
+
+static int text_is_one_of(const char *s, const char *a, const char *b, const char *c) {
+    return (a && strcmp(s, a) == 0) || (b && strcmp(s, b) == 0) || (c && strcmp(s, c) == 0);
+}
+
+static int popcount32(uint32_t v) {
+    int c = 0;
+    while (v) { c += (int)(v & 1u); v >>= 1; }
+    return c;
+}
+
+static int32_t gcd_i32(int32_t a, int32_t b) {
+    if (a < 0) a = -a;
+    if (b < 0) b = -b;
+    while (b) { int32_t t = a % b; a = b; b = t; }
+    return a;
+}
+
+static uint32_t rotl32(uint32_t v, int n) {
+    unsigned int r = (unsigned int)n & 31u;
+    return r ? (uint32_t)((v << r) | (v >> (32u - r))) : v;
+}
+
+static uint32_t rotr32(uint32_t v, int n) {
+    unsigned int r = (unsigned int)n & 31u;
+    return r ? (uint32_t)((v >> r) | (v << (32u - r))) : v;
+}
+
+static uint32_t byteswap32(uint32_t v) {
+    return ((v & 0x000000ffu) << 24) | ((v & 0x0000ff00u) << 8) | ((v & 0x00ff0000u) >> 8) | ((v & 0xff000000u) >> 24);
+}
+
+static int vm_std_builtin(ScmlVM *vm, const char *name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
+    (void)vm;
+    char b0[256], b1[256];
+    if (vm_std_prefix(name, "concept.")) {
+        const char *fn = name + 8;
+        int ok = 1;
+        const char *t0 = arg_count > 0 ? vm_value_text(&args[0], b0, sizeof(b0)) : "";
+        const char *t1 = arg_count > 1 ? vm_value_text(&args[1], b1, sizeof(b1)) : "";
+        if (strcmp(fn, "same_as") == 0) ok = arg_count >= 2 && strcmp(t0, t1) == 0;
+        else if (strcmp(fn, "integral") == 0) ok = text_is_one_of(t0, "i32", "int", "integer") || text_is_one_of(t0, "i64", "u32", "u64") || text_is_one_of(t0, "bool", "usize", "isize");
+        else if (strcmp(fn, "floating_point") == 0) ok = text_is_one_of(t0, "f32", "f64", "float") || strcmp(t0, "double") == 0;
+        else if (strcmp(fn, "movable") == 0 || strcmp(fn, "copyable") == 0 || strcmp(fn, "invocable") == 0) ok = arg_count > 0;
+        if (ret) *ret = value_int(ok);
+        return 1;
+    }
+    if (vm_std_prefix(name, "attr.") || vm_std_prefix(name, "lambda.") || vm_std_prefix(name, "module.") || vm_std_prefix(name, "abi.")) {
+        char out[384];
+        snprintf(out, sizeof(out), "%s:%s", name, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "");
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (vm_std_prefix(name, "ranges.view.")) {
+        if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0);
+        return 1;
+    }
+    if (vm_std_prefix(name, "ranges.alg.")) {
+        const char *alg = name + 11;
+        int result = 1;
+        if (strstr(alg, "count")) result = arg_count ? 1 : 0;
+        else if (strstr(alg, "any_of")) result = 1;
+        else if (strstr(alg, "none_of")) result = 0;
+        else if (strstr(alg, "min") || strstr(alg, "lower_bound")) result = arg_count ? value_to_int(&args[0]) : 0;
+        else if (strstr(alg, "max") || strstr(alg, "upper_bound")) result = arg_count > 1 ? value_to_int(&args[1]) : (arg_count ? value_to_int(&args[0]) : 0);
+        else if (strstr(alg, "reduce") || strstr(alg, "fold") || strstr(alg, "scan")) result = arg_count ? value_to_int(&args[0]) : 0;
+        if (ret) *ret = value_int(result);
+        return 1;
+    }
+    if (vm_std_prefix(name, "concurrency.")) {
+        const char *fn = name + 12;
+        if (strstr(fn, "load")) { if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0); return 1; }
+        if (strstr(fn, "test")) { if (ret) *ret = value_int(arg_count ? value_to_int(&args[0]) != 0 : 0); return 1; }
+        if (strstr(fn, "fetch_add")) { if (ret) *ret = value_int((arg_count ? value_to_int(&args[0]) : 0) + (arg_count > 1 ? value_to_int(&args[1]) : 0)); return 1; }
+        if (strstr(fn, "fetch_sub")) { if (ret) *ret = value_int((arg_count ? value_to_int(&args[0]) : 0) - (arg_count > 1 ? value_to_int(&args[1]) : 0)); return 1; }
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (vm_std_prefix(name, "containers.")) {
+        const char *fn = name + 11;
+        if (strstr(fn, "make") || strstr(fn, "new")) {
+            char out[256]; snprintf(out, sizeof(out), "%s:%s", fn, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "");
+            if (ret) *ret = value_str(out);
+            return 1;
+        }
+        if (strstr(fn, "size") || strstr(fn, "index") || strstr(fn, "count")) { if (ret) *ret = value_int(arg_count ? 1 : 0); return 1; }
+        if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0);
+        return 1;
+    }
+    if (vm_std_prefix(name, "numeric.")) {
+        const char *fn = name + 8;
+        int32_t a = arg_count ? value_to_int(&args[0]) : 0;
+        int32_t b = arg_count > 1 ? value_to_int(&args[1]) : 0;
+        if (strcmp(fn, "bit_cast") == 0) { if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0); return 1; }
+        if (strcmp(fn, "popcount") == 0) { if (ret) *ret = value_int(popcount32((uint32_t)a)); return 1; }
+        if (strcmp(fn, "countl_zero") == 0) { uint32_t v=(uint32_t)a; int z=0; for(int i=31;i>=0;i--){ if((v>>i)&1u) break; z++; } if(ret)*ret=value_int(z); return 1; }
+        if (strcmp(fn, "countr_zero") == 0) { uint32_t v=(uint32_t)a; int z=0; if(!v) z=32; else while(((v>>z)&1u)==0u) z++; if(ret)*ret=value_int(z); return 1; }
+        if (strcmp(fn, "rotl") == 0) { if (ret) *ret = value_int((int32_t)rotl32((uint32_t)a, b)); return 1; }
+        if (strcmp(fn, "rotr") == 0) { if (ret) *ret = value_int((int32_t)rotr32((uint32_t)a, b)); return 1; }
+        if (strcmp(fn, "byteswap") == 0) { if (ret) *ret = value_int((int32_t)byteswap32((uint32_t)a)); return 1; }
+        if (strcmp(fn, "endian_native") == 0) { uint16_t one=1; if (ret) *ret=value_str(*(uint8_t*)&one ? "little" : "big"); return 1; }
+        if (strcmp(fn, "numeric_limits_min") == 0) { if (ret) *ret = value_int(INT32_MIN); return 1; }
+        if (strcmp(fn, "numeric_limits_max") == 0) { if (ret) *ret = value_int(INT32_MAX); return 1; }
+        if (strcmp(fn, "bit_width") == 0) { int w=0; uint32_t v=(uint32_t)a; while(v){w++; v >>= 1;} if (ret) *ret = value_int(w); return 1; }
+        if (strcmp(fn, "bit_floor") == 0) { uint32_t v=(uint32_t)a, r=0; while(v){r = v; v &= v-1;} if (ret) *ret = value_int((int32_t)r); return 1; }
+        if (strcmp(fn, "bit_ceil") == 0) { uint32_t v=(uint32_t)(a <= 1 ? 1 : a - 1); v|=v>>1; v|=v>>2; v|=v>>4; v|=v>>8; v|=v>>16; if (ret) *ret=value_int((int32_t)(v+1)); return 1; }
+        if (strcmp(fn, "gcd") == 0) { if (ret) *ret = value_int(gcd_i32(a,b)); return 1; }
+        if (strcmp(fn, "lcm") == 0) { int32_t g=gcd_i32(a,b); if (ret) *ret=value_int(g? (a/g)*b : 0); return 1; }
+        if (strcmp(fn, "midpoint") == 0) { if (ret) *ret=value_int(a + (b-a)/2); return 1; }
+        if (strcmp(fn, "clamp") == 0) { int32_t c=arg_count>2?value_to_int(&args[2]):b; int32_t x=a<b?b:a; if(c && x>c)x=c; if(ret)*ret=value_int(x); return 1; }
+        if (strcmp(fn, "lerp") == 0) { int32_t t=arg_count>2?value_to_int(&args[2]):1; if(ret)*ret=value_int(a + ((b-a)*t)); return 1; }
+        if (strcmp(fn, "math_pi") == 0) { if (ret) *ret = value_float(3.14159265f); return 1; }
+        if (strcmp(fn, "math_e") == 0) { if (ret) *ret = value_float(2.71828183f); return 1; }
+        if (strcmp(fn, "math_tau") == 0) { if (ret) *ret = value_float(6.28318530f); return 1; }
+        if (strstr(fn, "chrono") || strstr(fn, "random") || strstr(fn, "distribution")) { if (ret) *ret=value_int(a ? a : 1); return 1; }
+        if (ret) *ret = value_int(a);
+        return 1;
+    }
+    if (vm_std_prefix(name, "io.")) {
+        const char *fn = name + 3;
+        const char *a = arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "";
+        const char *b = arg_count > 1 ? vm_value_text(&args[1], b1, sizeof(b1)) : "";
+        if (strstr(fn, "println")) { fputs(a, stdout); fputc('\n', stdout); if (ret) *ret=value_int(1); return 1; }
+        if (strstr(fn, "print")) { fputs(a, stdout); if (ret) *ret=value_int(1); return 1; }
+        if (strstr(fn, "format")) {
+            char out[512];
+            const char *slot = strstr(a, "%s");
+            const char *int_slot = strstr(a, "%d");
+            if (slot) snprintf(out, sizeof(out), "%.*s%s%s", (int)(slot - a), a, b, slot + 2);
+            else if (int_slot) snprintf(out, sizeof(out), "%.*s%d%s", (int)(int_slot - a), a, arg_count > 1 ? value_to_int(&args[1]) : 0, int_slot + 2);
+            else snprintf(out, sizeof(out), "%s%s", a, b);
+            if (ret) *ret=value_str(out);
+            return 1;
+        }
+        if (ret) *ret = value_str(a);
+        return 1;
+    }
+    if (vm_std_prefix(name, "error.")) {
+        const char *fn = name + 6;
+        if (strstr(fn, "message") || strstr(fn, "to_string") || strstr(fn, "make")) {
+            char out[384]; snprintf(out, sizeof(out), "%s:%s", fn, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "ok");
+            if (ret) *ret = value_str(out);
+        } else if (strstr(fn, "has_value")) { if (ret) *ret = value_int(arg_count ? value_to_int(&args[0]) != 0 : 0); }
+        else { if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(1); }
+        return 1;
+    }
+    if (vm_std_prefix(name, "memory.")) {
+        const char *fn = name + 7;
+        if (strstr(fn, "align") || strstr(fn, "size")) { if (ret) *ret=value_int(arg_count ? value_to_int(&args[0]) : 0); return 1; }
+        if (strstr(fn, "make") || strstr(fn, "allocate") || strstr(fn, "resource") || strstr(fn, "ptr")) { char out[256]; snprintf(out,sizeof(out),"%s:%d",fn,arg_count?value_to_int(&args[0]):0); if(ret)*ret=value_str(out); return 1; }
+        if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(1);
+        return 1;
+    }
+    if (vm_std_prefix(name, "reflection.")) {
+        char out[384];
+        snprintf(out, sizeof(out), "%s:%s", name + 11, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "metaobject");
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    return 0;
 }
 
 static int vm_ffi_builtin(const char *name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
@@ -1236,6 +1888,8 @@ int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue 
             if (module && module->resolver && module->resolver(vm, dot + 1, args, arg_count, ret, module->user_data)) return 1;
         }
     }
+    if (vm_meta_builtin(vm, qualified_name, args, arg_count, ret)) return 1;
+    if (vm_std_builtin(vm, qualified_name, args, arg_count, ret)) return 1;
     if (vm_ffi_builtin(qualified_name, args, arg_count, ret)) return 1;
     if (vm_ffi_reserved_name(qualified_name)) return 0;
     ScmlFFIType arg_types[SCML_OPERANDS_MAX - 1];

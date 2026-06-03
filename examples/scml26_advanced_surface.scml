@@ -1,0 +1,98 @@
+use "../stscm/modules/std_modules.scmlh";
+
+MODULE demo.global;
+NAMESPACE Demo {
+    CLASS Player {
+        module Core;
+        submodule Stats;
+        field "health:i32";
+        field "inventory:Player[]";
+        tag playable;
+        attribute replicated;
+        flag persistent;
+        config tickrate60;
+        depends Inventory;
+        TMPL InventoryTemplate {
+        }
+        MACRO RenderMacro {
+        }
+        fn tick(self) = delete("demo metadata only");
+    }
+    CLASS Admin : Player {
+        submodule Staff;
+        fn audit(self) = delete("demo metadata only");
+    }
+}
+
+script MAIN {
+    useClass(Player) -> $player;
+    class_set_module($player, 101);
+    class_set_submodule($player, 202);
+    class_get_module($module_name, $player);
+    class_get_submodule($submodule_name, $player);
+
+    getClassesInModule("demo.global") -> $classes;
+    getAllClassesInSubmodule("Stats") -> $stats_classes;
+    getClassName($player) -> $class_name;
+    getClassModule($player) -> $class_module;
+    getClassMethods($player) -> $methods;
+    getClassFields($player) -> $fields;
+    getClassTags($player) -> $tags;
+    getClassAttributes($player) -> $attributes;
+    getClassFlags($player) -> $flags;
+    getClassConfigs($player) -> $configs;
+    getClassDependencies($player) -> $dependencies;
+    getDerivedClasses("Player") -> $derived;
+    isInstanceOf($player, "Player") -> $is_player;
+    getNamespaceInClass("Player") -> $namespace;
+    getTemplateInClass("Player") -> $templates;
+    getMacroInClass("Player") -> $macros;
+    getSubmodulesInClass("Player") -> $submodules;
+    useSub("Player", "Stats") -> $used_sub;
+    nameTemplate("Demo", "InventoryTemplate", "Player") -> $named_template;
+    makeArrayClass("Player", 2) -> $array_class;
+    rttiVariable("inventory", "Player[]", $array_class) -> $rtti_var;
+    classPointer($player) -> $class_ptr;
+    classStringJoin($class_name, "::", $templates) -> $joined_name;
+
+    define_static_string($banner, "SCML26");
+    define_static_array($pack, 10, 20, 30);
+    AUTO [first, _, third] = $pack;
+    AUTO indexed = fold_add(first, third);
+    patternMatch(indexed, 40) -> $matched;
+    trivialRelocate(indexed) -> $relocated;
+    contract_assert(1 == 1, "contract ok");
+    static_assert(2 + 2 != 5, "static message works");
+    let $has_embed: i32 = __has_embed("scmr_asset.txt");
+
+    print($banner);
+    print($module_name);
+    print($submodule_name);
+    print(indexed);
+    print($has_embed);
+    print($classes);
+    print($stats_classes);
+    print($class_name);
+    print($class_module);
+    print($methods);
+    print($fields);
+    print($tags);
+    print($attributes);
+    print($flags);
+    print($configs);
+    print($dependencies);
+    print($derived);
+    print($is_player);
+    print($namespace);
+    print($templates);
+    print($macros);
+    print($submodules);
+    print($used_sub);
+    print($named_template);
+    print($array_class);
+    print($rtti_var);
+    print($class_ptr);
+    print($joined_name);
+    print($matched);
+    print($relocated);
+}

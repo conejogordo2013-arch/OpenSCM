@@ -1,0 +1,158 @@
+; io_format_plus.scmlh - format/print/filesystem/regex/unicode helpers.
+#pragma once
+
+macro format(lhs_value, rhs_value, out_value) {
+    0B31: "io.format" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro format_to(lhs_value, rhs_value, out_value) {
+    0B31: "io.format_to" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro format_range(lhs_value, rhs_value, out_value) {
+    0B31: "io.format_range" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro print_value(lhs_value, rhs_value, out_value) {
+    0B31: "io.print_value" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro println_value(lhs_value, rhs_value, out_value) {
+    0B31: "io.println_value" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro iostream_read(lhs_value, rhs_value, out_value) {
+    0B31: "io.iostream_read" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro iostream_write(lhs_value, rhs_value, out_value) {
+    0B31: "io.iostream_write" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_path(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_path" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_exists(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_exists" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_status(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_status" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_permissions(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_permissions" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_directory_iter(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_directory_iter" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_symlink(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_symlink" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_absolute(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_absolute" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_parent_path(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_parent_path" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_filename(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_filename" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_extension(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_extension" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro filesystem_error_make(lhs_value, rhs_value, out_value) {
+    0B31: "io.filesystem_error_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro regex_match(lhs_value, rhs_value, out_value) {
+    0B31: "io.regex_match" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro regex_search(lhs_value, rhs_value, out_value) {
+    0B31: "io.regex_search" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro regex_replace(lhs_value, rhs_value, out_value) {
+    0B31: "io.regex_replace" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro locale_use(lhs_value, rhs_value, out_value) {
+    0B31: "io.locale_use" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro locale_facet(lhs_value, rhs_value, out_value) {
+    0B31: "io.locale_facet" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro codecvt_legacy(lhs_value, rhs_value, out_value) {
+    0B31: "io.codecvt_legacy" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro unicode_normalize(lhs_value, rhs_value, out_value) {
+    0B31: "io.unicode_normalize" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro unicode_graphemes(lhs_value, rhs_value, out_value) {
+    0B31: "io.unicode_graphemes" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro text_transcode_utf8(lhs_value, rhs_value, out_value) {
+    0B31: "io.text_transcode_utf8" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro char8_text(lhs_value, rhs_value, out_value) {
+    0B31: "io.char8_text" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro char16_text(lhs_value, rhs_value, out_value) {
+    0B31: "io.char16_text" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro char32_text(lhs_value, rhs_value, out_value) {
+    0B31: "io.char32_text" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro source_print(lhs_value, rhs_value, out_value) {
+    0B31: "io.source_print" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+

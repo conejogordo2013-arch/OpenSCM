@@ -1,0 +1,353 @@
+; ranges_algorithms.scmlh - views, ranges algorithms and execution policies.
+#pragma once
+
+macro view_filter(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.filter" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_transform(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.transform" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_take(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.take" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_drop(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.drop" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_join(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.join" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_split(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.split" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_reverse(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.reverse" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_keys(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.keys" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_values(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.values" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_enumerate(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.enumerate" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_zip(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.zip" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_chunk(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.chunk" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_slide(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.slide" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_stride(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.stride" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_lazy(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.lazy" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_cache_latest(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.cache_latest" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_as_const(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.as_const" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_common(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.common" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_counted(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.counted" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_single(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.single" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_empty(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.empty" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_iota(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.iota" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_repeat(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.repeat" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_cartesian_product(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.cartesian_product" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_adjacent(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.adjacent" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_pairwise(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.pairwise" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_elements(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.elements" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro view_all(range_ref, adaptor_arg, out_range) {
+    0B31: "ranges.view.all" range_ref adaptor_arg
+    0004: out_range $RETVAL
+}
+
+macro ranges_for_each(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.for_each" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_transform(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.transform" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_reduce(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.reduce" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_fold_left(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.fold_left" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_fold_right(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.fold_right" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_count(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.count" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_count_if(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.count_if" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_find(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.find" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_find_if(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.find_if" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_any_of(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.any_of" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_all_of(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.all_of" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_none_of(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.none_of" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_sort(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.sort" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_stable_sort(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.stable_sort" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_copy(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.copy" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_copy_if(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.copy_if" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_move(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.move" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_fill(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.fill" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_generate(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.generate" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_unique(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.unique" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_reverse(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.reverse" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_rotate(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.rotate" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_partition(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.partition" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_lower_bound(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.lower_bound" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_upper_bound(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.upper_bound" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_binary_search(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.binary_search" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_merge(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.merge" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_min(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.min" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_max(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.max" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_minmax(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.minmax" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_equal(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.equal" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_mismatch(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.mismatch" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_lexicographical_compare(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.lexicographical_compare" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_scan(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.scan" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_inclusive_scan(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.inclusive_scan" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_exclusive_scan(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.exclusive_scan" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_transform_reduce(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.transform_reduce" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro ranges_transform_scan(range_ref, op_ref, out_value) {
+    0B31: "ranges.alg.transform_scan" range_ref op_ref
+    0004: out_value $RETVAL
+}
+
+macro execution_policy_seq(out_policy) {
+    0004: out_policy "seq"
+}
+
+macro execution_policy_par(out_policy) {
+    0004: out_policy "par"
+}
+
+macro execution_policy_par_unseq(out_policy) {
+    0004: out_policy "par_unseq"
+}
+
+macro execution_policy_unseq(out_policy) {
+    0004: out_policy "unseq"
+}
+
+macro execution_policy_vectorized(out_policy) {
+    0004: out_policy "vectorized"
+}
+

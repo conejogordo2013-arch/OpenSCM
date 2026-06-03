@@ -1,0 +1,42 @@
+; class_model.scmlh - OOM class graph and object model convenience APIs.
+#pragma once
+
+macro class_model_new(class_name, out_object) {
+    0B31: "meta.use_class" class_name
+    0004: out_object $RETVAL
+}
+
+macro class_model_name(object_ref, out_name) {
+    0B31: "meta.get_class_name_obj" object_ref
+    0004: out_name $RETVAL
+}
+
+macro class_model_module(object_ref, out_module) {
+    0B31: "meta.get_class_module_obj" object_ref
+    0004: out_module $RETVAL
+}
+
+macro class_model_methods(class_or_object, out_methods) {
+    0B31: "meta.get_class_methods" class_or_object
+    0004: out_methods $RETVAL
+}
+
+macro class_model_fields(class_or_object, out_fields) {
+    0B31: "meta.get_class_fields" class_or_object
+    0004: out_fields $RETVAL
+}
+
+macro class_model_derived(class_name, out_classes) {
+    0B31: "meta.get_derived_classes" class_name
+    0004: out_classes $RETVAL
+}
+
+macro class_model_is_instance(object_ref, class_name, out_ok) {
+    0B31: "meta.is_instance_of" object_ref class_name
+    0004: out_ok $RETVAL
+}
+
+macro class_model_pointer(object_ref, out_pointer) {
+    0B31: "meta.class_pointer" object_ref
+    0004: out_pointer $RETVAL
+}

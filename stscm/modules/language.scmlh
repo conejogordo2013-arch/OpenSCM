@@ -1,0 +1,226 @@
+; language.scmlh - SCML26 language/concepts/templates/attributes helpers.
+#pragma once
+
+macro concept_same_as(lhs_type, rhs_type, out_ok) {
+    0B31: "concept.same_as" lhs_type rhs_type
+    0004: out_ok $RETVAL
+}
+
+macro concept_integral(type_name, out_ok) {
+    0B31: "concept.integral" type_name
+    0004: out_ok $RETVAL
+}
+
+macro concept_floating_point(type_name, out_ok) {
+    0B31: "concept.floating_point" type_name
+    0004: out_ok $RETVAL
+}
+
+macro concept_movable(type_name, out_ok) {
+    0B31: "concept.movable" type_name
+    0004: out_ok $RETVAL
+}
+
+macro concept_copyable(type_name, out_ok) {
+    0B31: "concept.copyable" type_name
+    0004: out_ok $RETVAL
+}
+
+macro concept_invocable(callable_ref, out_ok) {
+    0B31: "concept.invocable" callable_ref
+    0004: out_ok $RETVAL
+}
+
+macro requires_clause(condition, out_ok) {
+    0004: out_ok condition
+}
+
+macro constraint_fold_all(out_ok, a, b) {
+    0B27: out_ok a b
+}
+
+macro constraint_fold_any(out_ok, a, b) {
+    0B28: out_ok a b
+}
+
+macro constexpr_value(value, out_value) {
+    0004: out_value value
+}
+
+macro consteval_value(value, out_value) {
+    0004: out_value value
+}
+
+macro constinit_value(var_ref, value) {
+    0004: var_ref value
+}
+
+macro constexpr_if(condition, out_ok) {
+    0004: out_ok condition
+}
+
+macro switch_init_value(init_value, out_value) {
+    0004: out_value init_value
+}
+
+macro attr_nodiscard(symbol, out_meta) {
+    0B31: "attr.nodiscard" symbol
+    0004: out_meta $RETVAL
+}
+
+macro attr_maybe_unused(symbol, out_meta) {
+    0B31: "attr.maybe_unused" symbol
+    0004: out_meta $RETVAL
+}
+
+macro attr_fallthrough(out_meta) {
+    0B31: "attr.fallthrough"
+    0004: out_meta $RETVAL
+}
+
+macro attr_likely(condition, out_condition) {
+    0004: out_condition condition
+}
+
+macro attr_unlikely(condition, out_condition) {
+    0004: out_condition condition
+}
+
+macro attr_no_unique_address(field_name, out_meta) {
+    0B31: "attr.no_unique_address" field_name
+    0004: out_meta $RETVAL
+}
+
+macro source_location_current(out_location) {
+    0B14: 3 out_location
+    0B13: out_location 0 __FILE__
+    0B13: out_location 1 __LINE__
+    0B13: out_location 2 "SCML"
+}
+
+macro operator_spaceship(lhs, rhs, out_cmp) {
+    000C: out_cmp lhs rhs
+}
+
+macro comparison_eq(lhs, rhs, out_ok) {
+    00D6: lhs rhs @SCML_LANG_EQ_TRUE
+    0004: out_ok 0
+    000A: @SCML_LANG_EQ_END
+:SCML_LANG_EQ_TRUE
+    0004: out_ok 1
+:SCML_LANG_EQ_END
+}
+
+macro initializer_list2(a, b, out_list) {
+    0B14: 2 out_list
+    0B13: out_list 0 a
+    0B13: out_list 1 b
+}
+
+macro initializer_list3(a, b, c, out_list) {
+    0B14: 3 out_list
+    0B13: out_list 0 a
+    0B13: out_list 1 b
+    0B13: out_list 2 c
+}
+
+macro designated_field(name, value, out_pair) {
+    0B14: 2 out_pair
+    0B13: out_pair 0 name
+    0B13: out_pair 1 value
+}
+
+macro alignas_value(alignment, out_alignment) {
+    0004: out_alignment alignment
+}
+
+macro alignof_type(type_name, out_alignment) {
+    0B31: "type.alignof" type_name
+    0004: out_alignment $RETVAL
+}
+
+macro noexcept_value(condition, out_ok) {
+    0004: out_ok condition
+}
+
+macro declval(type_name, out_value) {
+    0B31: "meta.declval" type_name
+    0004: out_value $RETVAL
+}
+
+macro auto_return_type(function_name, out_type) {
+    0B31: "meta.auto_return_type" function_name
+    0004: out_type $RETVAL
+}
+
+macro template_deduce(template_name, args_ref, out_type) {
+    0B31: "meta.template_deduce" template_name args_ref
+    0004: out_type $RETVAL
+}
+
+macro deduction_guide(template_name, guide_ref, out_ok) {
+    0B31: "meta.deduction_guide" template_name guide_ref
+    0004: out_ok $RETVAL
+}
+
+macro lambda_generic(name, out_lambda) {
+    0B31: "lambda.generic" name
+    0004: out_lambda $RETVAL
+}
+
+macro lambda_template(name, template_params, out_lambda) {
+    0B31: "lambda.template" name template_params
+    0004: out_lambda $RETVAL
+}
+
+macro lambda_capture_binding(binding_ref, out_capture) {
+    0B31: "lambda.capture_binding" binding_ref
+    0004: out_capture $RETVAL
+}
+
+macro pack_size(pack_ref, out_size) {
+    0B30: out_size pack_ref
+}
+
+macro fold_expression_add(out_value, a, b) {
+    0006: out_value a b
+}
+
+macro fold_expression_mul(out_value, a, b) {
+    0008: out_value a b
+}
+
+macro module_interface_unit(module_name, out_meta) {
+    0B31: "module.interface_unit" module_name
+    0004: out_meta $RETVAL
+}
+
+macro module_partition(module_name, partition_name, out_meta) {
+    0B31: "module.partition" module_name partition_name
+    0004: out_meta $RETVAL
+}
+
+macro header_unit(header_name, out_meta) {
+    0B31: "module.header_unit" header_name
+    0004: out_meta $RETVAL
+}
+
+macro extern_c_linkage(symbol, out_meta) {
+    0B31: "abi.extern_c" symbol
+    0004: out_meta $RETVAL
+}
+
+macro abi_rule(name, out_meta) {
+    0B31: "abi.rule" name
+    0004: out_meta $RETVAL
+}
+
+macro va_opt_present(arg_count, out_ok) {
+    00D8: arg_count 0 @SCML_VA_OPT_TRUE
+    0004: out_ok 0
+    000A: @SCML_VA_OPT_END
+:SCML_VA_OPT_TRUE
+    0004: out_ok 1
+:SCML_VA_OPT_END
+}
+

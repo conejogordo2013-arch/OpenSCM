@@ -1,0 +1,59 @@
+; linalg.scmlh - compact linear algebra helpers.
+#pragma once
+
+macro simd_pack4(a, b, c, d, out_vec) {
+    0B14: 4 out_vec
+    0B13: out_vec 0 a
+    0B13: out_vec 1 b
+    0B13: out_vec 2 c
+    0B13: out_vec 3 d
+}
+
+macro simd_add4(lhs_ref, rhs_ref, out_vec) {
+    0B14: 4 out_vec
+    0B12: 80@ lhs_ref 0
+    0B12: 81@ rhs_ref 0
+    0006: 82@ 80@ 81@
+    0B13: out_vec 0 82@
+    0B12: 80@ lhs_ref 1
+    0B12: 81@ rhs_ref 1
+    0006: 82@ 80@ 81@
+    0B13: out_vec 1 82@
+    0B12: 80@ lhs_ref 2
+    0B12: 81@ rhs_ref 2
+    0006: 82@ 80@ 81@
+    0B13: out_vec 2 82@
+    0B12: 80@ lhs_ref 3
+    0B12: 81@ rhs_ref 3
+    0006: 82@ 80@ 81@
+    0B13: out_vec 3 82@
+}
+
+macro linalg_dot2(ax, ay, bx, by, out_value) {
+    0008: 83@ ax bx
+    0008: 84@ ay by
+    0006: out_value 83@ 84@
+}
+
+macro inplace_vector_create(capacity, out_vec) {
+    0B14: capacity out_vec
+}
+
+macro hive_create(out_hive) {
+    0B14: 2 out_hive
+    0B13: out_hive 0 "hive"
+    0B13: out_hive 1 0
+}
+
+macro pattern_match_range_i32(value, begin_value, end_value, out_ok) {
+    00DA: value begin_value @SCML_PATTERN_RANGE_GE
+    0004: out_ok 0
+    000A: @SCML_PATTERN_RANGE_END
+:SCML_PATTERN_RANGE_GE
+    00D9: value end_value @SCML_PATTERN_RANGE_TRUE
+    0004: out_ok 0
+    000A: @SCML_PATTERN_RANGE_END
+:SCML_PATTERN_RANGE_TRUE
+    0004: out_ok 1
+:SCML_PATTERN_RANGE_END
+}

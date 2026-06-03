@@ -1,0 +1,58 @@
+; graphics_sdl2.scmlh - SDL2/OpenGL FFI convenience layer for SCML apps.
+#pragma once
+
+macro sdl2_load_linux(out_value) {
+    0B31: "ffi.load" "libSDL2-2.0.so.0" 9
+    0004: out_value $RETVAL
+}
+
+macro sdl2_load_msys2(out_value) {
+    0B31: "ffi.load" "SDL2.dll" 9
+    0004: out_value $RETVAL
+}
+
+macro opengl_load_linux(out_value) {
+    0B31: "ffi.load" "libGL.so.1" 9
+    0004: out_value $RETVAL
+}
+
+macro opengl_load_msys2(out_value) {
+    0B31: "ffi.load" "opengl32.dll" 9
+    0004: out_value $RETVAL
+}
+
+macro sdl2_init_video(out_value) {
+    0B31: "ffi.call_name" "SDL_Init" "int" "uint32" 32
+    0004: out_value $RETVAL
+}
+
+macro sdl2_create_gl_window(title_value, width_value, height_value, out_value) {
+    0B31: "ffi.call_name" "SDL_CreateWindow" "pointer" "string,int,int,int,int,uint32" title_value 805240832 805240832 width_value height_value 6
+    0004: out_value $RETVAL
+}
+
+macro sdl2_gl_create_context(window_value, out_value) {
+    0B31: "ffi.call_name" "SDL_GL_CreateContext" "pointer" "pointer" window_value
+    0004: out_value $RETVAL
+}
+
+macro sdl2_set_title(window_value, title_value, out_value) {
+    0B31: "ffi.call_name" "SDL_SetWindowTitle" "void" "pointer,string" window_value title_value
+    0004: out_value $RETVAL
+}
+
+macro sdl2_get_mouse_state(x_ptr_value, y_ptr_value, out_value) {
+    0B31: "ffi.call_name" "SDL_GetMouseState" "uint32" "pointer,pointer" x_ptr_value y_ptr_value
+    0004: out_value $RETVAL
+}
+
+macro sdl2_show_simple_message(flags_value, title_value, message_value, window_value, out_value) {
+    0B31: "ffi.call_name" "SDL_ShowSimpleMessageBox" "int" "uint32,string,string,pointer" flags_value title_value message_value window_value
+    0004: out_value $RETVAL
+}
+
+macro opengl_clear_rgba(r_value, g_value, b_value, a_value, mask_value, out_value) {
+    0B31: "ffi.call_name" "glClearColor" "void" "float,float,float,float" r_value g_value b_value a_value
+    0B31: "ffi.call_name" "glClear" "void" "uint32" mask_value
+    0004: out_value $RETVAL
+}
