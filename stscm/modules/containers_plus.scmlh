@@ -1,0 +1,183 @@
+; containers_plus.scmlh - containers, tuples, optionals and range constructors.
+#pragma once
+
+macro array_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.array_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro bitset_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.bitset_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro deque_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.deque_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro list_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.list_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro forward_list_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.forward_list_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro map_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.map_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro multimap_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.multimap_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro set_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.set_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro multiset_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.multiset_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro unordered_map_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.unordered_map_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro unordered_set_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.unordered_set_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro flat_map_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.flat_map_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro flat_set_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.flat_set_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro stack_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.stack_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro queue_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.queue_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro priority_queue_new(lhs_value, rhs_value, out_value) {
+    0B31: "containers.priority_queue_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro tuple_make(lhs_value, rhs_value, out_value) {
+    0B31: "containers.tuple_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro tuple_get(lhs_value, rhs_value, out_value) {
+    0B31: "containers.tuple_get" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro tuple_size(lhs_value, rhs_value, out_value) {
+    0B31: "containers.tuple_size" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro pair_make(lhs_value, rhs_value, out_value) {
+    0B31: "containers.pair_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro pair_first(lhs_value, rhs_value, out_value) {
+    0B31: "containers.pair_first" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro pair_second(lhs_value, rhs_value, out_value) {
+    0B31: "containers.pair_second" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro optional_make(lhs_value, rhs_value, out_value) {
+    0B31: "containers.optional_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro optional_value_or(lhs_value, rhs_value, out_value) {
+    0B31: "containers.optional_value_or" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro variant_make(lhs_value, rhs_value, out_value) {
+    0B31: "containers.variant_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro variant_index(lhs_value, rhs_value, out_value) {
+    0B31: "containers.variant_index" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro any_make(lhs_value, rhs_value, out_value) {
+    0B31: "containers.any_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro any_cast(lhs_value, rhs_value, out_value) {
+    0B31: "containers.any_cast" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro expected_make_ok(lhs_value, rhs_value, out_value) {
+    0B31: "containers.expected_make_ok" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro expected_make_err(lhs_value, rhs_value, out_value) {
+    0B31: "containers.expected_make_err" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro span_make(lhs_value, rhs_value, out_value) {
+    0B31: "containers.span_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro string_view_make(lhs_value, rhs_value, out_value) {
+    0B31: "containers.string_view_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro erase_if(lhs_value, rhs_value, out_value) {
+    0B31: "containers.erase_if" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro container_from_range(lhs_value, rhs_value, out_value) {
+    0B31: "containers.container_from_range" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro heterogeneous_find(lhs_value, rhs_value, out_value) {
+    0B31: "containers.heterogeneous_find" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro transparent_compare(lhs_value, rhs_value, out_value) {
+    0B31: "containers.transparent_compare" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+

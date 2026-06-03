@@ -5,6 +5,13 @@ NAMESPACE Demo {
     CLASS Player {
         module Core;
         submodule Stats;
+        field "health:i32";
+        field "inventory:Player[]";
+        tag playable;
+        attribute replicated;
+        flag persistent;
+        config tickrate60;
+        depends Inventory;
         TMPL InventoryTemplate {
         }
         MACRO RenderMacro {
@@ -29,7 +36,14 @@ script MAIN {
     getClassName($player) -> $class_name;
     getClassModule($player) -> $class_module;
     getClassMethods($player) -> $methods;
+    getClassFields($player) -> $fields;
+    getClassTags($player) -> $tags;
+    getClassAttributes($player) -> $attributes;
+    getClassFlags($player) -> $flags;
+    getClassConfigs($player) -> $configs;
+    getClassDependencies($player) -> $dependencies;
     getDerivedClasses("Player") -> $derived;
+    isInstanceOf($player, "Player") -> $is_player;
     getNamespaceInClass("Player") -> $namespace;
     getTemplateInClass("Player") -> $templates;
     getMacroInClass("Player") -> $macros;
@@ -61,7 +75,14 @@ script MAIN {
     print($class_name);
     print($class_module);
     print($methods);
+    print($fields);
+    print($tags);
+    print($attributes);
+    print($flags);
+    print($configs);
+    print($dependencies);
     print($derived);
+    print($is_player);
     print($namespace);
     print($templates);
     print($macros);

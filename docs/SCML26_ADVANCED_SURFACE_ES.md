@@ -4,7 +4,7 @@ Este paquete añade una capa estable y segura para experimentar con rasgos moder
 
 ## Objetos de clase, submódulos y VM metadata
 
-`CLASS`, `NAMESPACE`, `MODULE`, `TMPL`, `concept`, `enum`, `submodule`, `MACRO` y métodos `fn` dentro de clases se aceptan como bloques de metadatos. El compilador ahora emite registros `meta.*` al bytecode, por lo que la VM conoce automáticamente clases, namespaces, templates, macros, métodos, clases derivadas y submódulos declarados antes de `script MAIN`. Para crear un objeto de clase en runtime se usa:
+`CLASS`, `NAMESPACE`, `MODULE`, `TMPL`, `concept`, `enum`, `submodule`, `MACRO` y métodos `fn` dentro de clases se aceptan como bloques de metadatos. El compilador ahora emite registros `meta.*` al bytecode, por lo que la VM conoce automáticamente clases, namespaces, templates, macros, métodos, campos, tags, atributos, flags, configs, dependencias, clases derivadas y submódulos declarados antes de `script MAIN`. Para crear un objeto de clase en runtime se usa:
 
 ```scml
 useClass(Player) -> $player;
@@ -12,7 +12,7 @@ class_set_module($player, 101);
 class_set_submodule($player, 202);
 ```
 
-El objeto es un arreglo SCML seguro de 4 slots: tipo, nombre/hash reservado, módulo y submódulo. Además, la registry de la VM se consulta desde la superficie moderna con `getClassesInModule(...) -> out`, `getAllClassesInSubmodule(...) -> out`, `getClassName(obj) -> out`, `getClassModule(obj) -> out`, `getClassMethods(obj) -> out`, `getDerivedClasses(...) -> out`, `getNamespaceInClass(...) -> out`, `getTemplateInClass(...) -> out`, `getMacroInClass(...) -> out`, `getSubmodulesInClass(...) -> out` y `useSub(...) -> out`.
+El objeto es un arreglo SCML seguro de 4 slots: tipo, nombre/hash reservado, módulo y submódulo. Además, la registry de la VM se consulta desde la superficie moderna con `getClassesInModule(...) -> out`, `getAllClassesInSubmodule(...) -> out`, `getClassName(obj) -> out`, `getClassModule(obj) -> out`, `getClassMethods(obj) -> out`, `getClassFields(obj) -> out`, `getClassTags(obj) -> out`, `getClassAttributes(obj) -> out`, `getClassFlags(obj) -> out`, `getClassConfigs(obj) -> out`, `getClassDependencies(obj) -> out`, `getDerivedClasses(...) -> out`, `isInstanceOf(obj, class) -> out`, `getNamespaceInClass(...) -> out`, `getTemplateInClass(...) -> out`, `getMacroInClass(...) -> out`, `getSubmodulesInClass(...) -> out` y `useSub(...) -> out`.
 
 ## Metaprogramación, reflexión y contratos
 
@@ -26,7 +26,7 @@ La superficie moderna acepta:
 - `nameTemplate(namespace, template, class) -> out` combina namespaces y templates para nombrar clases template de forma reproducible.
 - `makeArrayClass(class, rank) -> out`, `rttiVariable(...) -> out`, `classPointer(obj) -> out` y `classStringJoin(...) -> out` cubren clases tipo array, RTTI de variables, punteros sobre clases y strings compuestos.
 
-El módulo `stscm/modules/meta.scmlh` añade helpers como `reflect_value`, `reflect_function`, `reflect_parameter`, `reflect_annotation`, `reflect_error`, consultas de clase (`get_classes_in_module`, `get_all_classes_in_submodule`, `get_class_methods`, `get_derived_classes`, `get_namespace_in_class`, `get_template_in_class`, `get_macro_in_class`), `use_sub`, `name_template`, `make_array_class`, `rtti_variable`, `class_string_join`, pattern matching (`pattern_match_i32`), `pack_index` y `trivial_relocate_safe`.
+El módulo `stscm/modules/meta.scmlh` añade helpers como `reflect_value`, `reflect_function`, `reflect_parameter`, `reflect_annotation`, `reflect_error`, consultas de clase (`get_classes_in_module`, `get_all_classes_in_submodule`, `get_class_methods`, `get_class_fields`, `get_class_tags`, `get_class_attributes`, `get_class_flags`, `get_class_configs`, `get_class_dependencies`, `get_derived_classes`, `is_instance_of`, `get_namespace_in_class`, `get_template_in_class`, `get_macro_in_class`), `use_sub`, `name_template`, `make_array_class`, `rtti_variable`, `class_string_join`, pattern matching (`pattern_match_i32`), `pack_index` y `trivial_relocate_safe`.
 
 ## `#embed` y `__has_embed`
 
@@ -47,5 +47,11 @@ define_static_string($blob, #embed("asset.txt"));
 - `safety.scmlh`: hardening, debugging, hazard pointers, RCU y wrappers `safe_array_read`/`safe_array_write` con comprobación de bounds.
 - `linalg.scmlh`: `simd_pack4`, `simd_add4`, `linalg_dot2`, `inplace_vector_create`, `hive_create` y helpers de pattern matching por rango.
 - `text_encoding.scmlh`: nombres y wrappers para validación/transcodificación de texto.
+- `class_model.scmlh` y `type_builders.scmlh`: módulos STD especializados para OOM, clases vivas, queries de clase, templates legibles, arrays de clases y RTTI variables.
+- `language.scmlh`, `ranges_algorithms.scmlh`, `concurrency_plus.scmlh`, `containers_plus.scmlh`, `numerics_plus.scmlh`, `io_format_plus.scmlh`, `error_expected.scmlh`, `memory_plus.scmlh` y `reflection_static.scmlh`: superficie amplia estilo SCML26 para conceptos, templates, attributes, ranges/views, algoritmos, ejecución secuencial/paralela/vectorizada, atomics, sync, futures, contenedores, PMR, smart pointers, bit/math/chrono/random, format/print/filesystem/regex/unicode, expected/outcome, stacktrace, contratos y reflexión estática.
 
 Estos módulos son macros sobre opcodes estables (`0B14`, `0B13`, `0B12`, async y `CALL_NATIVE`) para conservar compatibilidad binaria.
+
+## Métricas de superficie
+
+`tools/scml_metrics.sh` cuenta funciones `fn/function` de SCML puro, macros del STD y LOC. Tras esta expansión, la superficie SCML+STD supera las 900 funciones/macro-funciones sin cambiar el formato de bytecode.

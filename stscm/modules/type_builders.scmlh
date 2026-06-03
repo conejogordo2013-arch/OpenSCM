@@ -1,0 +1,22 @@
+; type_builders.scmlh - dynamic type/name builders for templates, arrays and RTTI variables.
+#pragma once
+
+macro type_name_template(namespace_name, template_name, class_name, out_name) {
+    0B31: "meta.name_template" namespace_name template_name class_name
+    0004: out_name $RETVAL
+}
+
+macro type_make_array(element_class, rank, out_class) {
+    0B31: "meta.make_array_class" element_class rank
+    0004: out_class $RETVAL
+}
+
+macro type_rtti_variable(variable_name, type_name, class_name, out_rtti) {
+    0B31: "meta.rtti_variable" variable_name type_name class_name
+    0004: out_rtti $RETVAL
+}
+
+macro type_string_join(lhs, sep, rhs, out_text) {
+    0B31: "meta.class_string_join" lhs sep rhs
+    0004: out_text $RETVAL
+}

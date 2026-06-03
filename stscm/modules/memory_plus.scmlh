@@ -1,0 +1,183 @@
+; memory_plus.scmlh - smart pointers, PMR, alignment and memory algorithms.
+#pragma once
+
+macro unique_ptr_make(lhs_value, rhs_value, out_value) {
+    0B31: "memory.unique_ptr_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro unique_ptr_get(lhs_value, rhs_value, out_value) {
+    0B31: "memory.unique_ptr_get" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro unique_ptr_release(lhs_value, rhs_value, out_value) {
+    0B31: "memory.unique_ptr_release" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro shared_ptr_make(lhs_value, rhs_value, out_value) {
+    0B31: "memory.shared_ptr_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro shared_ptr_get(lhs_value, rhs_value, out_value) {
+    0B31: "memory.shared_ptr_get" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro shared_ptr_use_count(lhs_value, rhs_value, out_value) {
+    0B31: "memory.shared_ptr_use_count" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro weak_ptr_make(lhs_value, rhs_value, out_value) {
+    0B31: "memory.weak_ptr_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro weak_ptr_lock(lhs_value, rhs_value, out_value) {
+    0B31: "memory.weak_ptr_lock" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro make_unique(lhs_value, rhs_value, out_value) {
+    0B31: "memory.make_unique" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro make_shared(lhs_value, rhs_value, out_value) {
+    0B31: "memory.make_shared" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro allocator_traits_allocate(lhs_value, rhs_value, out_value) {
+    0B31: "memory.allocator_traits_allocate" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro allocator_traits_deallocate(lhs_value, rhs_value, out_value) {
+    0B31: "memory.allocator_traits_deallocate" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro polymorphic_allocator_new(lhs_value, rhs_value, out_value) {
+    0B31: "memory.polymorphic_allocator_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro pmr_monotonic_buffer_resource(lhs_value, rhs_value, out_value) {
+    0B31: "memory.pmr_monotonic_buffer_resource" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro pmr_synchronized_pool_resource(lhs_value, rhs_value, out_value) {
+    0B31: "memory.pmr_synchronized_pool_resource" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro pmr_unsynchronized_pool_resource(lhs_value, rhs_value, out_value) {
+    0B31: "memory.pmr_unsynchronized_pool_resource" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro memory_resource_allocate(lhs_value, rhs_value, out_value) {
+    0B31: "memory.memory_resource_allocate" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro memory_resource_deallocate(lhs_value, rhs_value, out_value) {
+    0B31: "memory.memory_resource_deallocate" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro uninitialized_copy(lhs_value, rhs_value, out_value) {
+    0B31: "memory.uninitialized_copy" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro uninitialized_move(lhs_value, rhs_value, out_value) {
+    0B31: "memory.uninitialized_move" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro uninitialized_fill(lhs_value, rhs_value, out_value) {
+    0B31: "memory.uninitialized_fill" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro destroy_at(lhs_value, rhs_value, out_value) {
+    0B31: "memory.destroy_at" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro construct_at(lhs_value, rhs_value, out_value) {
+    0B31: "memory.construct_at" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro placement_new(lhs_value, rhs_value, out_value) {
+    0B31: "memory.placement_new" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro launder(lhs_value, rhs_value, out_value) {
+    0B31: "memory.launder" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro align(lhs_value, rhs_value, out_value) {
+    0B31: "memory.align" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro assume_aligned(lhs_value, rhs_value, out_value) {
+    0B31: "memory.assume_aligned" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro hardware_destructive_interference_size(lhs_value, rhs_value, out_value) {
+    0B31: "memory.hardware_destructive_interference_size" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro hardware_constructive_interference_size(lhs_value, rhs_value, out_value) {
+    0B31: "memory.hardware_constructive_interference_size" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro cache_line_pad(lhs_value, rhs_value, out_value) {
+    0B31: "memory.cache_line_pad" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro debug_iterator_wrap(lhs_value, rhs_value, out_value) {
+    0B31: "memory.debug_iterator_wrap" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro safe_iterator_check(lhs_value, rhs_value, out_value) {
+    0B31: "memory.safe_iterator_check" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro span_api_read(lhs_value, rhs_value, out_value) {
+    0B31: "memory.span_api_read" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro span_api_write(lhs_value, rhs_value, out_value) {
+    0B31: "memory.span_api_write" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro mdspan_make(lhs_value, rhs_value, out_value) {
+    0B31: "memory.mdspan_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro mdspan_index(lhs_value, rhs_value, out_value) {
+    0B31: "memory.mdspan_index" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+

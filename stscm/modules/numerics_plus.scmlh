@@ -1,0 +1,198 @@
+; numerics_plus.scmlh - bit, math, chrono and random helpers.
+#pragma once
+
+macro bit_cast(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.bit_cast" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro bit_ceil(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.bit_ceil" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro bit_floor(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.bit_floor" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro bit_width(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.bit_width" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro popcount(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.popcount" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro countl_zero(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.countl_zero" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro countr_zero(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.countr_zero" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro rotl(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.rotl" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro rotr(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.rotr" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro endian_native(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.endian_native" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro byteswap(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.byteswap" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro numeric_limits_min(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.numeric_limits_min" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro numeric_limits_max(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.numeric_limits_max" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro math_pi(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.math_pi" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro math_e(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.math_e" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro math_tau(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.math_tau" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro gcd(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.gcd" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro lcm(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.lcm" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro midpoint(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.midpoint" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro clamp(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.clamp" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro lerp(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.lerp" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro complex_make(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.complex_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro complex_abs(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.complex_abs" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro complex_arg(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.complex_arg" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro complex_norm(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.complex_norm" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro random_device(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.random_device" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro mt19937_seed(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.mt19937_seed" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro uniform_int_distribution(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.uniform_int_distribution" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro uniform_real_distribution(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.uniform_real_distribution" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro normal_distribution(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.normal_distribution" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro poisson_distribution(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.poisson_distribution" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro seed_seq_make(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.seed_seq_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro chrono_steady_now(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.chrono_steady_now" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro chrono_system_now(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.chrono_system_now" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro chrono_high_resolution_now(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.chrono_high_resolution_now" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro chrono_duration_cast(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.chrono_duration_cast" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro chrono_year_month_day(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.chrono_year_month_day" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro chrono_time_zone(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.chrono_time_zone" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro chrono_zoned_time(lhs_value, rhs_value, out_value) {
+    0B31: "numeric.chrono_zoned_time" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+

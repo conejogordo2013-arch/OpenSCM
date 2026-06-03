@@ -29,6 +29,8 @@ SAMPLES=(
   "examples/sdl2_ffi/msys2_ucrt64_sdl2_window_ffi.scml"
   "examples/sdl2_opengl_hola_game/linux_hola_sdl2_opengl_ffi.scml"
   "examples/sdl2_opengl_hola_game/msys2_ucrt64_hola_sdl2_opengl_ffi.scml"
+  "examples/sdl2_opengl_spawn_cubes_prank/linux_sdl2_opengl_spawn_cubes_prank.scml"
+  "examples/sdl2_opengl_spawn_cubes_prank/msys2_ucrt64_sdl2_opengl_spawn_cubes_prank.scml"
 )
 
 for src in "${SAMPLES[@]}"; do
@@ -956,7 +958,14 @@ Player
 Player
 101
 tick
+health:i32;inventory:Player[]
+playable
+replicated
+persistent
+tickrate60
+Inventory
 Admin
+1
 Demo
 InventoryTemplate
 RenderMacro
@@ -974,6 +983,52 @@ if [[ "$scml26_output" != "$expected_scml26_output" ]]; then
   printf 'expected: %q
 actual:   %q
 ' "$expected_scml26_output" "$scml26_output" >&2
+  exit 1
+fi
+
+std_real_src=".scml/std_scml26_real_surface.scml"
+std_real_bin=".scml/std_scml26_real_surface.scmlbin"
+cat >"$std_real_src" <<'SCML'
+use "../stscm/modules/std_modules.scmlh";
+:MAIN
+concept_integral("i32", $IS_INT)
+popcount(7, 0, $POPCOUNT)
+bit_ceil(9, 0, $BITCEIL)
+gcd(48, 18, $GCD)
+countl_zero(1, 0, $CLZ)
+rotl(1, 3, $ROTL)
+format("Hello %s", "SCML26", $FMT)
+format("Count %d", 7, $FMT_INT)
+static_reflect_type("Player", 0, $REFLECTED)
+03E5: $IS_INT
+03E5: $POPCOUNT
+03E5: $BITCEIL
+03E5: $GCD
+03E5: $CLZ
+03E5: $ROTL
+03E5: $FMT
+03E5: $FMT_INT
+03E5: $REFLECTED
+0001:
+SCML
+
+echo "[smoke] run real SCML26 STD module regression"
+bin/scml compile "$std_real_src" "$std_real_bin"
+std_real_output="$(bin/scml run "$std_real_bin")"
+expected_std_real_output=$'1
+3
+16
+6
+31
+8
+Hello SCML26
+Count 7
+static_reflect_type:Player'
+if [[ "$std_real_output" != "$expected_std_real_output" ]]; then
+  echo "[smoke] unexpected SCML26 STD real output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_std_real_output" "$std_real_output" >&2
   exit 1
 fi
 

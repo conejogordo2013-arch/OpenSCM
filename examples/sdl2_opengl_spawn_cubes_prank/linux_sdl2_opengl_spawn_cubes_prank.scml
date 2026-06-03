@@ -1,0 +1,272 @@
+; SCML puro + FFI dinámico: SDL2/OpenGL prank con botón visual.
+; Click en el botón superior izquierdo: spawnea cubos. En 100 cubos muestra
+; "ConejoGruñe.dll Not Encountered / You Are Hacked :)" con Cancelar/Fix.
+
+:MAIN
+03E5: "SCML SDL2/OpenGL Spawn Cubes Prank por FFI"
+0B31: "ffi.load" "libSDL2-2.0.so.0" 9
+0004: $SDL_LIB $RETVAL
+0B31: "ffi.load" "libGL.so.1" 9
+0004: $GL_LIB $RETVAL
+
+0004: $SDL_INIT_VIDEO 32
+0004: $SDL_WINDOW_OPENGL 2
+0004: $SDL_WINDOW_SHOWN 4
+0006: $WINDOW_FLAGS $SDL_WINDOW_OPENGL $SDL_WINDOW_SHOWN
+0004: $SDL_WINDOWPOS_CENTERED 805240832
+0004: $SDL_MESSAGEBOX_ERROR 16
+0004: $SDL_BUTTON_RETURN_DEFAULT 1
+0004: $SDL_BUTTON_ESCAPE_DEFAULT 2
+0004: $SDL_MOUSE_LEFT_MASK 1
+0004: $GL_COLOR_BUFFER_BIT 16384
+0004: $GL_DEPTH_BUFFER_BIT 256
+0006: $GL_CLEAR_MASK $GL_COLOR_BUFFER_BIT $GL_DEPTH_BUFFER_BIT
+0004: $GL_PROJECTION 5889
+0004: $GL_MODELVIEW 5888
+0004: $GL_DEPTH_TEST 2929
+0004: $GL_QUADS 7
+0004: $WIDTH 960
+0004: $HEIGHT 640
+0004: $BUTTON_X 24
+0004: $BUTTON_Y 24
+0004: $BUTTON_W 260
+0004: $BUTTON_H 58
+0006: $BUTTON_X2 $BUTTON_X $BUTTON_W
+0006: $BUTTON_Y2 $BUTTON_Y $BUTTON_H
+0004: $CUBE_COUNT 0
+0004: $PREV_LEFT 0
+0004: $ANGLE 0.0
+0004: $RUNNING 1
+
+0B31: "ffi.call_name" "SDL_Init" "int" "uint32" $SDL_INIT_VIDEO
+0004: $SDL_OK $RETVAL
+00D7: $SDL_OK 0 @SDL_FAIL
+0B31: "ffi.call_name" "SDL_GL_SetAttribute" "int" "int,int" 5 1
+0B31: "ffi.call_name" "SDL_GL_SetAttribute" "int" "int,int" 6 1
+0B31: "ffi.call_name" "SDL_CreateWindow" "pointer" "string,int,int,int,int,uint32" "SCML Boton: SPAWNEAR CUBO | Cubos: 0" $SDL_WINDOWPOS_CENTERED $SDL_WINDOWPOS_CENTERED $WIDTH $HEIGHT $WINDOW_FLAGS
+0004: $WINDOW $RETVAL
+0B31: "ffi.is_null" $WINDOW
+0004: $WINDOW_NULL $RETVAL
+00D6: $WINDOW_NULL 1 @SDL_FAIL_QUIT
+0B31: "ffi.call_name" "SDL_GL_CreateContext" "pointer" "pointer" $WINDOW
+0004: $GL_CONTEXT $RETVAL
+0B31: "ffi.is_null" $GL_CONTEXT
+0004: $CTX_NULL $RETVAL
+00D6: $CTX_NULL 1 @SDL_FAIL_WINDOW
+0B31: "ffi.call_name" "SDL_GL_SetSwapInterval" "int" "int" 1
+0B31: "ffi.call_name" "glViewport" "void" "int,int,int,int" 0 0 $WIDTH $HEIGHT
+0B31: "ffi.call_name" "glEnable" "void" "uint32" $GL_DEPTH_TEST
+0B31: "ffi.alloc_array" 1 "int"
+0004: $MOUSE_X_PTR $RETVAL
+0B31: "ffi.alloc_array" 1 "int"
+0004: $MOUSE_Y_PTR $RETVAL
+0B31: "ffi.alloc_array" 1 "int"
+0004: $NUM_KEYS_PTR $RETVAL
+0B31: "ffi.call_name" "SDL_GetKeyboardState" "pointer" "pointer" $NUM_KEYS_PTR
+0004: $KEYS $RETVAL
+0D00: @SETUP_MESSAGEBOX
+
+:FRAME
+00D6: $RUNNING 0 @CLEANUP
+0B31: "ffi.call_name" "SDL_PumpEvents" "void" ""
+0B31: "ffi.array_read" $KEYS 41 "uint8"
+0004: $KEY_ESCAPE $RETVAL
+00D8: $KEY_ESCAPE 0 @CLEANUP
+0D00: @UPDATE_MOUSE_BUTTON
+0D00: @DRAW_SCENE
+0B31: "ffi.call_name" "SDL_GL_SwapWindow" "void" "pointer" $WINDOW
+0B31: "ffi.call_name" "SDL_Delay" "void" "uint32" 16
+0006: $ANGLE $ANGLE 1.1
+000A: @FRAME
+
+:UPDATE_MOUSE_BUTTON
+0B31: "ffi.call_name" "SDL_GetMouseState" "uint32" "pointer,pointer" $MOUSE_X_PTR $MOUSE_Y_PTR
+0004: $MOUSE_BUTTONS $RETVAL
+0B31: "ffi.array_read" $MOUSE_X_PTR 0 "int"
+0004: $MOUSE_X $RETVAL
+0B31: "ffi.array_read" $MOUSE_Y_PTR 0 "int"
+0004: $MOUSE_Y $RETVAL
+00D7: $MOUSE_BUTTONS $SDL_MOUSE_LEFT_MASK @MOUSE_RELEASED
+00D6: $PREV_LEFT 1 @MOUSE_DONE
+0004: $PREV_LEFT 1
+00D9: $MOUSE_X $BUTTON_X @MOUSE_DONE
+00D8: $MOUSE_X $BUTTON_X2 @MOUSE_DONE
+00D9: $MOUSE_Y $BUTTON_Y @MOUSE_DONE
+00D8: $MOUSE_Y $BUTTON_Y2 @MOUSE_DONE
+0D00: @SPAWN_CUBE
+000A: @MOUSE_DONE
+:MOUSE_RELEASED
+0004: $PREV_LEFT 0
+:MOUSE_DONE
+0D01:
+
+:SPAWN_CUBE
+00D8: $CUBE_COUNT 99 @SPAWN_DONE
+0006: $CUBE_COUNT $CUBE_COUNT 1
+0B31: "io.format" "SCML Boton: SPAWNEAR CUBO | Cubos: %s" $CUBE_COUNT
+0004: $TITLE $RETVAL
+0B31: "ffi.call_name" "SDL_SetWindowTitle" "void" "pointer,string" $WINDOW $TITLE
+00D6: $CUBE_COUNT 100 @PRANK
+:SPAWN_DONE
+0D01:
+
+:PRANK
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "window" $WINDOW
+0B31: "ffi.call_name" "SDL_ShowMessageBox" "int" "pointer,pointer" $MESSAGE_BOX $BUTTON_ID_PTR
+0004: $MSG_OK $RETVAL
+00D7: $MSG_OK 0 @PRANK_FALLBACK
+0B31: "ffi.array_read" $BUTTON_ID_PTR 0 "int"
+0004: $CHOICE $RETVAL
+00D6: $CHOICE 1 @FIX_PRANK
+0004: $RUNNING 0
+0D01:
+:PRANK_FALLBACK
+0B31: "ffi.call_name" "SDL_ShowSimpleMessageBox" "int" "uint32,string,string,pointer" $SDL_MESSAGEBOX_ERROR "ConejoGruñe.dll Not Encountered" "You Are Hacked :)" $WINDOW
+0004: $RUNNING 0
+0D01:
+:FIX_PRANK
+0A20: "trolleado.txt" "Trolleado Pero bueno"
+0B31: "ffi.call_name" "SDL_ShowSimpleMessageBox" "int" "uint32,string,string,pointer" 64 "Fix aplicado" "Se creo trolleado.txt. Trolleado Pero bueno" $WINDOW
+0004: $CUBE_COUNT 0
+0B31: "ffi.call_name" "SDL_SetWindowTitle" "void" "pointer,string" $WINDOW "SCML Boton: SPAWNEAR CUBO | Cubos: 0"
+0D01:
+
+:SETUP_MESSAGEBOX
+0B31: "ffi.struct_define" "SDL_MessageBoxButtonData" "uint32:flags,int:buttonid,pointer:text"
+0B31: "ffi.struct_define" "SDL_MessageBoxData" "uint32:flags,pointer:window,pointer:title,pointer:message,int:numbuttons,pointer:buttons,pointer:colorScheme"
+0B31: "ffi.cstring" "Cancelar"
+0004: $TXT_CANCEL $RETVAL
+0B31: "ffi.cstring" "Fix"
+0004: $TXT_FIX $RETVAL
+0B31: "ffi.cstring" "SCML Security Alert broma"
+0004: $TXT_TITLE $RETVAL
+0B31: "ffi.cstring" "ConejoGruñe.dll Not Encountered\x0AYou Are Hacked :)"
+0004: $TXT_MSG $RETVAL
+0B31: "ffi.alloc_struct_array" "SDL_MessageBoxButtonData" 2
+0004: $BUTTONS $RETVAL
+0B31: "ffi.struct_array_write" $BUTTONS 0 "SDL_MessageBoxButtonData" "flags" $SDL_BUTTON_ESCAPE_DEFAULT
+0B31: "ffi.struct_array_write" $BUTTONS 0 "SDL_MessageBoxButtonData" "buttonid" 0
+0B31: "ffi.struct_array_write" $BUTTONS 0 "SDL_MessageBoxButtonData" "text" $TXT_CANCEL
+0B31: "ffi.struct_array_write" $BUTTONS 1 "SDL_MessageBoxButtonData" "flags" $SDL_BUTTON_RETURN_DEFAULT
+0B31: "ffi.struct_array_write" $BUTTONS 1 "SDL_MessageBoxButtonData" "buttonid" 1
+0B31: "ffi.struct_array_write" $BUTTONS 1 "SDL_MessageBoxButtonData" "text" $TXT_FIX
+0B31: "ffi.struct_size" "SDL_MessageBoxData"
+0004: $MSG_BOX_SIZE $RETVAL
+0B31: "ffi.alloc" $MSG_BOX_SIZE
+0004: $MESSAGE_BOX $RETVAL
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "flags" $SDL_MESSAGEBOX_ERROR
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "window" 0
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "title" $TXT_TITLE
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "message" $TXT_MSG
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "numbuttons" 2
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "buttons" $BUTTONS
+0B31: "ffi.struct_write" $MESSAGE_BOX "SDL_MessageBoxData" "colorScheme" 0
+0B31: "ffi.alloc_array" 1 "int"
+0004: $BUTTON_ID_PTR $RETVAL
+0D01:
+
+:DRAW_SCENE
+0B31: "ffi.call_name" "glClearColor" "void" "float,float,float,float" 0.05 0.06 0.10 1.0
+0B31: "ffi.call_name" "glClear" "void" "uint32" $GL_CLEAR_MASK
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" $GL_PROJECTION
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0B31: "ffi.call_name" "glFrustum" "void" "double,double,double,double,double,double" -1.5 1.5 -1.0 1.0 2.0 100.0
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" $GL_MODELVIEW
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0004: $I 0
+:DRAW_CUBES_LOOP
+00D6: $I $CUBE_COUNT @DRAW_UI
+0B20: $COL $I 10
+0009: $ROW $I 10
+0B24: $COLF $COL
+0B24: $ROWF $ROW
+0007: $X $COLF 4.5
+0008: $X $X 1.8
+0007: $Y $ROWF 4.0
+0008: $Y $Y 1.2
+0007: $Z 0.0 16.0
+0008: $ZOFF $ROWF 0.25
+0007: $Z $Z $ZOFF
+0B31: "ffi.call_name" "glPushMatrix" "void" ""
+0B31: "ffi.call_name" "glTranslatef" "void" "float,float,float" $X $Y $Z
+0006: $ROT $ANGLE $I
+0B31: "ffi.call_name" "glRotatef" "void" "float,float,float,float" $ROT 0.4 1.0 0.2
+0D00: @DRAW_CUBE
+0B31: "ffi.call_name" "glPopMatrix" "void" ""
+0006: $I $I 1
+000A: @DRAW_CUBES_LOOP
+:DRAW_UI
+0B31: "ffi.call_name" "glDisable" "void" "uint32" $GL_DEPTH_TEST
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" $GL_PROJECTION
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0B31: "ffi.call_name" "glOrtho" "void" "double,double,double,double,double,double" 0.0 960.0 640.0 0.0 -1.0 1.0
+0B31: "ffi.call_name" "glMatrixMode" "void" "uint32" $GL_MODELVIEW
+0B31: "ffi.call_name" "glLoadIdentity" "void" ""
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_QUADS
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.10 0.32 0.90
+0B31: "ffi.call_name" "glVertex2f" "void" "float,float" 24.0 24.0
+0B31: "ffi.call_name" "glVertex2f" "void" "float,float" 284.0 24.0
+0B31: "ffi.call_name" "glVertex2f" "void" "float,float" 284.0 82.0
+0B31: "ffi.call_name" "glVertex2f" "void" "float,float" 24.0 82.0
+0B31: "ffi.call_name" "glEnd" "void" ""
+0B31: "ffi.call_name" "glEnable" "void" "uint32" $GL_DEPTH_TEST
+0D01:
+
+:DRAW_CUBE
+0B31: "ffi.call_name" "glBegin" "void" "uint32" $GL_QUADS
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.15 0.75 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 -0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 -0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 0.45 0.45
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.95 0.25 0.30
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 -0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 -0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 0.45 -0.45
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.35 1.0 0.35
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 -0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 -0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 0.45 0.45
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 1.0 0.85 0.20
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 -0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 -0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 0.45 -0.45
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 0.80 0.35 1.0
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 0.45 -0.45
+0B31: "ffi.call_name" "glColor3f" "void" "float,float,float" 1.0 0.45 0.15
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 -0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 -0.45 -0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" 0.45 -0.45 0.45
+0B31: "ffi.call_name" "glVertex3f" "void" "float,float,float" -0.45 -0.45 0.45
+0B31: "ffi.call_name" "glEnd" "void" ""
+0D01:
+
+:CLEANUP
+0B31: "ffi.free" $BUTTON_ID_PTR
+0B31: "ffi.free" $MESSAGE_BOX
+0B31: "ffi.free" $BUTTONS
+0B31: "ffi.free" $TXT_CANCEL
+0B31: "ffi.free" $TXT_FIX
+0B31: "ffi.free" $TXT_TITLE
+0B31: "ffi.free" $TXT_MSG
+0B31: "ffi.free" $MOUSE_X_PTR
+0B31: "ffi.free" $MOUSE_Y_PTR
+0B31: "ffi.free" $NUM_KEYS_PTR
+0B31: "ffi.call_name" "SDL_GL_DeleteContext" "void" "pointer" $GL_CONTEXT
+:SDL_FAIL_WINDOW
+0B31: "ffi.call_name" "SDL_DestroyWindow" "void" "pointer" $WINDOW
+:SDL_FAIL_QUIT
+0B31: "ffi.call_name" "SDL_QuitSubSystem" "void" "uint32" $SDL_INIT_VIDEO
+03E5: "SCML SDL2/OpenGL Spawn Cubes Prank terminado"
+0001:
+
+:SDL_FAIL
+0B31: "ffi.last_error"
+03E5: $RETVAL
+0001:

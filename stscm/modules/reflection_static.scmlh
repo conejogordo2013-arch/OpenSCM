@@ -1,0 +1,128 @@
+; reflection_static.scmlh - static reflection/metaobject helpers.
+#pragma once
+
+macro static_reflect_type(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_type" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_members(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_members" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_methods(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_methods" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_fields(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_fields" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_attributes(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_attributes" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_namespace(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_namespace" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_module(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_module" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_template(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_template" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_base_classes(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_base_classes" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro static_reflect_derived_classes(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.static_reflect_derived_classes" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_name(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_name" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_kind(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_kind" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_size(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_size" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_align(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_align" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_is_public(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_is_public" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_is_static(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_is_static" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_invoke(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_invoke" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_get(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_get" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro metaobject_set(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.metaobject_set" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro compile_time_for_each_member(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.compile_time_for_each_member" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro compile_time_for_each_method(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.compile_time_for_each_method" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro serialize_to_map(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.serialize_to_map" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro deserialize_from_map(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.deserialize_from_map" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro reflection_error_or(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.reflection_error_or" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro reflection_try(lhs_value, rhs_value, out_value) {
+    0B31: "reflection.reflection_try" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+

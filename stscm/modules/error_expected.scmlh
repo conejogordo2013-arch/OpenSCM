@@ -1,0 +1,98 @@
+; error_expected.scmlh - error_code, expected/outcome, stacktrace and contracts.
+#pragma once
+
+macro error_code_make(lhs_value, rhs_value, out_value) {
+    0B31: "error.error_code_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro error_code_value(lhs_value, rhs_value, out_value) {
+    0B31: "error.error_code_value" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro error_code_message(lhs_value, rhs_value, out_value) {
+    0B31: "error.error_code_message" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro system_error_make(lhs_value, rhs_value, out_value) {
+    0B31: "error.system_error_make" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro expected_ok2(lhs_value, rhs_value, out_value) {
+    0B31: "error.expected_ok2" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro expected_err2(lhs_value, rhs_value, out_value) {
+    0B31: "error.expected_err2" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro expected_has_value(lhs_value, rhs_value, out_value) {
+    0B31: "error.expected_has_value" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro expected_value_or(lhs_value, rhs_value, out_value) {
+    0B31: "error.expected_value_or" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro outcome_ok(lhs_value, rhs_value, out_value) {
+    0B31: "error.outcome_ok" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro outcome_err(lhs_value, rhs_value, out_value) {
+    0B31: "error.outcome_err" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro outcome_try(lhs_value, rhs_value, out_value) {
+    0B31: "error.outcome_try" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro throw_if_error(lhs_value, rhs_value, out_value) {
+    0B31: "error.throw_if_error" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro stacktrace_capture(lhs_value, rhs_value, out_value) {
+    0B31: "error.stacktrace_capture" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro stacktrace_to_string(lhs_value, rhs_value, out_value) {
+    0B31: "error.stacktrace_to_string" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro debug_log(lhs_value, rhs_value, out_value) {
+    0B31: "error.debug_log" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro debug_assert(lhs_value, rhs_value, out_value) {
+    0B31: "error.debug_assert" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro contract_pre_check(lhs_value, rhs_value, out_value) {
+    0B31: "error.contract_pre_check" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro contract_post_check(lhs_value, rhs_value, out_value) {
+    0B31: "error.contract_post_check" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+
+macro contract_audit_check(lhs_value, rhs_value, out_value) {
+    0B31: "error.contract_audit_check" lhs_value rhs_value
+    0004: out_value $RETVAL
+}
+

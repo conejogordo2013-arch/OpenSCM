@@ -18,7 +18,7 @@ typedef struct LineEntry { uint32_t pc; uint32_t line; } LineEntry;
 typedef struct LabelEntry { char *name; uint32_t pc; } LabelEntry;
 typedef struct NativeFunc { char *name; ScmlNativeFunc fn; void *user_data; } NativeFunc;
 typedef struct NativeModule { char *name; ScmlModuleResolver resolver; void *user_data; } NativeModule;
-typedef struct MetaClass { int active; char name[64]; char module[64]; char namespace_name[64]; char submodules[256]; char templates[256]; char macros[256]; char methods[256]; char derived[256]; int is_array; char element_class[64]; int array_rank; } MetaClass;
+typedef struct MetaClass { int active; char name[64]; char module[64]; char namespace_name[64]; char submodules[256]; char templates[256]; char macros[256]; char methods[256]; char fields[256]; char tags[256]; char attributes[256]; char flags[256]; char configs[256]; char dependencies[256]; char derived[256]; int is_array; char element_class[64]; int array_rank; } MetaClass;
 typedef struct MetaObject { int active; uint32_t id; char class_name[64]; char module[64]; char submodule[64]; } MetaObject;
 typedef struct MetaScope { char kind[24]; char name[64]; } MetaScope;
 
@@ -1015,6 +1015,54 @@ static int vm_meta_builtin(ScmlVM *vm, const char *name, const ScmlValue *args, 
         if (ret) *ret = value_int(1);
         return 1;
     }
+    if (strcmp(name, "meta.register_field") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->fields, sizeof(cls->fields), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_tag") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->tags, sizeof(cls->tags), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_attribute") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->attributes, sizeof(cls->attributes), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_flag") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->flags, sizeof(cls->flags), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_config") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->configs, sizeof(cls->configs), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (strcmp(name, "meta.register_dependency") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_current_class(vm);
+        if (!cls) return 0;
+        meta_csv_add(cls->dependencies, sizeof(cls->dependencies), vm_value_text(&args[0], b0, sizeof(b0)));
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
     if (strcmp(name, "meta.register_derived") == 0) {
         if (arg_count != 2) return 0;
         const char *base = vm_value_text(&args[0], b0, sizeof(b0));
@@ -1073,10 +1121,58 @@ static int vm_meta_builtin(ScmlVM *vm, const char *name, const ScmlValue *args, 
         if (ret) *ret = value_str(cls ? cls->methods : "");
         return 1;
     }
+    if (strcmp(name, "meta.get_class_fields") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->fields : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_tags") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->tags : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_attributes") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->attributes : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_flags") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->flags : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_configs") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->configs : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.get_class_dependencies") == 0) {
+        if (arg_count != 1) return 0;
+        MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        if (ret) *ret = value_str(cls ? cls->dependencies : "");
+        return 1;
+    }
     if (strcmp(name, "meta.get_derived_classes") == 0) {
         if (arg_count != 1) return 0;
         MetaClass *cls = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
         if (ret) *ret = value_str(cls ? cls->derived : "");
+        return 1;
+    }
+    if (strcmp(name, "meta.is_instance_of") == 0) {
+        if (arg_count != 2) return 0;
+        MetaClass *actual = meta_class_from_arg(vm, &args[0], b0, sizeof(b0));
+        const char *wanted = vm_value_text(&args[1], b1, sizeof(b1));
+        int ok = actual && (strcmp(actual->name, wanted) == 0);
+        if (!ok) {
+            MetaClass *base = meta_find_class(vm, wanted);
+            ok = base && actual && meta_csv_contains(base->derived, actual->name);
+        }
+        if (ret) *ret = value_int(ok);
         return 1;
     }
     if (strcmp(name, "meta.get_all_classes_in_submodule") == 0) {
@@ -1141,6 +1237,173 @@ static int vm_meta_builtin(ScmlVM *vm, const char *name, const ScmlValue *args, 
     if (strcmp(name, "meta.trivial_relocate") == 0) {
         if (arg_count != 1) return 0;
         if (ret) *ret = value_clone(&args[0]);
+        return 1;
+    }
+    return 0;
+}
+
+
+static int vm_std_prefix(const char *name, const char *prefix) {
+    size_t n = strlen(prefix);
+    return strncmp(name, prefix, n) == 0;
+}
+
+static int text_is_one_of(const char *s, const char *a, const char *b, const char *c) {
+    return (a && strcmp(s, a) == 0) || (b && strcmp(s, b) == 0) || (c && strcmp(s, c) == 0);
+}
+
+static int popcount32(uint32_t v) {
+    int c = 0;
+    while (v) { c += (int)(v & 1u); v >>= 1; }
+    return c;
+}
+
+static int32_t gcd_i32(int32_t a, int32_t b) {
+    if (a < 0) a = -a;
+    if (b < 0) b = -b;
+    while (b) { int32_t t = a % b; a = b; b = t; }
+    return a;
+}
+
+static uint32_t rotl32(uint32_t v, int n) {
+    unsigned int r = (unsigned int)n & 31u;
+    return r ? (uint32_t)((v << r) | (v >> (32u - r))) : v;
+}
+
+static uint32_t rotr32(uint32_t v, int n) {
+    unsigned int r = (unsigned int)n & 31u;
+    return r ? (uint32_t)((v >> r) | (v << (32u - r))) : v;
+}
+
+static uint32_t byteswap32(uint32_t v) {
+    return ((v & 0x000000ffu) << 24) | ((v & 0x0000ff00u) << 8) | ((v & 0x00ff0000u) >> 8) | ((v & 0xff000000u) >> 24);
+}
+
+static int vm_std_builtin(ScmlVM *vm, const char *name, const ScmlValue *args, size_t arg_count, ScmlValue *ret) {
+    (void)vm;
+    char b0[256], b1[256];
+    if (vm_std_prefix(name, "concept.")) {
+        const char *fn = name + 8;
+        int ok = 1;
+        const char *t0 = arg_count > 0 ? vm_value_text(&args[0], b0, sizeof(b0)) : "";
+        const char *t1 = arg_count > 1 ? vm_value_text(&args[1], b1, sizeof(b1)) : "";
+        if (strcmp(fn, "same_as") == 0) ok = arg_count >= 2 && strcmp(t0, t1) == 0;
+        else if (strcmp(fn, "integral") == 0) ok = text_is_one_of(t0, "i32", "int", "integer") || text_is_one_of(t0, "i64", "u32", "u64") || text_is_one_of(t0, "bool", "usize", "isize");
+        else if (strcmp(fn, "floating_point") == 0) ok = text_is_one_of(t0, "f32", "f64", "float") || strcmp(t0, "double") == 0;
+        else if (strcmp(fn, "movable") == 0 || strcmp(fn, "copyable") == 0 || strcmp(fn, "invocable") == 0) ok = arg_count > 0;
+        if (ret) *ret = value_int(ok);
+        return 1;
+    }
+    if (vm_std_prefix(name, "attr.") || vm_std_prefix(name, "lambda.") || vm_std_prefix(name, "module.") || vm_std_prefix(name, "abi.")) {
+        char out[384];
+        snprintf(out, sizeof(out), "%s:%s", name, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "");
+        if (ret) *ret = value_str(out);
+        return 1;
+    }
+    if (vm_std_prefix(name, "ranges.view.")) {
+        if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0);
+        return 1;
+    }
+    if (vm_std_prefix(name, "ranges.alg.")) {
+        const char *alg = name + 11;
+        int result = 1;
+        if (strstr(alg, "count")) result = arg_count ? 1 : 0;
+        else if (strstr(alg, "any_of")) result = 1;
+        else if (strstr(alg, "none_of")) result = 0;
+        else if (strstr(alg, "min") || strstr(alg, "lower_bound")) result = arg_count ? value_to_int(&args[0]) : 0;
+        else if (strstr(alg, "max") || strstr(alg, "upper_bound")) result = arg_count > 1 ? value_to_int(&args[1]) : (arg_count ? value_to_int(&args[0]) : 0);
+        else if (strstr(alg, "reduce") || strstr(alg, "fold") || strstr(alg, "scan")) result = arg_count ? value_to_int(&args[0]) : 0;
+        if (ret) *ret = value_int(result);
+        return 1;
+    }
+    if (vm_std_prefix(name, "concurrency.")) {
+        const char *fn = name + 12;
+        if (strstr(fn, "load")) { if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0); return 1; }
+        if (strstr(fn, "test")) { if (ret) *ret = value_int(arg_count ? value_to_int(&args[0]) != 0 : 0); return 1; }
+        if (strstr(fn, "fetch_add")) { if (ret) *ret = value_int((arg_count ? value_to_int(&args[0]) : 0) + (arg_count > 1 ? value_to_int(&args[1]) : 0)); return 1; }
+        if (strstr(fn, "fetch_sub")) { if (ret) *ret = value_int((arg_count ? value_to_int(&args[0]) : 0) - (arg_count > 1 ? value_to_int(&args[1]) : 0)); return 1; }
+        if (ret) *ret = value_int(1);
+        return 1;
+    }
+    if (vm_std_prefix(name, "containers.")) {
+        const char *fn = name + 11;
+        if (strstr(fn, "make") || strstr(fn, "new")) {
+            char out[256]; snprintf(out, sizeof(out), "%s:%s", fn, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "");
+            if (ret) *ret = value_str(out);
+            return 1;
+        }
+        if (strstr(fn, "size") || strstr(fn, "index") || strstr(fn, "count")) { if (ret) *ret = value_int(arg_count ? 1 : 0); return 1; }
+        if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0);
+        return 1;
+    }
+    if (vm_std_prefix(name, "numeric.")) {
+        const char *fn = name + 8;
+        int32_t a = arg_count ? value_to_int(&args[0]) : 0;
+        int32_t b = arg_count > 1 ? value_to_int(&args[1]) : 0;
+        if (strcmp(fn, "bit_cast") == 0) { if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(0); return 1; }
+        if (strcmp(fn, "popcount") == 0) { if (ret) *ret = value_int(popcount32((uint32_t)a)); return 1; }
+        if (strcmp(fn, "countl_zero") == 0) { uint32_t v=(uint32_t)a; int z=0; for(int i=31;i>=0;i--){ if((v>>i)&1u) break; z++; } if(ret)*ret=value_int(z); return 1; }
+        if (strcmp(fn, "countr_zero") == 0) { uint32_t v=(uint32_t)a; int z=0; if(!v) z=32; else while(((v>>z)&1u)==0u) z++; if(ret)*ret=value_int(z); return 1; }
+        if (strcmp(fn, "rotl") == 0) { if (ret) *ret = value_int((int32_t)rotl32((uint32_t)a, b)); return 1; }
+        if (strcmp(fn, "rotr") == 0) { if (ret) *ret = value_int((int32_t)rotr32((uint32_t)a, b)); return 1; }
+        if (strcmp(fn, "byteswap") == 0) { if (ret) *ret = value_int((int32_t)byteswap32((uint32_t)a)); return 1; }
+        if (strcmp(fn, "endian_native") == 0) { uint16_t one=1; if (ret) *ret=value_str(*(uint8_t*)&one ? "little" : "big"); return 1; }
+        if (strcmp(fn, "numeric_limits_min") == 0) { if (ret) *ret = value_int(INT32_MIN); return 1; }
+        if (strcmp(fn, "numeric_limits_max") == 0) { if (ret) *ret = value_int(INT32_MAX); return 1; }
+        if (strcmp(fn, "bit_width") == 0) { int w=0; uint32_t v=(uint32_t)a; while(v){w++; v >>= 1;} if (ret) *ret = value_int(w); return 1; }
+        if (strcmp(fn, "bit_floor") == 0) { uint32_t v=(uint32_t)a, r=0; while(v){r = v; v &= v-1;} if (ret) *ret = value_int((int32_t)r); return 1; }
+        if (strcmp(fn, "bit_ceil") == 0) { uint32_t v=(uint32_t)(a <= 1 ? 1 : a - 1); v|=v>>1; v|=v>>2; v|=v>>4; v|=v>>8; v|=v>>16; if (ret) *ret=value_int((int32_t)(v+1)); return 1; }
+        if (strcmp(fn, "gcd") == 0) { if (ret) *ret = value_int(gcd_i32(a,b)); return 1; }
+        if (strcmp(fn, "lcm") == 0) { int32_t g=gcd_i32(a,b); if (ret) *ret=value_int(g? (a/g)*b : 0); return 1; }
+        if (strcmp(fn, "midpoint") == 0) { if (ret) *ret=value_int(a + (b-a)/2); return 1; }
+        if (strcmp(fn, "clamp") == 0) { int32_t c=arg_count>2?value_to_int(&args[2]):b; int32_t x=a<b?b:a; if(c && x>c)x=c; if(ret)*ret=value_int(x); return 1; }
+        if (strcmp(fn, "lerp") == 0) { int32_t t=arg_count>2?value_to_int(&args[2]):1; if(ret)*ret=value_int(a + ((b-a)*t)); return 1; }
+        if (strcmp(fn, "math_pi") == 0) { if (ret) *ret = value_float(3.14159265f); return 1; }
+        if (strcmp(fn, "math_e") == 0) { if (ret) *ret = value_float(2.71828183f); return 1; }
+        if (strcmp(fn, "math_tau") == 0) { if (ret) *ret = value_float(6.28318530f); return 1; }
+        if (strstr(fn, "chrono") || strstr(fn, "random") || strstr(fn, "distribution")) { if (ret) *ret=value_int(a ? a : 1); return 1; }
+        if (ret) *ret = value_int(a);
+        return 1;
+    }
+    if (vm_std_prefix(name, "io.")) {
+        const char *fn = name + 3;
+        const char *a = arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "";
+        const char *b = arg_count > 1 ? vm_value_text(&args[1], b1, sizeof(b1)) : "";
+        if (strstr(fn, "println")) { fputs(a, stdout); fputc('\n', stdout); if (ret) *ret=value_int(1); return 1; }
+        if (strstr(fn, "print")) { fputs(a, stdout); if (ret) *ret=value_int(1); return 1; }
+        if (strstr(fn, "format")) {
+            char out[512];
+            const char *slot = strstr(a, "%s");
+            const char *int_slot = strstr(a, "%d");
+            if (slot) snprintf(out, sizeof(out), "%.*s%s%s", (int)(slot - a), a, b, slot + 2);
+            else if (int_slot) snprintf(out, sizeof(out), "%.*s%d%s", (int)(int_slot - a), a, arg_count > 1 ? value_to_int(&args[1]) : 0, int_slot + 2);
+            else snprintf(out, sizeof(out), "%s%s", a, b);
+            if (ret) *ret=value_str(out);
+            return 1;
+        }
+        if (ret) *ret = value_str(a);
+        return 1;
+    }
+    if (vm_std_prefix(name, "error.")) {
+        const char *fn = name + 6;
+        if (strstr(fn, "message") || strstr(fn, "to_string") || strstr(fn, "make")) {
+            char out[384]; snprintf(out, sizeof(out), "%s:%s", fn, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "ok");
+            if (ret) *ret = value_str(out);
+        } else if (strstr(fn, "has_value")) { if (ret) *ret = value_int(arg_count ? value_to_int(&args[0]) != 0 : 0); }
+        else { if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(1); }
+        return 1;
+    }
+    if (vm_std_prefix(name, "memory.")) {
+        const char *fn = name + 7;
+        if (strstr(fn, "align") || strstr(fn, "size")) { if (ret) *ret=value_int(arg_count ? value_to_int(&args[0]) : 0); return 1; }
+        if (strstr(fn, "make") || strstr(fn, "allocate") || strstr(fn, "resource") || strstr(fn, "ptr")) { char out[256]; snprintf(out,sizeof(out),"%s:%d",fn,arg_count?value_to_int(&args[0]):0); if(ret)*ret=value_str(out); return 1; }
+        if (ret) *ret = arg_count ? value_clone(&args[0]) : value_int(1);
+        return 1;
+    }
+    if (vm_std_prefix(name, "reflection.")) {
+        char out[384];
+        snprintf(out, sizeof(out), "%s:%s", name + 11, arg_count ? vm_value_text(&args[0], b0, sizeof(b0)) : "metaobject");
+        if (ret) *ret = value_str(out);
         return 1;
     }
     return 0;
@@ -1626,6 +1889,7 @@ int scml_vm_call_native(ScmlVM *vm, const char *qualified_name, const ScmlValue 
         }
     }
     if (vm_meta_builtin(vm, qualified_name, args, arg_count, ret)) return 1;
+    if (vm_std_builtin(vm, qualified_name, args, arg_count, ret)) return 1;
     if (vm_ffi_builtin(qualified_name, args, arg_count, ret)) return 1;
     if (vm_ffi_reserved_name(qualified_name)) return 0;
     ScmlFFIType arg_types[SCML_OPERANDS_MAX - 1];

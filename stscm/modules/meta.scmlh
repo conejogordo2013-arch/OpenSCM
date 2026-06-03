@@ -151,3 +151,38 @@ macro class_string_join(lhs, sep, rhs, out_text) {
     0B31: "meta.class_string_join" lhs sep rhs
     0004: out_text $RETVAL
 }
+
+macro get_class_fields(class_or_object, out_fields) {
+    0B31: "meta.get_class_fields" class_or_object
+    0004: out_fields $RETVAL
+}
+
+macro get_class_tags(class_or_object, out_tags) {
+    0B31: "meta.get_class_tags" class_or_object
+    0004: out_tags $RETVAL
+}
+
+macro get_class_attributes(class_or_object, out_attributes) {
+    0B31: "meta.get_class_attributes" class_or_object
+    0004: out_attributes $RETVAL
+}
+
+macro get_class_flags(class_or_object, out_flags) {
+    0B31: "meta.get_class_flags" class_or_object
+    0004: out_flags $RETVAL
+}
+
+macro get_class_configs(class_or_object, out_configs) {
+    0B31: "meta.get_class_configs" class_or_object
+    0004: out_configs $RETVAL
+}
+
+macro get_class_dependencies(class_or_object, out_dependencies) {
+    0B31: "meta.get_class_dependencies" class_or_object
+    0004: out_dependencies $RETVAL
+}
+
+macro is_instance_of(object_ref, class_name, out_ok) {
+    0B31: "meta.is_instance_of" object_ref class_name
+    0004: out_ok $RETVAL
+}

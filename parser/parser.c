@@ -173,6 +173,12 @@ static int metadata_emit_declaration(char *t, ModernBlock *blocks, int *block_to
     else if(starts_keyword_ci(t,"TMPL") || starts_keyword_ci(t,"template")){ metadata_read_name_after(t, starts_keyword_ci(t,"TMPL")?"TMPL":"template", name, sizeof(name)); fn="meta.register_template"; scoped=strchr(t,'{')!=NULL; }
     else if(starts_keyword_ci(t,"MACRO") || starts_keyword_ci(t,"macro")){ metadata_read_name_after(t, starts_keyword_ci(t,"MACRO")?"MACRO":"macro", name, sizeof(name)); fn="meta.register_macro"; scoped=strchr(t,'{')!=NULL; }
     else if(starts_keyword_ci(t,"fn") || starts_keyword_ci(t,"function") || starts_keyword_ci(t,"method")){ metadata_read_name_after(t, starts_keyword_ci(t,"function")?"function":(starts_keyword_ci(t,"method")?"method":"fn"), name, sizeof(name)); fn="meta.register_method"; }
+    else if(starts_keyword_ci(t,"field") || starts_keyword_ci(t,"FIELD")){ metadata_read_name_after(t, starts_keyword_ci(t,"FIELD")?"FIELD":"field", name, sizeof(name)); fn="meta.register_field"; }
+    else if(starts_keyword_ci(t,"tag") || starts_keyword_ci(t,"TAG")){ metadata_read_name_after(t, starts_keyword_ci(t,"TAG")?"TAG":"tag", name, sizeof(name)); fn="meta.register_tag"; }
+    else if(starts_keyword_ci(t,"attribute") || starts_keyword_ci(t,"ATTRIBUTE") || starts_keyword_ci(t,"attr")){ metadata_read_name_after(t, starts_keyword_ci(t,"ATTRIBUTE")?"ATTRIBUTE":(starts_keyword_ci(t,"attribute")?"attribute":"attr"), name, sizeof(name)); fn="meta.register_attribute"; }
+    else if(starts_keyword_ci(t,"flag") || starts_keyword_ci(t,"FLAG")){ metadata_read_name_after(t, starts_keyword_ci(t,"FLAG")?"FLAG":"flag", name, sizeof(name)); fn="meta.register_flag"; }
+    else if(starts_keyword_ci(t,"config") || starts_keyword_ci(t,"CONFIG")){ metadata_read_name_after(t, starts_keyword_ci(t,"CONFIG")?"CONFIG":"config", name, sizeof(name)); fn="meta.register_config"; }
+    else if(starts_keyword_ci(t,"depends") || starts_keyword_ci(t,"dependency")){ metadata_read_name_after(t, starts_keyword_ci(t,"dependency")?"dependency":"depends", name, sizeof(name)); fn="meta.register_dependency"; }
     else if(starts_keyword_ci(t,"enum") || starts_keyword_ci(t,"concept")){ scoped=strchr(t,'{')!=NULL; }
     if(fn && name[0]) emit_meta_call(out,olen,ocap,fn,name);
     if((starts_keyword_ci(t,"CLASS") || starts_keyword_ci(t,"class")) && name[0]){
@@ -739,7 +745,14 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
             {"getClassName", "meta.get_class_name_obj"},
             {"getClassModule", "meta.get_class_module_obj"},
             {"getClassMethods", "meta.get_class_methods"},
+            {"getClassFields", "meta.get_class_fields"},
+            {"getClassTags", "meta.get_class_tags"},
+            {"getClassAttributes", "meta.get_class_attributes"},
+            {"getClassFlags", "meta.get_class_flags"},
+            {"getClassConfigs", "meta.get_class_configs"},
+            {"getClassDependencies", "meta.get_class_dependencies"},
             {"getDerivedClasses", "meta.get_derived_classes"},
+            {"isInstanceOf", "meta.is_instance_of"},
             {"nameTemplate", "meta.name_template"},
             {"makeArrayClass", "meta.make_array_class"},
             {"rttiVariable", "meta.rtti_variable"},
