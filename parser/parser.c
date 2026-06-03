@@ -10,7 +10,7 @@
 typedef struct Macro { char *name; char **args; size_t argc; int function_like; char *body; struct Macro *next; } Macro;
 typedef struct CondFrame { int parent_active; int branch_taken; int active; } CondFrame;
 
-typedef enum ModernBlockKind { MODERN_BLOCK_SCOPE, MODERN_BLOCK_SKIP, MODERN_BLOCK_SCRIPT, MODERN_BLOCK_FUNCTION, MODERN_BLOCK_TASK, MODERN_BLOCK_IF, MODERN_BLOCK_ELSE, MODERN_BLOCK_ELSEIF, MODERN_BLOCK_WHILE, MODERN_BLOCK_FOR } ModernBlockKind;
+typedef enum ModernBlockKind { MODERN_BLOCK_SCOPE, MODERN_BLOCK_SKIP, MODERN_BLOCK_SCRIPT, MODERN_BLOCK_FUNCTION, MODERN_BLOCK_TASK, MODERN_BLOCK_IF, MODERN_BLOCK_ELSE, MODERN_BLOCK_ELSEIF, MODERN_BLOCK_WHILE, MODERN_BLOCK_FOR, MODERN_BLOCK_METADATA } ModernBlockKind;
 typedef struct ModernBlock { ModernBlockKind kind; char start_label[96]; char false_label[96]; char end_label[96]; char continue_label[96]; char post[512]; } ModernBlock;
 
 
@@ -97,7 +97,96 @@ static int equals_ci(const char *a, const char *b){
     while(*a && *b){ if(tolower((unsigned char)*a)!=tolower((unsigned char)*b)) return 0; a++; b++; }
     return *a==0 && *b==0;
 }
+static int find_condition_op(char *expr, char **lhs, char **rhs, const char **opcode);
 static void strip_statement_tail(char *s){ char *t=trim(s); size_t n=strlen(t); while(n>0 && isspace((unsigned char)t[n-1])) t[--n]=0; if(n>0 && t[n-1]==';') t[--n]=0; while(n>0 && isspace((unsigned char)t[n-1])) t[--n]=0; }
+static int is_simple_false_condition(char *expr, int *known_false){
+    char *e=trim(expr);
+    strip_statement_tail(e);
+    *known_false=0;
+    if(strcmp(e,"0")==0 || strcmp(e,"false")==0 || strcmp(e,"FALSE")==0){ *known_false=1; return 1; }
+    char copy[512]; snprintf(copy,sizeof(copy),"%s",e);
+    char *lhs=NULL,*rhs=NULL; const char *code=NULL;
+    if(find_condition_op(copy,&lhs,&rhs,&code)){
+        char *lt=trim(lhs), *rt=trim(rhs);
+        int lhs_num=(*lt=='-' || isdigit((unsigned char)*lt));
+        int rhs_num=(*rt=='-' || isdigit((unsigned char)*rt));
+        if(lhs_num && rhs_num){
+            long a=strtol(lt,NULL,0), b=strtol(rt,NULL,0);
+            int ok=0;
+            if(strcmp(code,"00D6")==0) ok=(a==b);
+            else if(strcmp(code,"00D7")==0) ok=(a!=b);
+            else if(strcmp(code,"00D8")==0) ok=(a>b);
+            else if(strcmp(code,"00D9")==0) ok=(a<b);
+            else if(strcmp(code,"00DA")==0) ok=(a>=b);
+            else if(strcmp(code,"00DB")==0) ok=(a<=b);
+            *known_false=!ok; return 1;
+        }
+    }
+    return 0;
+}
+static void metadata_read_name_after(char *t, const char *kw, char *out_name, size_t out_size){
+    char *p=trim(t+strlen(kw));
+    if(starts_keyword_ci(p,"class")) p=trim(p+5);
+    if(*p=='(') p++;
+    if(*p=='"'){
+        p++;
+        char *r=strchr(p,'"');
+        size_t n=r?(size_t)(r-p):strlen(p);
+        if(n>=out_size) n=out_size-1;
+        memcpy(out_name,p,n); out_name[n]=0;
+        return;
+    }
+    size_t i=0;
+    while(p[i] && !isspace((unsigned char)p[i]) && p[i]!='{' && p[i]!=';' && p[i]!='(' && p[i]!='<' && p[i]!=':' && p[i]!=','){
+        if(i+1<out_size) out_name[i]=p[i];
+        i++;
+    }
+    if(out_size) out_name[i<out_size?i:out_size-1]=0;
+}
+static void metadata_read_parent_class(char *t, char *out_parent, size_t out_size){
+    out_parent[0]=0;
+    char *colon=strchr(t,':');
+    if(!colon) return;
+    colon=trim(colon+1);
+    size_t i=0;
+    while(colon[i] && !isspace((unsigned char)colon[i]) && colon[i]!='{' && colon[i]!=',' && colon[i]!='<' && colon[i]!='('){
+        if(i+1<out_size) out_parent[i]=colon[i];
+        i++;
+    }
+    if(out_size) out_parent[i<out_size?i:out_size-1]=0;
+}
+static void emit_meta_call(char **out, size_t *olen, size_t *ocap, const char *fn, const char *arg){
+    char outl[512];
+    if(arg) snprintf(outl,sizeof(outl),"0B31: \"%s\" \"%s\"",fn,arg);
+    else snprintf(outl,sizeof(outl),"0B31: \"%s\"",fn);
+    append_line(out,olen,ocap,outl);
+}
+static int metadata_emit_declaration(char *t, ModernBlock *blocks, int *block_top, char **out, size_t *olen, size_t *ocap, char *err, size_t err_size){
+    char name[128]={0};
+    const char *fn=NULL;
+    int scoped=0;
+    if(starts_keyword_ci(t,"MODULE") || starts_keyword_ci(t,"module")){ metadata_read_name_after(t, starts_keyword_ci(t,"MODULE")?"MODULE":"module", name, sizeof(name)); fn="meta.enter_module"; }
+    else if(starts_keyword_ci(t,"NAMESPACE") || starts_keyword_ci(t,"namespace")){ metadata_read_name_after(t, starts_keyword_ci(t,"NAMESPACE")?"NAMESPACE":"namespace", name, sizeof(name)); fn="meta.enter_namespace"; scoped=1; }
+    else if(starts_keyword_ci(t,"CLASS") || starts_keyword_ci(t,"class")){ metadata_read_name_after(t, starts_keyword_ci(t,"CLASS")?"CLASS":"class", name, sizeof(name)); fn="meta.enter_class"; scoped=1; }
+    else if(starts_keyword_ci(t,"INTERFACE") || starts_keyword_ci(t,"interface")){ metadata_read_name_after(t, starts_keyword_ci(t,"INTERFACE")?"INTERFACE":"interface", name, sizeof(name)); fn="meta.enter_class"; scoped=1; }
+    else if(starts_keyword_ci(t,"submodule") || starts_keyword_ci(t,"SUBMODULE")){ metadata_read_name_after(t, starts_keyword_ci(t,"SUBMODULE")?"SUBMODULE":"submodule", name, sizeof(name)); fn="meta.register_submodule"; }
+    else if(starts_keyword_ci(t,"TMPL") || starts_keyword_ci(t,"template")){ metadata_read_name_after(t, starts_keyword_ci(t,"TMPL")?"TMPL":"template", name, sizeof(name)); fn="meta.register_template"; scoped=strchr(t,'{')!=NULL; }
+    else if(starts_keyword_ci(t,"MACRO") || starts_keyword_ci(t,"macro")){ metadata_read_name_after(t, starts_keyword_ci(t,"MACRO")?"MACRO":"macro", name, sizeof(name)); fn="meta.register_macro"; scoped=strchr(t,'{')!=NULL; }
+    else if(starts_keyword_ci(t,"fn") || starts_keyword_ci(t,"function") || starts_keyword_ci(t,"method")){ metadata_read_name_after(t, starts_keyword_ci(t,"function")?"function":(starts_keyword_ci(t,"method")?"method":"fn"), name, sizeof(name)); fn="meta.register_method"; }
+    else if(starts_keyword_ci(t,"enum") || starts_keyword_ci(t,"concept")){ scoped=strchr(t,'{')!=NULL; }
+    if(fn && name[0]) emit_meta_call(out,olen,ocap,fn,name);
+    if((starts_keyword_ci(t,"CLASS") || starts_keyword_ci(t,"class")) && name[0]){
+        char parent[128]; metadata_read_parent_class(t,parent,sizeof(parent));
+        if(parent[0]){ char outl[512]; snprintf(outl,sizeof(outl),"0B31: \"meta.register_derived\" \"%s\" \"%s\"",parent,name); append_line(out,olen,ocap,outl); }
+    }
+    if(strchr(t,'{')){
+        if(*block_top>=64){ snprintf(err,err_size,"modern block nesting too deep"); return 0; }
+        ModernBlock b={MODERN_BLOCK_METADATA,{0},{0},{0},{0},{0}};
+        if(scoped && fn && (strcmp(fn,"meta.enter_namespace")==0 || strcmp(fn,"meta.enter_class")==0)) snprintf(b.post,sizeof(b.post),"0B31: \"meta.leave_scope\"");
+        blocks[(*block_top)++]=b;
+    }
+    return 1;
+}
 static char *strip_modern_attributes(char *s){
     char *t=trim(s);
     while(starts(t,"[[")){
@@ -197,6 +286,7 @@ static int modern_emit_typed_declaration(char *type, char *decl, char **out, siz
     while(*name=='*' || *name=='&') name++;
     name=trim(name);
     if(!*name){ snprintf(err,err_size,"modern typed declaration expects a variable name"); return 0; }
+    if(strcmp(name,"_")==0) return 1;
     char typebuf[256]; snprintf(typebuf,sizeof(typebuf),"%s",trim(type)); normalize_type_name(typebuf);
     char outl[512]; snprintf(outl,sizeof(outl),"0B4B: %s \"%s\"",name,typebuf); append_line(out,olen,ocap,outl);
     if(value && *value) modern_emit_value_assignment(name,value,out,olen,ocap);
@@ -214,7 +304,7 @@ static int modern_emit_auto_declaration(char *decl, char **out, size_t *olen, si
         size_t argc=0; char **names=split_args(items,&argc);
         for(size_t i=0;i<argc;i++){
             char *name=trim(names[i]);
-            if(*name){
+            if(*name && strcmp(name,"_")!=0){
                 char outl[256];
                 snprintf(outl,sizeof(outl),"0B4B: %s \"any\"",name); append_line(out,olen,ocap,outl);
                 if(source[0]=='$' || strchr(source,'@')) snprintf(outl,sizeof(outl),"0B12: %s %s %zu",name,source,i);
@@ -231,6 +321,7 @@ static int modern_emit_auto_declaration(char *decl, char **out, size_t *olen, si
     *eq=0;
     char *name=trim(p); char *value=trim(eq+1);
     if(!*name){ snprintf(err,err_size,"modern AUTO declaration expects a variable name"); return 0; }
+    if(strcmp(name,"_")==0) return 1;
     if(starts(value,"[]") || starts(value,"[&]") || starts(value,"[=]")){
         char outl[512]; snprintf(outl,sizeof(outl),"0B4B: %s \"any\"",name); append_line(out,olen,ocap,outl); snprintf(outl,sizeof(outl),"0004: %s 0",name); append_line(out,olen,ocap,outl);
         if(strchr(value,'{')){ if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=(ModernBlock){MODERN_BLOCK_SKIP,{0},{0},{0},{0},{0}}; }
@@ -346,6 +437,7 @@ static int modern_emit_close(ModernBlock *blocks, int *block_top, char **out, si
     else if(b.kind==MODERN_BLOCK_ELSEIF) { char line[160]; snprintf(line,sizeof(line),":%s",b.false_label); append_line(out,olen,ocap,line); snprintf(line,sizeof(line),":%s",b.end_label); append_line(out,olen,ocap,line); }
     else if(b.kind==MODERN_BLOCK_WHILE) { char line[160]; snprintf(line,sizeof(line),"000A: @%s",b.start_label); append_line(out,olen,ocap,line); snprintf(line,sizeof(line),":%s",b.end_label); append_line(out,olen,ocap,line); }
     else if(b.kind==MODERN_BLOCK_FOR) { char line[640]; snprintf(line,sizeof(line),":%s",b.continue_label); append_line(out,olen,ocap,line); if(b.post[0]) append_line(out,olen,ocap,b.post); snprintf(line,sizeof(line),"000A: @%s",b.start_label); append_line(out,olen,ocap,line); snprintf(line,sizeof(line),":%s",b.end_label); append_line(out,olen,ocap,line); }
+    else if(b.kind==MODERN_BLOCK_METADATA && b.post[0]) append_line(out,olen,ocap,b.post);
     (void)err; (void)err_size;
     return 1;
 }
@@ -375,6 +467,52 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
         if(strchr(t,'{')){ if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=(ModernBlock){MODERN_BLOCK_SKIP,{0},{0},{0},{0},{0}}; }
         return 1;
     }
+    if(*block_top>0 && blocks[*block_top-1].kind==MODERN_BLOCK_METADATA){
+        if(strcmp(t,"}")==0) return modern_emit_close(blocks,block_top,out,olen,ocap,err,err_size);
+        return metadata_emit_declaration(t,blocks,block_top,out,olen,ocap,err,err_size);
+    }
+    if(starts_keyword_ci(t,"CLASS") || starts_keyword_ci(t,"class") || starts_keyword_ci(t,"INTERFACE") || starts_keyword_ci(t,"interface") ||
+       starts_keyword_ci(t,"NAMESPACE") || starts_keyword_ci(t,"namespace") || starts_keyword_ci(t,"MODULE") || starts_keyword_ci(t,"module") ||
+       starts_keyword_ci(t,"TMPL") || starts_keyword_ci(t,"template") || starts_keyword_ci(t,"concept") || starts_keyword_ci(t,"enum")){
+        return metadata_emit_declaration(t,blocks,block_top,out,olen,ocap,err,err_size);
+    }
+    if(starts_keyword(t,"useClass")){
+        char *lp=strchr(t,'('), *rp=strrchr(t,')'), *arrow=strstr(t,"->");
+        if(!lp || !rp || rp<=lp || !arrow){ snprintf(err,err_size,"useClass expects useClass(Name) -> out_object"); return 0; }
+        char cls[256]; snprintf(cls,sizeof(cls),"%.*s",(int)(rp-lp-1),lp+1); char *outvar=trim(arrow+2); strip_statement_tail(outvar);
+        if(!*outvar){ snprintf(err,err_size,"useClass expects an output object variable"); return 0; }
+        char outl[512]; snprintf(outl,sizeof(outl),"0B31: \"meta.use_class\" \"%s\"",trim(cls)); append_line(out,olen,ocap,outl);
+        snprintf(outl,sizeof(outl),"0004: %s $RETVAL",outvar); append_line(out,olen,ocap,outl);
+        return 1;
+    }
+    if(starts_keyword(t,"define_static_string") || starts_keyword(t,"define_static_object") || starts_keyword(t,"define_static_array")){
+        char *lp=strchr(t,'('), *rp=strrchr(t,')'); if(!lp || !rp || rp<=lp){ snprintf(err,err_size,"define_static_* expects arguments"); return 0; }
+        char argsbuf[768]; snprintf(argsbuf,sizeof(argsbuf),"%.*s",(int)(rp-lp-1),lp+1); size_t argc=0; char **args=split_args(argsbuf,&argc);
+        if(argc<2){ for(size_t i=0;i<argc;i++) free(args[i]); free(args); snprintf(err,err_size,"define_static_* expects name and value"); return 0; }
+        char *name=trim(args[0]); char *value=trim(args[1]); char outl[768];
+        if(starts_keyword(t,"define_static_string")) snprintf(outl,sizeof(outl),"0B4B: %s \"str\"",name);
+        else snprintf(outl,sizeof(outl),"0B4B: %s \"ref\"",name);
+        append_line(out,olen,ocap,outl);
+        if(starts_keyword(t,"define_static_array")){
+            snprintf(outl,sizeof(outl),"0B14: %zu %s",argc-1,name); append_line(out,olen,ocap,outl);
+            for(size_t i=1;i<argc;i++){ snprintf(outl,sizeof(outl),"0B13: %s %zu %s",name,i-1,trim(args[i])); append_line(out,olen,ocap,outl); }
+        } else modern_emit_value_assignment(name,value,out,olen,ocap);
+        for(size_t i=0;i<argc;i++) free(args[i]);
+        free(args);
+        return 1;
+    }
+    if(starts_keyword(t,"static_assert") || starts_keyword(t,"contract_assert") || starts_keyword(t,"pre") || starts_keyword(t,"post")){
+        char *lp=strchr(t,'('), *rp=strrchr(t,')'); if(!lp || !rp || rp<=lp){ snprintf(err,err_size,"assert/contract expects condition arguments"); return 0; }
+        char argsbuf[768]; snprintf(argsbuf,sizeof(argsbuf),"%.*s",(int)(rp-lp-1),lp+1); size_t argc=0; char **args=split_args(argsbuf,&argc);
+        if(argc<1){ free(args); snprintf(err,err_size,"assert/contract missing condition"); return 0; }
+        int known_false=0; is_simple_false_condition(args[0],&known_false);
+        if(known_false){ const char *msg=argc>1?trim(args[1]):"static assertion failed"; snprintf(err,err_size,"%s",msg); for(size_t i=0;i<argc;i++) free(args[i]); free(args); return 0; }
+        for(size_t i=0;i<argc;i++) free(args[i]);
+        free(args);
+        return 1;
+    }
+    if(strstr(t,"= delete(")) return 1;
+    if(starts_keyword(t,"template") && strstr(t," for ")){ if(strchr(t,'{')){ if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=(ModernBlock){MODERN_BLOCK_METADATA,{0},{0},{0},{0},{0}}; } return 1; }
     size_t tn=strlen(t);
     if(tn>2 && strcmp(t+tn-2,"++")==0){
         t[tn-2]=0;
@@ -529,7 +667,7 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
         if(*block_top>=64){snprintf(err,err_size,"modern block nesting too deep");return 0;} blocks[(*block_top)++]=b; return 1;
     }
     if(starts_keyword(t,"let") || starts_keyword(t,"var") || starts_keyword(t,"const")){
-        char *p=t+(starts_keyword(t,"let")?3:(starts_keyword(t,"var")?3:5)); p=trim(p); char *eq=strchr(p,'='); if(!eq){snprintf(err,err_size,"modern declaration expects =");return 0;} *eq=0; char *decl=trim(p); char *val=trim(eq+1); char *colon=strchr(decl,':'); if(colon){ *colon=0; char *name=trim(decl); char *type=trim(colon+1); char outl[512]; snprintf(outl,sizeof(outl),"0B4B: %s \"%s\"",name,type); append_line(out,olen,ocap,outl); modern_emit_value_assignment(name,val,out,olen,ocap); } else { modern_emit_value_assignment(decl,val,out,olen,ocap); } return 1;
+        char *p=t+(starts_keyword(t,"let")?3:(starts_keyword(t,"var")?3:5)); p=trim(p); char *eq=strchr(p,'='); if(!eq){snprintf(err,err_size,"modern declaration expects =");return 0;} *eq=0; char *decl=trim(p); char *val=trim(eq+1); char *colon=strchr(decl,':'); if(colon){ *colon=0; char *name=trim(decl); char *type=trim(colon+1); if(strcmp(name,"_")==0) return 1; char outl[512]; snprintf(outl,sizeof(outl),"0B4B: %s \"%s\"",name,type); append_line(out,olen,ocap,outl); modern_emit_value_assignment(name,val,out,olen,ocap); } else { if(strcmp(trim(decl),"_")==0) return 1; modern_emit_value_assignment(decl,val,out,olen,ocap); } return 1;
     }
     if(starts_keyword_ci(t,"AUTO")){
         char *p=t+4;
@@ -590,11 +728,46 @@ static int modern_translate_line(char *lineout, ModernBlock *blocks, int *block_
     if(starts_keyword_ci(t,"co_return")){
         char *p=trim(t+9); if(*p) modern_emit_value_assignment("$RETVAL",p,out,olen,ocap); append_line(out,olen,ocap,"0D02:"); return 1;
     }
+    {
+        static const struct { const char *surface; const char *native; } meta_calls[] = {
+            {"getClassesInModule", "meta.get_classes_in_module"},
+            {"getNamespaceInClass", "meta.get_namespace_in_class"},
+            {"getTemplateInClass", "meta.get_template_in_class"},
+            {"getMacroInClass", "meta.get_macro_in_class"},
+            {"getSubmodulesInClass", "meta.get_submodules_in_class"},
+            {"getAllClassesInSubmodule", "meta.get_all_classes_in_submodule"},
+            {"getClassName", "meta.get_class_name_obj"},
+            {"getClassModule", "meta.get_class_module_obj"},
+            {"getClassMethods", "meta.get_class_methods"},
+            {"getDerivedClasses", "meta.get_derived_classes"},
+            {"nameTemplate", "meta.name_template"},
+            {"makeArrayClass", "meta.make_array_class"},
+            {"rttiVariable", "meta.rtti_variable"},
+            {"classPointer", "meta.class_pointer"},
+            {"classStringJoin", "meta.class_string_join"},
+            {"useSub", "meta.use_sub"},
+            {"patternMatch", "meta.pattern_match_i32"},
+            {"trivialRelocate", "meta.trivial_relocate"}
+        };
+        for(size_t mi=0; mi<sizeof(meta_calls)/sizeof(meta_calls[0]); mi++){
+            if(starts_keyword(t,meta_calls[mi].surface)){
+                char *lp=strchr(t,'('), *rp=strrchr(t,')'), *arrow=strstr(t,"->");
+                if(!lp || !rp || rp<=lp || !arrow){ snprintf(err,err_size,"%s expects call(args) -> out",meta_calls[mi].surface); return 0; }
+                char args[768]; snprintf(args,sizeof(args),"%.*s",(int)(rp-lp-1),lp+1);
+                char prefix[256]; snprintf(prefix,sizeof(prefix),"0B31: \"%s\"",meta_calls[mi].native);
+                append_modern_call_args(out,olen,ocap,prefix,args);
+                char *outvar=trim(arrow+2); strip_statement_tail(outvar);
+                if(*outvar){ char outl[256]; snprintf(outl,sizeof(outl),"0004: %s $RETVAL",outvar); append_line(out,olen,ocap,outl); }
+                return 1;
+            }
+        }
+    }
     if(starts_keyword(t,"spawn")){
         char *p=trim(t+5); char *arrow=strstr(p,"->"); if(!arrow){snprintf(err,err_size,"modern spawn expects -> out_task");return 0;} *arrow=0; char target[96]; snprintf(target,sizeof(target),"%s",trim(p)); sanitize_label_name(target); char *outvar=trim(arrow+2); char outl[256]; snprintf(outl,sizeof(outl),"0B49: @%s %s",target,outvar); append_line(out,olen,ocap,outl); return 1;
     }
     if(starts_keyword_ci(t,"return")){
         char *p=trim(t+6);
+        if(*p=='&' || starts_keyword(p,"ref")){ snprintf(err,err_size,"modern return forbids returning references to temporaries"); return 0; }
         if(*p) modern_emit_value_assignment("$RETVAL",p,out,olen,ocap);
         append_line(out,olen,ocap,"0D01:");
         return 1;
@@ -771,6 +944,37 @@ static int eval_expr_simple(const char *expr, Macro *macros){
     long v=strtol(s,NULL,0); free(t); return v!=0;
 }
 
+static char *escape_string_literal(const char *src, size_t n){
+    char *out=NULL; size_t len=0,cap=0; append(&out,&len,&cap,"\"");
+    for(size_t i=0;i<n;i++){
+        char tmp[8]; unsigned char c=(unsigned char)src[i];
+        if(c=='\\' || c=='\"'){ tmp[0]='\\'; tmp[1]=(char)c; tmp[2]=0; append(&out,&len,&cap,tmp); }
+        else if(c=='\n') append(&out,&len,&cap,"\\n");
+        else if(c=='\r') append(&out,&len,&cap,"\\r");
+        else if(c=='\t') append(&out,&len,&cap,"\\t");
+        else if(c<32 || c>=127){ snprintf(tmp,sizeof(tmp),"\\x%02X",c); append(&out,&len,&cap,tmp); }
+        else { tmp[0]=(char)c; tmp[1]=0; append(&out,&len,&cap,tmp); }
+    }
+    append(&out,&len,&cap,"\""); return out?out:xstrdup("\"\"");
+}
+static char *read_embed_literal(const char *base_dir, const char *name, int *ok){
+    char inc[1024]; resolve_include_path(inc,sizeof(inc),base_dir,name);
+    FILE *f=fopen(inc,"rb"); if(!f){ *ok=0; return xstrdup("0"); }
+    fseek(f,0,SEEK_END); long n=ftell(f); rewind(f); char *buf=(char*)malloc((size_t)n+1);
+    if(!buf){ fclose(f); *ok=0; return xstrdup("0"); }
+    size_t got=fread(buf,1,(size_t)n,f); fclose(f); char *lit=escape_string_literal(buf,got); free(buf); *ok=1; return lit;
+}
+static char *replace_embed_forms(const char *line, const char *base_dir){
+    char *out=NULL; size_t len=0,cap=0; const char *p=line;
+    while(*p){
+        if(starts(p,"__has_embed") || starts(p,"#embed")){
+            int is_has=starts(p,"__has_embed"); const char *q=p+(is_has?11:6); while(*q && isspace((unsigned char)*q)) q++; if(*q=='(') q++; while(*q && isspace((unsigned char)*q)) q++;
+            if(*q=='\"' || *q=='<'){ char end=(*q=='\"')?'\"':'>'; q++; const char *r=strchr(q,end); if(r){ char name[1024]; snprintf(name,sizeof(name),"%.*s",(int)(r-q),q); if(is_has){ char inc[1024]; resolve_include_path(inc,sizeof(inc),base_dir,name); append(&out,&len,&cap,file_exists(inc)?"1":"0"); } else { int ok=0; char *rep=read_embed_literal(base_dir,name,&ok); (void)ok; append(&out,&len,&cap,rep); free(rep); } p=r+1; while(*p && isspace((unsigned char)*p)) p++; if(*p==')') p++; continue; } }
+        }
+        char tmp[2]={*p++,0}; append(&out,&len,&cap,tmp);
+    }
+    return out?out:xstrdup(line);
+}
 static int strip_block_comments_inplace(char *buf){
     char *src=buf,*dst=buf; int in=0;
     while(*src){
@@ -958,7 +1162,7 @@ static int preprocess_text(const char *path, const char *text, Macro **macros, c
         else if(active && *t){
             char tmpDate[64],tmpTime[64]; time_t now=time(NULL); struct tm *tmv=localtime(&now); strftime(tmpDate,sizeof(tmpDate),"%b %d %Y",tmv); strftime(tmpTime,sizeof(tmpTime),"%H:%M:%S",tmv);
             char lnBuf[32]; snprintf(lnBuf,sizeof(lnBuf),"%d",logical_line_no);
-            char *lineout=xstrdup(t);
+            char *lineout=replace_embed_forms(t,dir);
             char *n=replace_all(lineout,"__FILE__",logical_file); free(lineout); lineout=n;
             n=replace_all(lineout,"__LINE__",lnBuf); free(lineout); lineout=n;
             n=replace_all(lineout,"__DATE__",tmpDate); free(lineout); lineout=n;

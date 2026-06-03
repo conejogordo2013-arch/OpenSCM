@@ -20,3 +20,134 @@ macro module_export(name, value) {
     0004: $SCML_MODULE_LAST_EXPORT name
     0004: $SCML_MODULE_LAST_VALUE value
 }
+
+macro reflect_value(value, out_meta) {
+    0B14: 3 out_meta
+    0B13: out_meta 0 "value"
+    0B13: out_meta 1 value
+    0B13: out_meta 2 "any"
+}
+
+macro reflect_function(name, arity, out_meta) {
+    0B14: 3 out_meta
+    0B13: out_meta 0 "function"
+    0B13: out_meta 1 name
+    0B13: out_meta 2 arity
+}
+
+macro reflect_parameter(function_meta, index, out_parameter) {
+    0B14: 3 out_parameter
+    0B13: out_parameter 0 "parameter"
+    0B13: out_parameter 1 function_meta
+    0B13: out_parameter 2 index
+}
+
+macro reflect_annotation(target_meta, key, value, out_annotation) {
+    0B14: 4 out_annotation
+    0B13: out_annotation 0 "annotation"
+    0B13: out_annotation 1 target_meta
+    0B13: out_annotation 2 key
+    0B13: out_annotation 3 value
+}
+
+macro reflect_error(message, out_error) {
+    0B14: 2 out_error
+    0B13: out_error 0 0
+    0B13: out_error 1 message
+}
+
+macro template_type(name, out_template) {
+    0B14: 2 out_template
+    0B13: out_template 0 "template"
+    0B13: out_template 1 name
+}
+
+macro namespace_open(name, out_namespace) {
+    0B14: 2 out_namespace
+    0B13: out_namespace 0 "namespace"
+    0B13: out_namespace 1 name
+}
+
+macro pack_index(pack_ref, index, out_value) {
+    0B12: out_value pack_ref index
+}
+
+macro trivial_relocate(src_ref, out_dst) {
+    0004: out_dst src_ref
+}
+
+
+macro get_classes_in_module(module_name, out_classes) {
+    0B31: "meta.get_classes_in_module" module_name
+    0004: out_classes $RETVAL
+}
+
+macro get_namespace_in_class(class_name, out_namespace) {
+    0B31: "meta.get_namespace_in_class" class_name
+    0004: out_namespace $RETVAL
+}
+
+macro get_template_in_class(class_name, out_templates) {
+    0B31: "meta.get_template_in_class" class_name
+    0004: out_templates $RETVAL
+}
+
+macro get_macro_in_class(class_name, out_macros) {
+    0B31: "meta.get_macro_in_class" class_name
+    0004: out_macros $RETVAL
+}
+
+macro get_submodules_in_class(class_name, out_submodules) {
+    0B31: "meta.get_submodules_in_class" class_name
+    0004: out_submodules $RETVAL
+}
+
+macro use_sub(class_name, submodule_name, out_submodule) {
+    0B31: "meta.use_sub" class_name submodule_name
+    0004: out_submodule $RETVAL
+}
+
+macro pattern_match_i32(value, pattern, out_ok) {
+    0B31: "meta.pattern_match_i32" value pattern
+    0004: out_ok $RETVAL
+}
+
+macro trivial_relocate_safe(src_value, out_dst) {
+    0B31: "meta.trivial_relocate" src_value
+    0004: out_dst $RETVAL
+}
+
+macro get_all_classes_in_submodule(submodule_name, out_classes) {
+    0B31: "meta.get_all_classes_in_submodule" submodule_name
+    0004: out_classes $RETVAL
+}
+
+macro get_class_methods(class_or_object, out_methods) {
+    0B31: "meta.get_class_methods" class_or_object
+    0004: out_methods $RETVAL
+}
+
+macro get_derived_classes(class_name, out_classes) {
+    0B31: "meta.get_derived_classes" class_name
+    0004: out_classes $RETVAL
+}
+
+macro name_template(namespace_name, template_name, class_name, out_name) {
+    0B31: "meta.name_template" namespace_name template_name class_name
+    0004: out_name $RETVAL
+}
+
+macro make_array_class(element_class, rank, out_class) {
+    0B31: "meta.make_array_class" element_class rank
+    0004: out_class $RETVAL
+}
+
+macro rtti_variable(variable_name, type_name, class_name, out_rtti) {
+    0B31: "meta.rtti_variable" variable_name type_name class_name
+    0004: out_rtti $RETVAL
+}
+
+macro class_string_join(lhs, sep, rhs, out_text) {
+    0B31: "meta.class_string_join" lhs sep rhs
+    0004: out_text $RETVAL
+}

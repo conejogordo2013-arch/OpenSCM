@@ -53,3 +53,36 @@ macro any_value(out_value, any_ref) {
 macro reflect_type(value, out_type) {
     0004: out_type "any"
 }
+
+macro class_new(class_name, out_object) {
+    0B31: "meta.use_class" class_name
+    0004: out_object $RETVAL
+}
+
+macro class_set_module(object_ref, module_name) {
+    0B31: "meta.class_obj_set_module" object_ref module_name
+}
+
+macro class_set_submodule(object_ref, submodule_name) {
+    0B31: "meta.class_obj_set_submodule" object_ref submodule_name
+}
+
+macro class_get_name(out_name, object_ref) {
+    0B31: "meta.get_class_name_obj" object_ref
+    0004: out_name $RETVAL
+}
+
+macro class_get_module(out_module, object_ref) {
+    0B31: "meta.get_class_module_obj" object_ref
+    0004: out_module $RETVAL
+}
+
+macro class_get_submodule(out_submodule, object_ref) {
+    0B31: "meta.get_class_submodule_obj" object_ref
+    0004: out_submodule $RETVAL
+}
+
+macro class_pointer(object_ref, out_pointer) {
+    0B31: "meta.class_pointer" object_ref
+    0004: out_pointer $RETVAL
+}

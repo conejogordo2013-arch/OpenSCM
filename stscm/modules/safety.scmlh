@@ -1,0 +1,72 @@
+; safety.scmlh - hardening, contracts, hazard pointers and RCU helpers.
+#pragma once
+
+macro contract_pre(condition, out_ok) {
+    0004: out_ok condition
+}
+
+macro contract_post(condition, out_ok) {
+    0004: out_ok condition
+}
+
+macro contract_assert_runtime(condition, out_ok) {
+    0004: out_ok condition
+}
+
+macro debug_breakpoint(tag) {
+    03E6: tag
+}
+
+macro hazard_pointer_acquire(ptr_ref, out_hazard) {
+    0B14: 2 out_hazard
+    0B13: out_hazard 0 "hazard.pointer"
+    0B13: out_hazard 1 ptr_ref
+}
+
+macro hazard_pointer_release(hazard_ref, out_ok) {
+    0B13: hazard_ref 1 0
+    0004: out_ok 1
+}
+
+macro rcu_read_lock(out_token) {
+    0B14: 2 out_token
+    0B13: out_token 0 "rcu.read"
+    0B13: out_token 1 1
+}
+
+macro rcu_read_unlock(token_ref, out_ok) {
+    0B13: token_ref 1 0
+    0004: out_ok 1
+}
+
+macro rcu_synchronize(out_ok) {
+    0004: out_ok 1
+}
+
+macro memory_bounds_check(index, length, out_ok) {
+    00D9: index length @SCML_MEM_BOUNDS_TRUE
+    0004: out_ok 0
+    000A: @SCML_MEM_BOUNDS_END
+:SCML_MEM_BOUNDS_TRUE
+    0004: out_ok 1
+:SCML_MEM_BOUNDS_END
+}
+
+macro safe_array_read(out_value, array_ref, index, length, fallback_value) {
+    memory_bounds_check(index, length, 79@)
+    00D6: 79@ 1 @SCML_SAFE_ARRAY_READ_OK
+    0004: out_value fallback_value
+    000A: @SCML_SAFE_ARRAY_READ_END
+:SCML_SAFE_ARRAY_READ_OK
+    0B12: out_value array_ref index
+:SCML_SAFE_ARRAY_READ_END
+}
+
+macro safe_array_write(array_ref, index, length, value, out_ok) {
+    memory_bounds_check(index, length, out_ok)
+    00D6: out_ok 1 @SCML_SAFE_ARRAY_WRITE_OK
+    000A: @SCML_SAFE_ARRAY_WRITE_END
+:SCML_SAFE_ARRAY_WRITE_OK
+    0B13: array_ref index value
+:SCML_SAFE_ARRAY_WRITE_END
+}
