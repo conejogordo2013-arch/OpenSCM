@@ -41,10 +41,9 @@ int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, 
             i++;
             continue;
         }
-        if (line[i] == '@') {
+        if (line[i] == '@' && (isalnum((unsigned char)line[i + 1]) || line[i + 1] == '_')) {
             size_t s = ++i;
             while (isalnum((unsigned char)line[i]) || line[i] == '_') i++;
-            if (s == i) { snprintf(err, err_size, "line %d: empty label reference", line_no); return 0; }
             if (!add_token(out, SCML_TOK_LABEL_REF, line + s, i - s, line_no, col)) return 0;
             continue;
         }
@@ -131,9 +130,9 @@ int scml_lex_line(const char *line, int line_no, ScmlTokenList *out, char *err, 
             i++;
             continue;
         }
-        if (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '$') {
+        if (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '$' || line[i] == '@' || line[i] == '`') {
             size_t s = i;
-            while (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '.' || line[i] == '$' || line[i] == '@') i++;
+            while (isalnum((unsigned char)line[i]) || line[i] == '_' || line[i] == '-' || line[i] == '#' || line[i] == '.' || line[i] == '$' || line[i] == '@' || line[i] == '`') i++;
             ScmlTokenType type = SCML_TOK_IDENTIFIER;
             int all_hex = 1;
             int decimal_number = 1;

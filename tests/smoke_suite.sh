@@ -942,4 +942,39 @@ if bin/scml run "$bad_jump_bin" >/tmp/scml_bad_jump.out 2>&1; then
   exit 1
 fi
 
+scml26_bin=".scml/scml26_advanced_surface.scmlbin"
+echo "[smoke] run SCML26 advanced surface regression"
+bin/scml compile "examples/scml26_advanced_surface.scml" "$scml26_bin"
+scml26_output="$(bin/scml run "$scml26_bin")"
+expected_scml26_output=$'SCML26
+101
+202
+40
+1
+Player
+Player
+Player
+101
+tick
+Admin
+Demo
+InventoryTemplate
+RenderMacro
+Stats
+Player::Stats
+Demo::InventoryTemplate<Player>
+Player[2]
+var:inventory:Player[]:Player[2]
+ptr:Player#1
+Player::InventoryTemplate
+1
+40'
+if [[ "$scml26_output" != "$expected_scml26_output" ]]; then
+  echo "[smoke] unexpected SCML26 advanced surface output" >&2
+  printf 'expected: %q
+actual:   %q
+' "$expected_scml26_output" "$scml26_output" >&2
+  exit 1
+fi
+
 echo "[smoke] all selected samples compiled and runtime regressions passed"

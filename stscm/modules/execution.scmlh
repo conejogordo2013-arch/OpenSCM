@@ -1,0 +1,65 @@
+; execution.scmlh - SCML::EXECUTION sender/receiver, tasks and schedulers.
+; Naming: lower_snake_case; macro layer over stable async/thread opcodes.
+#pragma once
+
+macro execution_sender_value(value, out_sender) {
+    0B14: 3 out_sender
+    0B13: out_sender 0 "sender.value"
+    0B13: out_sender 1 value
+    0B13: out_sender 2 1
+}
+
+macro execution_receiver(out_receiver, label_ref) {
+    0B14: 2 out_receiver
+    0B13: out_receiver 0 "receiver.label"
+    0B13: out_receiver 1 label_ref
+}
+
+macro execution_connect(sender_ref, receiver_ref, out_operation) {
+    0B14: 3 out_operation
+    0B13: out_operation 0 "operation.connect"
+    0B13: out_operation 1 sender_ref
+    0B13: out_operation 2 receiver_ref
+}
+
+macro execution_start(operation_ref, out_task) {
+    0B12: 88@ operation_ref 2
+    0B49: 88@ out_task
+}
+
+macro execution_spawn(label_ref, out_task) {
+    0B49: label_ref out_task
+}
+
+macro execution_task_done(task_ref, out_done) {
+    0B4A: task_ref out_done
+}
+
+macro execution_parallel_scheduler(worker_count, out_scheduler) {
+    0B14: 3 out_scheduler
+    0B13: out_scheduler 0 "parallel.scheduler"
+    0B13: out_scheduler 1 worker_count
+    0B13: out_scheduler 2 0
+}
+
+macro execution_context_create(name, out_context) {
+    0B14: 3 out_context
+    0B13: out_context 0 "async.context"
+    0B13: out_context 1 name
+    0B13: out_context 2 1
+}
+
+macro execution_when_all2(task_a, task_b, out_done) {
+    0B4A: task_a 76@
+    0B4A: task_b 77@
+    0B27: out_done 76@ 77@
+}
+
+macro execution_schedule_after(ms, label_ref, out_task) {
+    0B31: "thread.create" ms
+    0B49: label_ref out_task
+}
+
+macro execution_yield_now() {
+    0B31: "thread.yield" 0
+}

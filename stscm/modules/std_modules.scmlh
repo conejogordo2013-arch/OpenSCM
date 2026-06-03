@@ -12,3 +12,7 @@ use "ranges.scmlh";
 use "data.scmlh";
 use "ffi.scmlh";
 use "vm.scmlh";
+use "execution.scmlh";
+use "safety.scmlh";
+use "linalg.scmlh";
+use "text_encoding.scmlh";
