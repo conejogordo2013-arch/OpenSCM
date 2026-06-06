@@ -728,3 +728,618 @@ Antes de considerar un script listo:
 - **Native call**: función externa registrada por host/runtime.
 - **Event handler**: label asociado a un evento.
 
+
+---
+
+# Parte II: Curso intensivo para crear sistemas complejos sin aprender sintaxis innecesaria
+
+Esta segunda parte convierte lo anterior en un **curso completo orientado a producción personal**. No intenta cubrir cada macro existente ni cada superficie experimental del lenguaje; cubre lo que necesitas para poder construir scripts grandes, depurables y extensibles en SCML.
+
+## 25. Mapa de dominio mínimo: lo que sí debes dominar
+
+Para hacer cosas complejas en SCML necesitas dominar solo siete bloques:
+
+1. **Estado**: variables `$GLOBAL`, temporales `0@`, arrays y handles de heap.
+2. **Flujo**: labels, `JUMP`, condicionales y loops explícitos.
+3. **Subrutinas**: `CALL`/`RETURN` con contrato de entradas y salidas.
+4. **Eventos**: `BIND_EVENT`/`TRIGGER_EVENT` para desacoplar sistemas.
+5. **Memoria segura**: `ARRAY_NEW`, `ARRAY_GET`, `ARRAY_SET`, `HEAP_FREE`.
+6. **Interoperabilidad**: `CALL_NATIVE`, runtime modules y FFI cuando haga falta.
+7. **Disciplina de proyecto**: headers `.scmlh`, nombres consistentes, trazas y pruebas.
+
+Todo lo demás es opcional hasta que un proyecto real lo pida.
+
+## 26. Setup de aprendizaje recomendado
+
+Crea una carpeta de práctica fuera de `examples/` o usa un subdirectorio temporal:
+
+```text
+curso_scml/
+  00_hello.scml
+  01_estado.scml
+  02_funciones.scml
+  03_memoria.scml
+  04_eventos.scml
+  05_app_completa.scml
+  lib.scmlh
+```
+
+Comandos de ciclo corto:
+
+```bash
+make
+bin/scml compile curso_scml/00_hello.scml curso_scml/00_hello.scmlbin
+bin/scml run curso_scml/00_hello.scmlbin
+bin/scml run curso_scml/00_hello.scmlbin --trace
+```
+
+La regla de aprendizaje es simple: cada archivo debe compilar, ejecutarse y tener una versión trazada antes de pasar al siguiente.
+
+## 27. Lección 1: leer SCML como bytecode humano
+
+SCML se lee mejor como una lista de instrucciones con destino explícito:
+
+```scml
+:MAIN
+0004: $A 10       ; $A = 10
+0004: $B 32       ; $B = 32
+0006: $SUM $A $B  ; $SUM = $A + $B
+03E5: $SUM        ; print($SUM)
+0001:             ; halt
+```
+
+Traducción mental:
+
+```text
+inicio -> asignar -> asignar -> calcular -> imprimir -> terminar
+```
+
+Ejercicio obligatorio:
+
+1. Cambia `$A` y `$B`.
+2. Sustituye `0006` por `0007`, `0008` y `0009`.
+3. Ejecuta con `--trace` y comprueba el orden exacto de instrucciones.
+
+## 28. Lección 2: variables con intención
+
+Usa nombres distintos según el alcance:
+
+| Patrón | Uso recomendado |
+|---|---|
+| `$APP_STATE` | Estado global de la aplicación. |
+| `$PLAYER_HP` | Estado compartido de dominio. |
+| `$RET` / `$STATUS` | Salida convencional de funciones. |
+| `0@`, `1@`, `2@` | Temporales cortos dentro de una rutina. |
+| `$ARG0`, `$ARG1` | Entradas convencionales de una función o método macro. |
+
+Regla práctica: si una variable vive más de una función, usa `$NOMBRE_CLARO`; si solo existe para tres instrucciones, usa temporal.
+
+Ejemplo:
+
+```scml
+#include "../std.scmlh"
+
+:MAIN
+SET($PLAYER_HP, 100)
+SET($DAMAGE, 35)
+CALL(@APPLY_DAMAGE)
+PRINT($PLAYER_HP)
+HALT()
+
+:APPLY_DAMAGE
+SUB($PLAYER_HP, $PLAYER_HP, $DAMAGE)
+RETURN()
+```
+
+## 29. Lección 3: condicionales sin perderte
+
+En SCML una condición normalmente significa: **si se cumple, salta**.
+
+```scml
+#include "../std.scmlh"
+
+:MAIN
+SET($HP, 20)
+IF_GT($HP, 0, @ALIVE)
+PRINT("derrotado")
+HALT()
+
+:ALIVE
+PRINT("vivo")
+HALT()
+```
+
+Patrón recomendado para `if/else`:
+
+```scml
+IF_GT($HP, 0, @IF_ALIVE)
+JUMP(@IF_DEAD)
+
+:IF_ALIVE
+PRINT("vivo")
+JUMP(@IF_END)
+
+:IF_DEAD
+PRINT("derrotado")
+
+:IF_END
+HALT()
+```
+
+No intentes escribir lógica compacta al principio. En SCML complejo gana la claridad del grafo de labels.
+
+## 30. Lección 4: loops robustos
+
+Loop base:
+
+```scml
+#include "../std.scmlh"
+
+:MAIN
+SET($I, 0)
+SET($MAX, 5)
+
+:LOOP_CHECK
+IF_LT($I, $MAX, @LOOP_BODY)
+JUMP(@LOOP_END)
+
+:LOOP_BODY
+PRINT($I)
+ADD($I, $I, 1)
+JUMP(@LOOP_CHECK)
+
+:LOOP_END
+HALT()
+```
+
+Checklist de todo loop:
+
+- Variable inicializada antes del check.
+- Label de check separado del body.
+- Actualización garantizada.
+- Label de salida explícito.
+- Nada de `HALT` dentro del body salvo que sea intencional.
+
+## 31. Lección 5: funciones con contrato
+
+SCML no te obliga a declarar firmas. Tú debes documentarlas con comentarios:
+
+```scml
+; APPLY_DAMAGE
+; in:  $PLAYER_HP, $DAMAGE
+; out: $PLAYER_HP, $STATUS
+; err: $STATUS = SCML_ERR_INVALID_ARG si el daño es negativo
+:APPLY_DAMAGE
+IF_LT($DAMAGE, 0, @APPLY_DAMAGE_BAD)
+SUB($PLAYER_HP, $PLAYER_HP, $DAMAGE)
+SET($STATUS, SCML_OK)
+RETURN()
+
+:APPLY_DAMAGE_BAD
+SET($STATUS, SCML_ERR_INVALID_ARG)
+RETURN()
+```
+
+Reglas:
+
+1. Una función debe hacer una cosa.
+2. Una función debe terminar con `RETURN()`.
+3. Toda salida debe estar documentada.
+4. Si una función puede fallar, escribe `$STATUS`.
+5. No uses `HALT()` dentro de funciones reutilizables.
+
+## 32. Lección 6: arrays como estructuras
+
+Un array puede representar una entidad si reservas slots fijos:
+
+```text
+PLAYER[0] = hp
+PLAYER[1] = armor
+PLAYER[2] = score
+PLAYER[3] = state
+```
+
+Ejemplo:
+
+```scml
+#include "../std.scmlh"
+
+#define PLAYER_HP 0
+#define PLAYER_ARMOR 1
+#define PLAYER_SCORE 2
+#define PLAYER_STATE 3
+
+:MAIN
+ARRAY_NEW(4, $PLAYER)
+ARRAY_SET($PLAYER, PLAYER_HP, 100)
+ARRAY_SET($PLAYER, PLAYER_ARMOR, 50)
+ARRAY_SET($PLAYER, PLAYER_SCORE, 0)
+ARRAY_SET($PLAYER, PLAYER_STATE, 1)
+
+ARRAY_GET($HP, $PLAYER, PLAYER_HP)
+PRINT($HP)
+
+HEAP_FREE($PLAYER)
+HALT()
+```
+
+Este patrón es suficiente para construir inventarios, enemigos, misiones, jobs, diálogos y estados de UI.
+
+## 33. Lección 7: vectores tipados cuando el tamaño crece
+
+Cuando necesites colecciones dinámicas, usa los helpers de la std:
+
+```scml
+#include "../std.scmlh"
+
+:MAIN
+VECTOR_T_NEW(T_I32, 8, $ITEMS)
+VECTOR_T_PUSH(T_I32, $ITEMS, 101, @TYPE_FAIL)
+VECTOR_T_PUSH(T_I32, $ITEMS, 205, @TYPE_FAIL)
+VECTOR_T_GET(T_I32, $ITEM, $ITEMS, 1, @TYPE_FAIL)
+PRINT($ITEM)
+HEAP_FREE($ITEMS)
+HALT()
+
+:TYPE_FAIL
+PRINT("tipo incorrecto")
+HEAP_FREE($ITEMS)
+HALT()
+```
+
+Úsalo cuando el dato sea homogéneo. Si mezclas tipos arbitrarios, vuelve a arrays con slots documentados.
+
+## 34. Lección 8: eventos para sistemas desacoplados
+
+Arquitectura mínima de juego/app:
+
+```text
+MAIN
+  carga estado
+  registra handlers
+  dispara ON_START
+  termina o entra en loop
+
+ON_START
+  prepara subsistemas
+
+ON_TICK
+  actualiza gameplay/simulación
+
+ON_RENDER
+  dibuja consola/UI
+```
+
+Ejemplo:
+
+```scml
+#include "../std.scmlh"
+
+:MAIN
+SET($TICK, 0)
+BIND_EVENT("ON_START", @ON_START)
+BIND_EVENT("ON_TICK", @ON_TICK)
+TRIGGER_EVENT("ON_START")
+TRIGGER_EVENT("ON_TICK")
+HALT()
+
+:ON_START
+PRINT("boot ok")
+END_THREAD()
+
+:ON_TICK
+ADD($TICK, $TICK, 1)
+PRINT($TICK)
+END_THREAD()
+```
+
+Regla: los handlers deben ser pequeños. Si un handler crece, mueve lógica a funciones con `CALL`.
+
+## 35. Lección 9: errores explícitos
+
+No ocultes fallos. Usa códigos:
+
+```scml
+#include "../std.scmlh"
+
+:MAIN
+SET($DEN, 0)
+CALL(@SAFE_DIVIDE)
+IF_EQ($STATUS, SCML_OK, @OK)
+PRINT("error dividiendo")
+HALT()
+
+:OK
+PRINT($RET)
+HALT()
+
+; in:  $NUM, $DEN
+; out: $RET, $STATUS
+:SAFE_DIVIDE
+SET($NUM, 10)
+IF_EQ($DEN, 0, @DIV_ZERO)
+DIV($RET, $NUM, $DEN)
+SET($STATUS, SCML_OK)
+RETURN()
+
+:DIV_ZERO
+SET($RET, 0)
+SET($STATUS, SCML_ERR_INVALID_ARG)
+RETURN()
+```
+
+En programas complejos, cada operación peligrosa debe tener un camino de error: división, índice de array, native call, lectura de archivo, estado inválido.
+
+## 36. Lección 10: arquitectura por headers
+
+Cuando un script crece, divide por dominio:
+
+```text
+src/
+  main.scml
+  app_constants.scmlh
+  app_state.scmlh
+  inventory.scmlh
+  missions.scmlh
+  render.scmlh
+```
+
+Qué poner en cada header:
+
+- `app_constants.scmlh`: `#define`, IDs, tamaños, estados.
+- `app_state.scmlh`: macros para crear/liberar estado principal.
+- `inventory.scmlh`: slots y funciones de inventario.
+- `missions.scmlh`: eventos y estado de misiones.
+- `render.scmlh`: helpers de salida, colores, pantalla.
+
+No metas todo en `std.scmlh`; crea una std de tu proyecto.
+
+## 37. Patrón profesional: máquina de estados
+
+Las máquinas de estado son la forma más limpia de construir apps complejas en SCML:
+
+```scml
+#include "../std.scmlh"
+
+#define STATE_BOOT 0
+#define STATE_MENU 1
+#define STATE_RUNNING 2
+#define STATE_EXIT 3
+
+:MAIN
+SET($STATE, STATE_BOOT)
+
+:APP_LOOP
+IF_EQ($STATE, STATE_BOOT, @STATE_BOOT_HANDLER)
+IF_EQ($STATE, STATE_MENU, @STATE_MENU_HANDLER)
+IF_EQ($STATE, STATE_RUNNING, @STATE_RUNNING_HANDLER)
+IF_EQ($STATE, STATE_EXIT, @STATE_EXIT_HANDLER)
+PRINT("estado desconocido")
+HALT()
+
+:STATE_BOOT_HANDLER
+PRINT("boot")
+SET($STATE, STATE_MENU)
+JUMP(@APP_LOOP)
+
+:STATE_MENU_HANDLER
+PRINT("menu")
+SET($STATE, STATE_RUNNING)
+JUMP(@APP_LOOP)
+
+:STATE_RUNNING_HANDLER
+PRINT("running")
+SET($STATE, STATE_EXIT)
+JUMP(@APP_LOOP)
+
+:STATE_EXIT_HANDLER
+PRINT("exit")
+HALT()
+```
+
+Este patrón escala mejor que una cadena desordenada de saltos.
+
+## 38. Patrón profesional: entidad con slots
+
+Define cada entidad como array + constantes:
+
+```scml
+#define ENEMY_HP 0
+#define ENEMY_X 1
+#define ENEMY_Y 2
+#define ENEMY_STATE 3
+#define ENEMY_SIZE 4
+
+:ENEMY_CREATE
+ARRAY_NEW(ENEMY_SIZE, $RET)
+ARRAY_SET($RET, ENEMY_HP, 100)
+ARRAY_SET($RET, ENEMY_X, 0)
+ARRAY_SET($RET, ENEMY_Y, 0)
+ARRAY_SET($RET, ENEMY_STATE, 1)
+RETURN()
+```
+
+Luego crea funciones pequeñas:
+
+```scml
+:ENEMY_DAMAGE
+ARRAY_GET(0@, $ENEMY, ENEMY_HP)
+SUB(0@, 0@, $DAMAGE)
+ARRAY_SET($ENEMY, ENEMY_HP, 0@)
+RETURN()
+```
+
+Nunca uses índices mágicos en el código final. Usa constantes.
+
+## 39. Patrón profesional: comandos internos
+
+Para apps de consola o herramientas, modela acciones como comandos numéricos:
+
+```scml
+#define CMD_NONE 0
+#define CMD_ADD_ITEM 1
+#define CMD_REMOVE_ITEM 2
+#define CMD_SAVE 3
+#define CMD_EXIT 4
+```
+
+Despacho:
+
+```scml
+:DISPATCH_COMMAND
+IF_EQ($CMD, CMD_ADD_ITEM, @CMD_ADD_ITEM_HANDLER)
+IF_EQ($CMD, CMD_REMOVE_ITEM, @CMD_REMOVE_ITEM_HANDLER)
+IF_EQ($CMD, CMD_SAVE, @CMD_SAVE_HANDLER)
+IF_EQ($CMD, CMD_EXIT, @CMD_EXIT_HANDLER)
+SET($STATUS, SCML_ERR_UNSUPPORTED)
+RETURN()
+```
+
+Así puedes conectar input real después, sin reescribir la lógica central.
+
+## 40. Capstone: mini motor de misiones
+
+Objetivo: construir un sistema pequeño pero complejo con estado, eventos, funciones, arrays y errores.
+
+### 40.1 Requisitos
+
+- Estados: boot, running, completed, failed.
+- Player con hp y score.
+- Misión con objetivo de score.
+- Evento `ON_START` para inicializar.
+- Evento `ON_TICK` para simular progreso.
+- Función `MISSION_CHECK_STATUS` para completar o fallar.
+- Liberación de memoria antes de salir.
+
+### 40.2 Código base
+
+```scml
+#include "../std.scmlh"
+
+#define STATE_BOOT 0
+#define STATE_RUNNING 1
+#define STATE_COMPLETED 2
+#define STATE_FAILED 3
+
+#define PLAYER_HP 0
+#define PLAYER_SCORE 1
+#define PLAYER_SIZE 2
+
+#define MISSION_TARGET_SCORE 0
+#define MISSION_TICKS 1
+#define MISSION_SIZE 2
+
+:MAIN
+SET($APP_STATE, STATE_BOOT)
+BIND_EVENT("ON_START", @ON_START)
+BIND_EVENT("ON_TICK", @ON_TICK)
+TRIGGER_EVENT("ON_START")
+
+:MAIN_LOOP
+IF_EQ($APP_STATE, STATE_RUNNING, @MAIN_TICK)
+JUMP(@MAIN_END)
+
+:MAIN_TICK
+TRIGGER_EVENT("ON_TICK")
+JUMP(@MAIN_LOOP)
+
+:MAIN_END
+IF_EQ($APP_STATE, STATE_COMPLETED, @PRINT_COMPLETED)
+IF_EQ($APP_STATE, STATE_FAILED, @PRINT_FAILED)
+JUMP(@CLEANUP)
+
+:PRINT_COMPLETED
+PRINT("mision completada")
+JUMP(@CLEANUP)
+
+:PRINT_FAILED
+PRINT("mision fallida")
+JUMP(@CLEANUP)
+
+:CLEANUP
+HEAP_FREE($PLAYER)
+HEAP_FREE($MISSION)
+HALT()
+
+:ON_START
+ARRAY_NEW(PLAYER_SIZE, $PLAYER)
+ARRAY_SET($PLAYER, PLAYER_HP, 100)
+ARRAY_SET($PLAYER, PLAYER_SCORE, 0)
+
+ARRAY_NEW(MISSION_SIZE, $MISSION)
+ARRAY_SET($MISSION, MISSION_TARGET_SCORE, 3)
+ARRAY_SET($MISSION, MISSION_TICKS, 0)
+
+SET($APP_STATE, STATE_RUNNING)
+END_THREAD()
+
+:ON_TICK
+ARRAY_GET(0@, $MISSION, MISSION_TICKS)
+ADD(0@, 0@, 1)
+ARRAY_SET($MISSION, MISSION_TICKS, 0@)
+
+ARRAY_GET(1@, $PLAYER, PLAYER_SCORE)
+ADD(1@, 1@, 1)
+ARRAY_SET($PLAYER, PLAYER_SCORE, 1@)
+
+CALL(@MISSION_CHECK_STATUS)
+END_THREAD()
+
+:MISSION_CHECK_STATUS
+ARRAY_GET(2@, $PLAYER, PLAYER_HP)
+IF_LE(2@, 0, @MISSION_FAIL)
+
+ARRAY_GET(3@, $PLAYER, PLAYER_SCORE)
+ARRAY_GET(4@, $MISSION, MISSION_TARGET_SCORE)
+IF_GE(3@, 4@, @MISSION_COMPLETE)
+RETURN()
+
+:MISSION_COMPLETE
+SET($APP_STATE, STATE_COMPLETED)
+RETURN()
+
+:MISSION_FAIL
+SET($APP_STATE, STATE_FAILED)
+RETURN()
+```
+
+### 40.3 Mejoras que debes implementar
+
+1. Añade daño al player cada dos ticks.
+2. Añade una segunda condición de fallo por máximo de ticks.
+3. Extrae `PLAYER_CREATE`, `MISSION_CREATE`, `PLAYER_ADD_SCORE` y `MISSION_TICK`.
+4. Añade `--trace` y verifica que el loop termina.
+5. Crea un header `mission_system.scmlh` con constantes y macros.
+
+Si puedes completar esto, ya tienes la base para crear sistemas bastante complejos.
+
+## 41. Checklist para proyectos grandes
+
+Antes de crecer un proyecto, valida esto:
+
+- Existe un `:MAIN` pequeño.
+- Hay una máquina de estados clara.
+- Los eventos no contienen lógica pesada.
+- Las funciones tienen comentarios `in/out/err`.
+- Los arrays tienen constantes de slots.
+- No hay índices mágicos.
+- Cada `ARRAY_NEW`/`HEAP_ALLOC` tiene ruta de `HEAP_FREE`.
+- Cada error recuperable escribe `$STATUS`.
+- Los labels tienen prefijos por módulo: `PLAYER_`, `MISSION_`, `UI_`.
+- Puedes ejecutar el script con `--trace` sin perderte.
+
+## 42. Qué estudiar después, solo si lo necesitas
+
+- Para interoperabilidad profunda: `docs/SCML_FFI_RUNTIME_GUIDE_ES.md`.
+- Para módulos estándar: `docs/SCML_STD_MODULES_ES.md`.
+- Para superficie avanzada tipo C++17/C++20: `docs/SCML_CPP17_SUPERSET_ES.md` y `docs/SCML_CPP20_DOMINATION_PACK_ES.md`.
+- Para features SCML26: `docs/SCML26_ADVANCED_SURFACE_ES.md`.
+- Para integración GTA: `GTA Integration/README.md`.
+
+Ruta final recomendada:
+
+```text
+base opcode -> macros std -> arrays/heap -> funciones -> eventos -> máquina de estados -> native/FFI -> proyecto propio
+```
+
+No memorices todo. Aprende el núcleo, usa headers para esconder repetición y vuelve a la documentación avanzada solo cuando un problema real lo exija.

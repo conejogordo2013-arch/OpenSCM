@@ -5,7 +5,7 @@ SCML (Scripting Control Markup Language) is a compact, SCM-looking embedded scri
 
 ## Curso completo en español
 
-Se añadió una guía didáctica completa para aprender SCML desde cero hasta uso avanzado, incluyendo sintaxis, opcodes, macros, memoria, eventos, async, terminal rendering, integración nativa y una valoración práctica del lenguaje:
+Se añadió una guía didáctica completa para aprender SCML desde cero hasta uso avanzado. Incluye una ruta intensiva centrada en lo estrictamente necesario para construir sistemas complejos: sintaxis base, opcodes, macros, memoria segura, eventos, arquitectura por headers, máquinas de estado, depuración, async, terminal rendering, integración nativa y FFI:
 
 - [`docs/SCML_COMPLETE_COURSE_ES.md`](docs/SCML_COMPLETE_COURSE_ES.md)
 - [`docs/SCML_FFI_RUNTIME_GUIDE_ES.md`](docs/SCML_FFI_RUNTIME_GUIDE_ES.md)
